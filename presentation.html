@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Разговор о следующем шаге</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=JetBrains+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f4efe6;
+    --paper-deep: #ebe3d3;
+    --ink: #1a1814;
+    --ink-soft: #3d3833;
+    --ink-mute: #7a7268;
+    --rule: #c9bfae;
+    --indigo: #2b3a5b;
+    --indigo-soft: #4a5a7d;
+    --terracotta: #a04a32;
+    --terracotta-soft: #c97a5f;
+    --moss: #4a5f3a;
+    --gold: #8a6d2c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    min-height: 100vh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    font-size: 18px;
+    line-height: 1.55;
+    overflow-x: hidden;
+  }
+
+  body {
+    background-image:
+      radial-gradient(circle at 20% 30%, rgba(160, 74, 50, 0.025) 0%, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(43, 58, 91, 0.03) 0%, transparent 50%),
+      url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.09 0 0 0 0 0.07 0 0 0 0.05 0'/></filter><rect width='200' height='200' filter='url(%23n)' opacity='0.4'/></svg>");
+  }
+
+  .deck {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 20px 120px;
+  }
+
+  .slide {
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    box-shadow:
+      0 1px 2px rgba(26, 24, 20, 0.04),
+      0 8px 24px rgba(26, 24, 20, 0.06);
+    margin-bottom: 60px;
+    padding: 64px 72px;
+    position: relative;
+    min-height: 580px;
+    display: flex;
+    flex-direction: column;
+    page-break-after: always;
+  }
+
+  .slide::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px;
+    height: 100%;
+    background: linear-gradient(180deg, var(--indigo) 0%, var(--terracotta) 100%);
+    opacity: 0.5;
+  }
+
+  .slide-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-mute);
+    margin-bottom: 28px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .slide-meta .num { font-weight: 500; }
+
+  h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 500;
+    font-size: 56px;
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin-bottom: 24px;
+  }
+
+  h1 .accent { font-style: italic; color: var(--terracotta); font-weight: 400; }
+
+  h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 500;
+    font-size: 36px;
+    line-height: 1.15;
+    color: var(--ink);
+    margin-bottom: 18px;
+    letter-spacing: -0.005em;
+  }
+
+  h2 .em { font-style: italic; color: var(--indigo); }
+
+  h3 {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    font-weight: 600;
+    color: var(--ink-mute);
+    margin-bottom: 12px;
+  }
+
+  p {
+    font-size: 19px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin-bottom: 14px;
+    max-width: 70ch;
+  }
+  p.lead { font-size: 22px; color: var(--ink); margin-bottom: 24px; }
+  p.lead em { color: var(--terracotta); font-style: italic; }
+
+  .pullquote {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 28px;
+    line-height: 1.4;
+    color: var(--ink);
+    border-left: 3px solid var(--terracotta);
+    padding: 8px 0 8px 24px;
+    margin: 24px 0;
+    max-width: 60ch;
+  }
+
+  .pullquote cite {
+    display: block;
+    font-style: normal;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-mute);
+    margin-top: 14px;
+    font-weight: 500;
+  }
+
+  ul { list-style: none; padding: 0; }
+  ul.serif li {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    padding: 8px 0 8px 28px;
+    position: relative;
+    border-bottom: 1px solid rgba(201, 191, 174, 0.4);
+  }
+  ul.serif li:last-child { border-bottom: none; }
+  ul.serif li::before {
+    content: "—";
+    position: absolute;
+    left: 0; top: 8px;
+    color: var(--terracotta);
+    font-weight: 500;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 36px;
+    margin-top: 16px;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+    margin-top: 16px;
+  }
+
+  .stat {
+    border-top: 1px solid var(--rule);
+    padding-top: 12px;
+  }
+  .stat .label {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-mute);
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+  .stat .value {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 42px;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+  .stat .value.small { font-size: 32px; }
+  .stat .value em { font-style: italic; color: var(--indigo); }
+  .stat .note {
+    font-size: 14px;
+    color: var(--ink-mute);
+    margin-top: 8px;
+    font-family: 'Inter Tight', sans-serif;
+  }
+
+  .card {
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid var(--rule);
+    padding: 22px 24px;
+    border-radius: 2px;
+  }
+  .card h3 { color: var(--indigo); margin-bottom: 10px; }
+  .card p { font-size: 17px; margin-bottom: 0; }
+
+  .card.warn { background: rgba(160, 74, 50, 0.06); border-color: rgba(160, 74, 50, 0.3); }
+  .card.warn h3 { color: var(--terracotta); }
+
+  .card.good { background: rgba(74, 95, 58, 0.07); border-color: rgba(74, 95, 58, 0.3); }
+  .card.good h3 { color: var(--moss); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+    font-family: 'Inter Tight', sans-serif;
+  }
+  th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--ink-mute);
+    font-weight: 600;
+    padding: 12px 14px 12px 0;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  td {
+    font-size: 16px;
+    color: var(--ink-soft);
+    padding: 14px 14px 14px 0;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+  }
+  td.label { color: var(--ink); font-weight: 500; }
+  td .small { font-size: 13px; color: var(--ink-mute); display: block; margin-top: 4px; }
+
+  .tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 3px 8px;
+    border-radius: 2px;
+    background: var(--paper-deep);
+    color: var(--ink-soft);
+    margin-right: 6px;
+  }
+  .tag.red { background: rgba(160, 74, 50, 0.15); color: var(--terracotta); }
+  .tag.blue { background: rgba(43, 58, 91, 0.12); color: var(--indigo); }
+  .tag.green { background: rgba(74, 95, 58, 0.15); color: var(--moss); }
+
+  .timeline {
+    position: relative;
+    margin: 28px 0 8px;
+    padding-left: 0;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute;
+    left: 8px; top: 12px; bottom: 12px;
+    width: 1px;
+    background: var(--rule);
+  }
+  .tl-item { position: relative; padding: 14px 0 14px 36px; }
+  .tl-item::before {
+    content: "";
+    position: absolute;
+    left: 4px; top: 22px;
+    width: 9px; height: 9px;
+    background: var(--paper);
+    border: 1.5px solid var(--indigo);
+    border-radius: 50%;
+  }
+  .tl-item.danger::before { border-color: var(--terracotta); }
+  .tl-item.good::before { border-color: var(--moss); background: var(--moss); }
+  .tl-item h4 {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .tl-item p { margin: 0; font-size: 18px; }
+
+  .nav-hint {
+    position: fixed;
+    bottom: 20px; right: 20px;
+    background: var(--ink);
+    color: var(--paper);
+    padding: 10px 16px;
+    border-radius: 2px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .footer-note {
+    margin-top: auto;
+    padding-top: 24px;
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 12px;
+    color: var(--ink-mute);
+    font-style: italic;
+    border-top: 1px solid var(--rule);
+  }
+
+  /* Слайд 1 — обложка */
+  .cover {
+    padding: 90px 80px;
+    min-height: 640px;
+    background:
+      radial-gradient(circle at 70% 30%, rgba(160, 74, 50, 0.08) 0%, transparent 60%),
+      var(--paper);
+  }
+  .cover .marker {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--terracotta);
+    margin-bottom: 24px;
+  }
+  .cover h1 { font-size: 76px; line-height: 1.02; margin-bottom: 32px; max-width: 14ch; }
+  .cover .subtitle {
+    font-size: 26px;
+    color: var(--ink-soft);
+    font-style: italic;
+    margin-bottom: 64px;
+    max-width: 36ch;
+  }
+  .cover .author {
+    font-family: 'Inter Tight', sans-serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-mute);
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    max-width: 400px;
+  }
+  .cover .author strong { color: var(--ink); font-weight: 600; }
+
+  /* Слайд "почему сейчас" */
+  .why-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 24px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .why-row:last-child { border-bottom: none; }
+  .why-row .when {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--terracotta);
+    padding-top: 4px;
+  }
+  .why-row .what { font-size: 19px; color: var(--ink-soft); }
+  .why-row .what strong { color: var(--ink); font-weight: 600; }
+
+  /* Финальный слайд */
+  .ask {
+    background: var(--ink);
+    color: var(--paper);
+  }
+  .ask::before { background: var(--terracotta); opacity: 1; width: 6px; }
+  .ask .slide-meta { color: rgba(244, 239, 230, 0.5); border-bottom-color: rgba(244, 239, 230, 0.2); }
+  .ask h1 { color: var(--paper); font-size: 60px; }
+  .ask h1 .accent { color: var(--terracotta-soft); }
+  .ask h3 { color: rgba(244, 239, 230, 0.5); }
+  .ask p { color: rgba(244, 239, 230, 0.85); }
+  .ask .pullquote { color: var(--paper); border-color: var(--terracotta-soft); }
+  .ask ul.serif li { color: rgba(244, 239, 230, 0.85); border-color: rgba(244, 239, 230, 0.15); }
+  .ask ul.serif li::before { color: var(--terracotta-soft); }
+
+  @media print {
+    body { background: white; }
+    .deck { padding: 0; max-width: none; }
+    .slide { box-shadow: none; border: none; margin: 0; min-height: auto; page-break-after: always; }
+    .nav-hint { display: none; }
+  }
+
+  @media (max-width: 768px) {
+    .slide { padding: 32px 24px; }
+    h1 { font-size: 38px; }
+    .cover h1 { font-size: 48px; }
+    h2 { font-size: 26px; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- SLIDE 1 — Cover -->
+  <section class="slide cover">
+    <div class="marker">Разговор · не питч</div>
+    <h1>О следующем шаге <span class="accent">— честно</span></h1>
+    <div class="subtitle">Что я предлагаю, чем рискую, и почему думаю что этот путь — про то, чтобы быть ближе к семье, а не дальше.</div>
+    <div class="author">
+      Для: <strong>тебя</strong><br/>
+      От: меня<br/>
+      Май 2026
+    </div>
+  </section>
+
+  <!-- SLIDE 2 — Где мы сейчас (честная диагностика) -->
+  <section class="slide">
+    <div class="slide-meta"><span>I · Где мы сейчас</span><span class="num">02 / 14</span></div>
+    <h2>Сначала — без презентации. <span class="em">Просто что есть.</span></h2>
+    <p class="lead">Я хочу начать не с идеи, а с того, что вижу сам.</p>
+    <ul class="serif" style="margin-top: 20px;">
+      <li>Я задействован одновременно в кофейне, работе, стройке и семье. Это уже на грани.</li>
+      <li>Стройка тянет деньги и нервы — и это конечно. Но конец ещё не близко.</li>
+      <li>Ты устала. Не от меня — от моего отсутствия в кадре, даже когда я физически рядом.</li>
+      <li>У нас есть подушка больше шести месяцев. Это даёт право подумать спокойно, а не дёргаться.</li>
+      <li>Если ничего не менять — через 2 года мы там же, где сейчас. С теми же ограничениями.</li>
+    </ul>
+    <p style="margin-top: 24px; font-style: italic; color: var(--ink-mute);">Эта презентация — попытка не «продать тебе идею», а вслух подумать вместе.</p>
+  </section>
+
+  <!-- SLIDE 3 — Почему я вообще об этом думаю -->
+  <section class="slide">
+    <div class="slide-meta"><span>II · Контекст</span><span class="num">03 / 14</span></div>
+    <h2>Почему вообще <span class="em">сейчас</span> думаю о новом проекте</h2>
+    <p>Не потому что мне «мало» или хочу больше денег ради денег. А потому что вижу окно, которое закроется через полтора-два года.</p>
+
+    <div class="grid-2" style="margin-top: 28px;">
+      <div class="card">
+        <h3>Что изменилось технически</h3>
+        <p>AI-инструменты сократили время разработки в 3–4 раза. То, что раньше требовало команды из 4 человек на год, сейчас делается соло за 3–4 месяца. Это окно, в котором мелкий разработчик впервые конкурентен с большими.</p>
+      </div>
+      <div class="card">
+        <h3>Что не изменилось</h3>
+        <p>Малый бизнес в HoReCa СНГ как страдал от отсутствия аналитики и управления, так и страдает. Никто из крупных не идёт сюда — для них это «маленький, бедный, скучный» сегмент.</p>
+      </div>
+    </div>
+
+    <p style="margin-top: 28px;">Совпадение этих двух вещей создаёт момент, когда один человек со знанием домена и кодом в руках может построить что-то ценное. Через 2 года так уже не получится — крупные игроки или закроют нишу своими AI-фичами, или ниша устаканится без нас.</p>
+  </section>
+
+  <!-- SLIDE 4 — Что именно предлагаю -->
+  <section class="slide">
+    <div class="slide-meta"><span>III · Идея</span><span class="num">04 / 14</span></div>
+    <h2>Что я хочу <span class="em">построить</span></h2>
+    <p class="lead">«AI-помощник управляющего» для маленьких кофеен, пекарен и кафе.</p>
+
+    <div class="grid-2" style="margin-top: 28px;">
+      <div>
+        <h3>Боль клиента</h3>
+        <ul class="serif">
+          <li>Владелец сам работает управляющим — и выгорает (как мы).</li>
+          <li>Цифры из кассы есть, но почему упало — непонятно.</li>
+          <li>Закупки «на глаз», перерасход 8–15%.</li>
+          <li>Нанять управляющего минимум $1000/мес — невыгодно.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Что делает наш сервис</h3>
+        <ul class="serif">
+          <li>Подключается к их кассе (Poster и т.п.).</li>
+          <li>Считает, что и когда заказать, с учётом погоды и событий в районе.</li>
+          <li>Раз в неделю присылает в Telegram отчёт: что важно, что аномально.</li>
+          <li>Цена: $80–150 в месяц. То есть в 7–10 раз дешевле человека.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 5 — Почему именно я -->
+  <section class="slide">
+    <div class="slide-meta"><span>IV · Founder-market fit</span><span class="num">05 / 14</span></div>
+    <h2>Почему я могу это сделать <span class="em">лучше других</span></h2>
+    <p>Это, может быть, единственный пункт, где у меня неоспоримое преимущество. И я хочу быть честным — это редкое сочетание.</p>
+
+    <div class="grid-2" style="margin-top: 24px;">
+      <div class="stat">
+        <div class="label">Опыт</div>
+        <div class="value small">Кофейня <em>от нуля</em></div>
+        <div class="note">От концепции до персонала и закупок. Я знаю эту боль изнутри.</div>
+      </div>
+      <div class="stat">
+        <div class="label">Технический стек</div>
+        <div class="value small">Frontend + физика-инженер</div>
+        <div class="note">Плюс знакомый Java BE и QA на парт-тайм.</div>
+      </div>
+      <div class="stat">
+        <div class="label">Customer Zero</div>
+        <div class="value small">Наша <em>собственная</em> кофейня</div>
+        <div class="note">Первый пользователь — мы сами. Это редчайшая ситуация для SaaS.</div>
+      </div>
+      <div class="stat">
+        <div class="label">Что не моё</div>
+        <div class="value small">Продажи, публичность</div>
+        <div class="note">Поэтому модель — не «холодные звонки», а продукт + сарафан.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 6 — Главный вопрос: как быть со временем -->
+  <section class="slide">
+    <div class="slide-meta"><span>V · Самый важный слайд</span><span class="num">06 / 14</span></div>
+    <h2>Где я возьму 20 часов в неделю <span class="em">— честно</span></h2>
+    <p>Если я просто «втисну» проект в существующее расписание — я выгорю за 6 месяцев и ничего не сделаю. Мы оба знаем, как это выглядит.</p>
+
+    <div class="pullquote">
+      Поэтому я не запускаю ничего, пока не сниму одну из трёх текущих нагрузок.
+      Это <em>условие, а не желание</em>.
+      <cite>Это для меня, не для тебя</cite>
+    </div>
+
+    <table style="margin-top: 28px;">
+      <tr>
+        <th style="width: 30%;">Что снять</th>
+        <th>Как</th>
+        <th style="width: 18%;">Высвобождает</th>
+      </tr>
+      <tr>
+        <td class="label">Стройка → прораб</td>
+        <td>Нанять с фиксированной сметой на финальный этап. Я остаюсь на контроле, не на исполнении.</td>
+        <td>10–15 ч/нед</td>
+      </tr>
+      <tr>
+        <td class="label">Кофейня → партнёр</td>
+        <td>Передать оперативку партнёру за долю прибыли. Сохраняем как актив и полигон.</td>
+        <td>10–12 ч/нед</td>
+      </tr>
+      <tr>
+        <td class="label">Работа → 4 дня</td>
+        <td>Перейти на 4-дневку (потеря ~20% дохода). Сохраняет стабильный кэш и страховку.</td>
+        <td>8 ч/нед</td>
+      </tr>
+    </table>
+
+    <p style="margin-top: 24px; color: var(--ink); font-weight: 500;">Какой вариант мы выбираем — обсуждаем вместе. Но какой-то — обязательно. Без этого я не делаю ни строчки кода.</p>
+  </section>
+
+  <!-- SLIDE 7 — Финансовая картина -->
+  <section class="slide">
+    <div class="slide-meta"><span>VI · Деньги</span><span class="num">07 / 14</span></div>
+    <h2>Что я прошу <span class="em">вложить</span></h2>
+
+    <div class="grid-3" style="margin-top: 16px;">
+      <div class="stat">
+        <div class="label">Стартовый бюджет</div>
+        <div class="value">$4 000</div>
+        <div class="note">Один раз. Не подписка, не «ещё немного потом».</div>
+      </div>
+      <div class="stat">
+        <div class="label">На что</div>
+        <div class="value small">Инфра · LLM · парт-тайм</div>
+        <div class="note">Хостинг, AI-API, оплата друга на BE-задачи.</div>
+      </div>
+      <div class="stat">
+        <div class="label">Подушка после</div>
+        <div class="value small">Останется <em>>5 мес</em></div>
+        <div class="note">Мы НЕ трогаем подушку безопасности.</div>
+      </div>
+    </div>
+
+    <h3 style="margin-top: 40px;">Что мы НЕ делаем</h3>
+    <ul class="serif">
+      <li>Не закладываем дом, не берём кредитов, не продаём кофейню.</li>
+      <li>Не уходим с работы в первый год. Зарплата = страховка.</li>
+      <li>Не масштабируемся раньше времени — никаких офисов, наёма команды.</li>
+    </ul>
+
+    <p style="margin-top: 24px; color: var(--ink-mute); font-style: italic;">Это эксперимент с ограниченным даунсайдом, не «всё на красное».</p>
+  </section>
+
+  <!-- SLIDE 8 — Реалистичные сценарии -->
+  <section class="slide">
+    <div class="slide-meta"><span>VII · Сценарии</span><span class="num">08 / 14</span></div>
+    <h2>Три варианта, как это <span class="em">может закончиться</span></h2>
+    <p>Я не показываю тебе «график до миллиона». Я показываю три реальных сценария — два из которых не победа.</p>
+
+    <div class="grid-3" style="margin-top: 24px;">
+      <div class="card warn">
+        <h3>Сценарий А · Провал</h3>
+        <p style="font-size: 16px; line-height: 1.55;">К 12-му месяцу &lt;$1000 MRR, низкий retention. Я честно говорю «не сработало», закрываю.<br/><br/><strong>Цена:</strong> $4000 + 12 мес × 20 ч/нед моего времени.<br/><strong>Что осталось:</strong> опыт, сильное портфолио в AI, ноль долгов.</p>
+      </div>
+      <div class="card">
+        <h3>Сценарий Б · Средний</h3>
+        <p style="font-size: 16px; line-height: 1.55;">К концу 24 мес — $5–10k MRR. Не «следующий Google», но <strong>стабильный второй источник дохода $60–120k/год</strong>, который можно вести 20 ч/нед годами.<br/><br/>Я не звезда, но семья финансово свободнее.</p>
+      </div>
+      <div class="card good">
+        <h3>Сценарий В · Хорошо</h3>
+        <p style="font-size: 16px; line-height: 1.55;">Через 4–5 лет — $30–80k MRR, продукт, который можно продать за 3–5x ARR. Это путь, который проходили десятки соло-фаундеров (Senja, Plausible, Bannerbear).<br/><br/>Не миф. Но и не гарантия.</p>
+      </div>
+    </div>
+
+    <p style="margin-top: 28px; font-style: italic;">Я честно думаю, что вероятности примерно: А — 50%, Б — 35%, В — 15%. Сценарий А мы можем себе позволить. Сценарий Б уже стоит затрат. Сценарий В — бонус.</p>
+  </section>
+
+  <!-- SLIDE 9 — Риски (главный слайд для придирчивого инвестора) -->
+  <section class="slide">
+    <div class="slide-meta"><span>VIII · Риски</span><span class="num">09 / 14</span></div>
+    <h2>Что может пойти <span class="em">не так</span> — честно</h2>
+
+    <table>
+      <tr>
+        <th style="width: 28%;">Риск</th>
+        <th style="width: 14%;">Серьёзность</th>
+        <th>Как защищаемся</th>
+      </tr>
+      <tr>
+        <td class="label">Я выгораю</td>
+        <td><span class="tag red">Высокая</span></td>
+        <td>Снимаем одну из трёх нагрузок ДО старта. Жёсткие 20 ч/нед. Право жены остановить проект, если она видит, что я ломаюсь.</td>
+      </tr>
+      <tr>
+        <td class="label">Малые кофейни закрываются → высокий отток клиентов</td>
+        <td><span class="tag red">Высокая</span></td>
+        <td>Целевая аудитория — мини-сети 2–5 точек (выживают лучше). Премиум-цена. Расширение в смежные ниши на 2-й год.</td>
+      </tr>
+      <tr>
+        <td class="label">POS-вендоры встроят AI-аналитику и убьют нас</td>
+        <td><span class="tag blue">Средняя</span></td>
+        <td>Углубление в локальный контекст (погода, события района) — это POS-вендор структурно не сделает. Окно 18–24 мес для построения рва.</td>
+      </tr>
+      <tr>
+        <td class="label">Никто не покупает</td>
+        <td><span class="tag blue">Средняя</span></td>
+        <td>Сначала 15 интервью, потом 3 бесплатных пилота, потом первая платная подписка. Жёсткий KILL-критерий на 12-м месяце.</td>
+      </tr>
+      <tr>
+        <td class="label">Бюджет $4000 кончится раньше</td>
+        <td><span class="tag green">Низкая</span></td>
+        <td>Подушка >6 мес расходов остаётся нетронутой. Это страховка, не план.</td>
+      </tr>
+      <tr>
+        <td class="label">Идея устарела, пока строим</td>
+        <td><span class="tag green">Низкая</span></td>
+        <td>14 недель до MVP — слишком короткий горизонт, чтобы рынок успел измениться радикально.</td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- SLIDE 10 — Самый важный для жены: что ТЫ получаешь -->
+  <section class="slide">
+    <div class="slide-meta"><span>IX · Что меняется для НАС</span><span class="num">10 / 14</span></div>
+    <h2>Зачем это <span class="em">тебе</span> и нашей семье</h2>
+    <p class="lead">Эта часть для меня важнее, чем все цифры выше.</p>
+
+    <div class="why-row">
+      <div class="when">Месяцы 1–6</div>
+      <div class="what"><strong>Я меньше езжу по поставщикам кофейни</strong> — потому что сам же это автоматизирую первой версией. Ты увидишь это в нашем расписании, не в отчёте.</div>
+    </div>
+    <div class="why-row">
+      <div class="when">Месяцы 6–12</div>
+      <div class="what"><strong>Кофейня требует меньше моего личного времени</strong> — система берёт на себя планирование закупок и аналитику. Это реальные 6–8 часов в неделю обратно тебе и детям.</div>
+    </div>
+    <div class="why-row">
+      <div class="when">Месяцы 12–24</div>
+      <div class="what"><strong>Появляется второй источник дохода</strong> — даже в среднем сценарии это даёт нам свободу выбора. Например, не зависеть от моей основной работы.</div>
+    </div>
+    <div class="why-row">
+      <div class="when">Через 3 года</div>
+      <div class="what"><strong>Если получится — я могу работать из дома, на своих условиях</strong>, не уезжая в офис. Если не получится — мы потеряли $4000 и год моих вечеров. Не дом и не отношения.</div>
+    </div>
+  </section>
+
+  <!-- SLIDE 11 — Где я могу обмануть тебя или себя -->
+  <section class="slide">
+    <div class="slide-meta"><span>X · Слепые пятна</span><span class="num">11 / 14</span></div>
+    <h2>Где я могу <span class="em">себя обманывать</span></h2>
+    <p>Раз я обещал честность, вот вещи, в которых я могу быть неправ. Они должны быть в этой презентации, потому что я не хочу узнать о них через год.</p>
+
+    <ul class="serif" style="margin-top: 20px;">
+      <li><strong>Я могу влюбиться в проект и не заметить, что он не работает.</strong> Поэтому KILL-критерий жёсткий и публичный: к 12-му месяцу либо есть платящие клиенты с устойчивым retention, либо мы закрываем.</li>
+      <li><strong>«20 часов в неделю» может незаметно превратиться в 35.</strong> Поэтому я предлагаю простую договорённость: ты имеешь право один раз в месяц спросить «сколько часов ты потратил?» — и я отвечаю честно.</li>
+      <li><strong>Я могу недооценить, сколько эмоций уйдёт на отказы клиентов.</strong> Сейчас я этого не чувствую. Через 4 месяца — увижу.</li>
+      <li><strong>Я могу неверно оценивать рынок.</strong> Кофеен в Беларуси конечно меньше, чем кажется по моим прогнозам. Если так — я бегу в смежные ниши (пекарни, мини-рестораны), а не упрямлюсь.</li>
+      <li><strong>Я физик-инженер — я люблю проектировать.</strong> Есть риск делать «красиво» вместо «продано». Лекарство — общаться с клиентами раньше, чем писать код.</li>
+    </ul>
+  </section>
+
+  <!-- SLIDE 12 — План на 14 недель -->
+  <section class="slide">
+    <div class="slide-meta"><span>XI · План</span><span class="num">12 / 14</span></div>
+    <h2>Что произойдёт в <span class="em">первые 14 недель</span></h2>
+    <p>Чтобы ты не спрашивала «ну как там твой стартап» — я сразу даю расписание чекпоинтов.</p>
+
+    <div class="timeline">
+      <div class="tl-item">
+        <h4>Недели 1–2 · Разговоры</h4>
+        <p>15 интервью с владельцами кофеен. Никакого кода. Цель — понять, есть ли вообще боль и за что они готовы платить.</p>
+      </div>
+      <div class="tl-item">
+        <h4>Недели 3–4 · Простая страница</h4>
+        <p>Лендинг с описанием. Сбор первых заинтересованных. Регистрация в Poster Dev Portal. По-прежнему минимум кода.</p>
+      </div>
+      <div class="tl-item">
+        <h4>Недели 5–10 · Первая версия</h4>
+        <p>Подключение к кассе, погодные данные, генерация первого еженедельного отчёта. Тестируем на собственной кофейне.</p>
+      </div>
+      <div class="tl-item good">
+        <h4>Недели 11–14 · 3 бесплатных пилота</h4>
+        <p>Запуск на 3 кофейнях знакомых. Я измеряю: экономят ли они часы? Реальный ROI или приятная игрушка?</p>
+      </div>
+      <div class="tl-item danger">
+        <h4>Месяц 4 · Первая точка решения</h4>
+        <p>Если 3 пилота не показали измеримой ценности — мы пересматриваем нишу или закрываем. Я обещаю не упрямиться.</p>
+      </div>
+      <div class="tl-item danger">
+        <h4>Месяц 12 · Главная точка решения</h4>
+        <p>&lt; $1000 MRR + &lt; 60% retention = закрываем. Это публичное обязательство.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SLIDE 13 — Что если не делать -->
+  <section class="slide">
+    <div class="slide-meta"><span>XII · Альтернатива</span><span class="num">13 / 14</span></div>
+    <h2>А что если <span class="em">не делать ничего?</span></h2>
+    <p class="lead">Это правильный вопрос инвестора. Я думал над ним долго.</p>
+
+    <div class="grid-2" style="margin-top: 24px;">
+      <div class="card">
+        <h3>Если не делаю</h3>
+        <p style="font-size: 17px; line-height: 1.55;">Стабильная работа, кофейня (со временем закрою или передам), доделаю стройку. Через 2 года — та же зарплата, тот же график, те же ограничения.<br/><br/><strong>Безопасно.</strong> Без сюрпризов. Но и без движения.</p>
+      </div>
+      <div class="card">
+        <h3>Если делаю</h3>
+        <p style="font-size: 17px; line-height: 1.55;">Год напряжения, $4000 риска, моё время вечерами. С шансом 50% — ничего. С шансом 35% — устойчивый второй доход. С шансом 15% — серьёзная свобода через 3 года.<br/><br/><strong>Рискованно</strong>, но с ограниченным даунсайдом.</p>
+      </div>
+    </div>
+
+    <p style="margin-top: 36px;">Я не уверен на 100%, что это правильный шаг. Я уверен только в одном: я не хочу через 5 лет смотреть на тебя и думать «вот тогда было окно, и я в него не пошёл, потому что было неудобно».</p>
+  </section>
+
+  <!-- SLIDE 14 — Просьба -->
+  <section class="slide ask">
+    <div class="slide-meta"><span>XIII · Что я прошу</span><span class="num">14 / 14</span></div>
+    <h1>Я прошу <span class="accent">не «да» или «нет»</span></h1>
+    <p class="lead" style="color: rgba(244, 239, 230, 0.95);">Я прошу <em>две недели</em>.</p>
+
+    <ul class="serif" style="margin-top: 28px;">
+      <li>Две недели, в которые я провожу 15 интервью с владельцами кофеен.</li>
+      <li>Никакого кода, никаких трат, никакого изменения нашего расписания.</li>
+      <li>Я возвращаюсь к тебе через две недели с тем, что услышал — и мы решаем вместе, идти дальше или нет.</li>
+      <li>Если на этом этапе становится ясно, что боли нет или она другая — я останавливаюсь без сожалений.</li>
+    </ul>
+
+    <div class="pullquote" style="margin-top: 40px;">
+      Это самое маленькое обязательство, с которым этот разговор имеет смысл. И это уважение к тебе — не просить большего, пока не доказано меньшее.
+    </div>
+
+    <p style="margin-top: 32px; font-style: italic; color: rgba(244, 239, 230, 0.7);">Спасибо, что дослушала до конца.</p>
+  </section>
+
+</div>
+
+<div class="nav-hint">↓ Прокрути или нажми Space</div>
+
+<script>
+  // Простая навигация пробелом
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowDown') {
+      e.preventDefault();
+      window.scrollBy({ top: window.innerHeight * 0.9, behavior: 'smooth' });
+    }
+    if (e.code === 'ArrowUp') {
+      e.preventDefault();
+      window.scrollBy({ top: -window.innerHeight * 0.9, behavior: 'smooth' });
+    }
+  });
+</script>
+
+</body>
+</html>
