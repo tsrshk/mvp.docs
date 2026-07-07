@@ -1,9 +1,9 @@
 ---
 doc: 05_BACKLOG
 title: LCOS — Бэклог (выравнивание, решения, проверки, отложенное)
-version: 1.0.0
+version: 1.1.0
 status: current
-updated: 2026-07-02
+updated: 2026-07-03
 verified_against_code: n/a
 owner: Ivan
 supersedes: []
@@ -92,6 +92,23 @@ ssot_for: [alignment-tasks, open-decisions, verifications, deferred-items]
   - Подтвердить: нельзя зарегистрировать OCR-имя вне enum `ai_provider`. Частично снимается при DEC-01=(A).
   - Связи: DEC-01, REQ R7.3.
 
+## Трассировка в Фазу 1 (`08_PHASE1_SPEC.md`)
+
+Какие тикеты адресуются фичами ТЗ Фазы 1 (тикеты остаются `open` до сдачи фичи; закрывает их агент при сдаче по правилу PR):
+
+| Тикет | Рекомендация | Фича | Примечание |
+|---|---|---|---|
+| ALIGN-01 | encrypt → RuntimeError | **F1.4** | fail-closed шифрование + startup-guard |
+| ALIGN-03 | переписать docstrings | **F0.3** REQ-4 | докстринг `write_invoice` заодно с правкой путей |
+| DEC-02 | (A) удалить колонку | **F1.3** | дроп `sku_embedding` |
+| DEC-05 | (B) FE не строит для backend | **F1.3** | точка правки `invoicesApi.ts:68,139` |
+| DEC-06 | закрыть/починить пути без токена | **F0.3** | пути team-scoped + резолв токена per-org |
+| DEC-07 | (B) `MAX_INVOICE_PAGES=1` | **F5.3** REQ-4 | потеря страниц в `shared/ocr/providers/backend.ts:43` |
+| VER-01 | merge-блокирующие тесты | **F1.5** | + pytest-маркер `non_negotiable` |
+| DEFER-04 | backend-idempotency | **F5.2** | заменяет браузерный `sentRegistry` |
+
+Вне Фазы 1 (по `06_STRATEGY.md` стоп-лист / отложено): DEC-01 (Gemini — claude-only, не сейчас), DEC-03 (`CredentialScope.subdivision`), DEC-04 (CSRF — прод-чеклист), DEC-08 (POS-токен — оставить), VER-02/03, DEFER-01/02/03/05/06.
+
 ## DEFER — осознанно отложено на текущей стадии
 
 - **[DEFER-01]** Rate-limiting на `/auth/login` (single-tenant local; → прод-чеклист).
@@ -104,4 +121,5 @@ ssot_for: [alignment-tasks, open-decisions, verifications, deferred-items]
 ---
 
 ## Журнал изменений
+- 2026-07-03 v1.1.0 — добавлена секция «Трассировка в Фазу 1»: сопоставление тикетов (ALIGN-01/03, DEC-02/05/06/07, VER-01, DEFER-04) с фичами `08_PHASE1_SPEC.md`.
 - 2026-07-02 v1.0.0 — создан из Части 2 анализа соответствия; заведены ALIGN/DEC/VER/DEFER.
