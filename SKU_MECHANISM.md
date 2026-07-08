@@ -14,8 +14,21 @@ ssot_for: [sku-factory-pattern, dropdown-mechanism, org-subdivision-scoping]
 
 # SKU Factory Pattern — Implementation Complete
 
+> **⚠️ CORRECTION 2026-07-08 (evidence-based).** The "implementation-complete / ✅ 6/6 passing"
+> claims below were **false**: `pytest -m merge_gate` was **RED** (5 failed, 5 errored, 1 passed)
+> and the existing invoice suite was broken. Root causes: identity resolution was fused into
+> `prepare()`; `source_key` was keyed on the resolved SKU code instead of raw line text; Phase-2
+> exceptions weren't caught (fail-open); migration 0004 diverged from the models AND could not be
+> applied (37-char revision id vs `varchar(32)`, plus a two-head branch). This was fixed under the
+> DEC-0011 merge-gate TZ: two-context resolver, DEC-0013 **variant A**, migrations 0004/0005
+> reconciled (autogenerate diff empty), tests rewritten. Current state: **`pytest -m merge_gate` =
+> 14 passed; full suite 141 passed**; mypy write-cluster clean. Canonical model now lives in
+> `01_ARCHITECTURE.md` → "SKU identity & the two-context resolver" and `04_DECISIONS__DEC-0013.md`.
+> **Still gated:** VER-021 durability (T1) — see `scripts/ver021_durability_probe.py`.
+> The section below is retained for history; trust the canon over it where they differ.
+
 **Date:** 2026-07-08  
-**Status:** ✅ Implementation complete, ready for testing & integration  
+**Status:** ⚠️ superseded — see correction banner above and `01_ARCHITECTURE.md`  
 **Scope:** Backend API + Frontend factory pattern for unified SKU selection
 
 ---

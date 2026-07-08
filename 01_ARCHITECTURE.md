@@ -249,9 +249,11 @@ One async engine via `create_async_engine(settings.database_url, echo=False, poo
 
 - **`suppliers`** (`OrganizationScopedMixin`, **int pk**) — org-wide. `external_id?` (indexed), `name`, `tax_id?`. Unique `(organization_id, external_id)`; composite index `(organization_id, name)`.
 - **`invoices`** (`SubdivisionScopedMixin`, **int pk**) — `supplier_id?` (FK, no explicit ondelete), `image_ref?`, `ocr_provider?`, `ocr_raw? (Text)`, `number?` (indexed), `issued_at?`, `total_amount? Numeric(14,2)`, `currency?`, `status (enum, default draft, indexed)`, `validation_errors? (Text)`, `external_id?` (indexed), **`esupl_payload? (Text)`** — the prepared Esupl JSON, filled at `status=prepared` so a later gated send reproduces the exact validated body. Composite index `(organization_id, status)`; **unique `(organization_id, external_id)`** for POS write idempotency (PG treats NULLs as distinct, so drafts without external_id don't conflict).
-- **`invoice_lines`** (`SubdivisionScopedMixin`, **int pk**) — `invoice_id (FK CASCADE)`, `line_no`, `description (Text)`, `sku?`, `quantity? Numeric(14,3)`, `unit?`, `unit_price? Numeric(14,4)`, `line_total? Numeric(14,2)`, and **`sku_embedding` `Vector(1536)`** (pgvector).
+- **`invoice_lines`** (`SubdivisionScopedMixin`, **int pk**) — `invoice_id (FK CASCADE)`, `line_no`, `description (Text)`, `sku?`, `quantity? Numeric(14,3)`, `unit?`, `unit_price? Numeric(14,4)`, `line_total? Numeric(14,2)`, **`pos_ingredient_id? String(256)`** (durable POS identity committed at Phase 2 — snapshot of `sku_mapping.pos_ingredient_id`; NULL for non-committed lines; migration `0005`), and **`sku_embedding` `Vector(1536)`** (pgvector).
 - **`ingredients`** (`OrganizationScopedMixin`, **uuid pk**) — the SKU catalog. `subdivision_id?` (FK CASCADE) is an **optional override**: NULL = org-wide SKU, set = subdivision-specific. `external_id?`, `name`, `unit?`, `esupl_item_id?`, `esupl_unit_id?`, `default_tax_rate? Numeric(6,2)`. Unique `(organization_id, subdivision_id, external_id)`. Base+override merge logic is intentionally not implemented (schema only).
 - **`packings`** (`OrganizationScopedMixin`, **uuid pk**) — packing of a SKU. `ingredient_id (FK CASCADE)`, `name`, `factor Numeric(14,4)` (base units per packing unit), `is_default (bool)`, `esupl_packing_id?`. **Partial unique index `uq_packings_default_per_ingredient` on `ingredient_id WHERE is_default`** — at most one default packing per SKU, making auto-substitution deterministic.
+- **`sku_mapping`** (uuid pk; migration `0004`) — the **moat**: normalized raw line text → durable POS identity. `scope_type String(32)` (`org|subdivision`), `scope_id Uuid` (**polymorphic — deliberately NO FK**, per BLOCKER #2), `source_key String(512)`, `pos_ingredient_id String(256)` (durable POS id, **NO FK to `ingredient_cache`**), `method (enum manual|fuzzy|ai)`, `confidence? Numeric(5,4)`, `confirmed_by? (FK users SET NULL)`, `confirmed_at?`. Unique `(scope_type, scope_id, source_key)`; index on `scope_id`. Survives cache rebuild (holds a durable id, not a surrogate).
+- **`ingredient_cache`** (uuid pk; migration `0004`) — **non-authoritative** acceleration/display cache of POS ingredients, fully rebuildable. `scope_type String(32)`, `scope_id Uuid`, `pos_ingredient_id String(256)`, `name?`, `unit?`, `category?`, `pos_version?`, `content_hash?`, `is_active`, `synced_at?`. Unique `(scope_type, scope_id, pos_ingredient_id)`; index on `scope_id`. **Never read for commit authority** (DEC-0011); drop+rebuild leaves `sku_mapping` intact.
 
 **Config / secrets:**
 
@@ -270,6 +272,50 @@ Tenant repositories **require `organization_id` in their constructor** so a tena
 ### pgvector — prepared seam only
 
 Extension enabled in the init migration (`CREATE EXTENSION IF NOT EXISTS vector`, before any Vector column). Column `invoice_lines.sku_embedding Vector(1536)` (`SKU_EMBEDDING_DIM = 1536`). **Important: it is never read or written anywhere in `app/`; no similarity query and no ANN index (ivfflat/hnsw) exist.** Semantic SKU matching is future work; current line→SKU matching uses the fuzzy + LLM recognition feature, not this column.
+
+### SKU identity & the two-context resolver (DEC-0011 / DEC-0013 variant A)
+
+Line→SKU resolution runs in **two distinct contexts** (do not conflate them):
+
+- **Draft-resolve (`prepare()`, tolerant, cheap):** builds the Esupl payload from the local
+  `ingredients` catalog — numeric FKs (`esupl_item_id`, `esupl_unit_id`, default `packing`),
+  `tax_rate`. Readiness = "payload buildable". Suggestions (fuzzy layer 1 client-side, LLM
+  `suggest-matches`, and exact `ingredient_cache` hits) live here as **hints only**. Draft
+  never asserts identity authority. `prepare()` does **not** set `pos_ingredient_id`.
+- **Commit-resolve (`submit()` → `_resolve_commit_identity` → Phase 2, fail-closed):** resolves
+  the durable `pos_ingredient_id` by `normalize_source_key(line.description)` — the **same**
+  normalization used on write (`sku_service.normalize_source_key`, SSOT) — against `sku_mapping`
+  with priority **subdivision → org**. Only **confirmed identity** is commit-eligible:
+  `method = manual` **OR** `confirmed_by IS NOT NULL`. cache / fuzzy / AI are **never** consulted
+  on the commit path. The resolved id is then **live-validated** against POS
+  (`validate_ingredient_on_commit`); any exception, missing id, or unit mismatch → **block +
+  review** (status `rejected`, nothing written). Unresolved (no confirmed mapping) also blocks —
+  never a silent skip. On success the durable id is snapshotted onto `invoice_lines.pos_ingredient_id`.
+
+**DEC-0013 (ratified variant A — block until manual confirmation):** an exact `ingredient_cache`
+match without a confirmed `sku_mapping` does **not** auto-commit and does **not** auto-create a
+mapping — the line is held for human confirmation. Confirming a suggestion (or creating a manual
+mapping via `POST /ingredients/mappings`) is what grows the moat. This is stricter than the TZ's
+default variant C and is the maximally fail-closed reading of "an invoice is a responsible step."
+
+**T2 — `esupl_item_id` (int) vs `pos_ingredient_id` (str):** these are the **same Esupl
+ingredient entity in two representations**, used by the two contexts. `ingredients.esupl_item_id`
+(int) is the catalog's numeric copy consumed by *payload building* (draft-resolve); the durable
+POS id is a *string* anchor owned by `sku_mapping`/committed on the line for *identity*
+(commit-resolve). They are not two entities; `pos_ingredient_id == str(esupl ingredient id)`.
+The catalog copy is disposable/re-syncable; the mapping's durable id is the moat.
+
+**T5 / VER-022 — cache scope:** `ingredient_cache` is scope-aware (`scope_type ∈ {org, subdivision}`)
+and is a **draft-only** store. Under variant A it is **not a commit tier at all**, so the earlier
+"cache tier checks only org while mapping tiers check subdivision→org" asymmetry **dissolves** —
+commit authority comes solely from `sku_mapping` (subdivision→org). VER-022 is thereby closed:
+no cache-vs-mapping scope priority conflict can exist on the commit path.
+
+> **T1 / VER-021 (durability gate) — OPEN.** The whole durable-id model assumes `pos_ingredient_id`
+> is stable across Esupl edit/delete-recreate. This has **not** been empirically confirmed (requires
+> WRITE access to Esupl sandbox team 17957). A runnable probe is in `VER-021_ESUPL_DURABILITY_TEST.md`
+> / `scripts/ver021_durability_probe.py`. **Merge stays gated until this table is filled.** If the id
+> is not durable on edit → STOP and reopen DEC-0011 on an alternative anchor.
 
 ### Migrations (Alembic async)
 

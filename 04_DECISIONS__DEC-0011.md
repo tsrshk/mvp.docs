@@ -87,6 +87,19 @@ sku_mapping                 -- authoritative: актив LCOS (moat)
 
 Для Customer Zero (каталог кофейни ≈ сотни позиций): lazy TTL-refresh + принудительный refresh при открытии накладной + re-валидация на commit (попутно обновляет затронутые строки кэша). Delta-sync / webhooks — **DEFER-016** (до триггера по объёму/частоте). Вся синхронизация — за seam `ERPProvider`, одна реализация (Esupl) до реального триггера на альтернативу.
 
+## Amendment 2026-07-08 — двухконтекстная модель резолва (реализация)
+
+Из реализации выкристаллизовалась двухконтекстная модель (заменяет старую формулировку «Phase 1 matching order» как единый список; см. `01_ARCHITECTURE` → «SKU identity & the two-context resolver»):
+
+- **Draft-резолв (`prepare()`, толерантно):** строит Esupl-payload из локального каталога (числовые FK). Подсказки (fuzzy layer-1, LLM `suggest-matches`, exact `ingredient_cache`) живут ТОЛЬКО здесь. `prepare()` НЕ трогает `pos_ingredient_id`.
+- **Commit-резолв (`submit()` → `_resolve_commit_identity` → Phase 2, fail-closed):** durable `pos_ingredient_id` по `normalize_source_key(line.description)` из `sku_mapping`, приоритет subdivision → org, ТОЛЬКО подтверждённая идентичность (`method=manual` OR `confirmed_by`). Cache/fuzzy/AI на commit-пути НЕ участвуют. Затем live-валидация; None/mismatch/недоступность → block+review.
+
+**T2 (esupl_item_id vs pos_ingredient_id):** одна сущность Esupl в двух представлениях — `esupl_item_id` (int, копия каталога для payload) и durable `pos_ingredient_id` (str, якорь идентичности в `sku_mapping`/на строке). `pos_ingredient_id == str(esupl ingredient id)`.
+
+**T5/VER-022:** `ingredient_cache` — draft-only, scope-aware; под DEC-0013(A) НЕ является commit-тиром → прежняя scope-асимметрия «cache только org» устранена (commit-authority только из `sku_mapping`).
+
+**Открытая зависимость:** VER-021 (durability) — по-прежнему GATE, эмпирически НЕ подтверждён (см. `scripts/ver021_durability_probe.py`).
+
 ## Consequences
 
 - (+) Moat (`sku_mapping`) устойчив к протуханию каталога: держится за durable ID, а не за атрибуты.

@@ -2,6 +2,14 @@
 
 **Status:** GATE TEST — blocks all downstream work (PRE-2) until confirmed.  
 **Team ID:** 17957 (Esupl sandbox)  
+
+> **Runnable probe:** `mvp.be/scripts/ver021_durability_probe.py` implements S1–S3 (create →
+> edit(rename/unit/rate) → delete → recreate) with a hard sandbox-only guard. It refuses to run
+> without `VER021_CONFIRM=yes-write-to-sandbox-17957` (writes are outward-facing). It prints the
+> «operation → id before/after» table + a DURABLE/NOT-DURABLE verdict, then cleans up.
+> **T1 owner (Ivan) runs it** and pastes the table into `01_ARCHITECTURE.md` (VER-021 section) and
+> the PR evidence bundle. Until then, merge stays gated (DoD T1).
+
 **Target:** Verify that Esupl ingredient IDs remain stable under mutation (edit, delete+recreate, split/merge scenarios).
 
 ---
