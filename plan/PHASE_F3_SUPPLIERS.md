@@ -120,6 +120,30 @@ ssot_for: [phase-f3-requirements]
 
 ---
 
+## Статус реализации (2026-07-08)
+
+**СДЕЛАНО — «Справочник поставщиков и условия поставок» (первый инкремент F3):**
+- F3-B1: `suppliers` расширена (миграция `0006`): `contact_name/phone/messenger`,
+  `delivery_terms`, `min_order_amount/min_order_note`, `is_active` (soft-hide). Autogenerate diff пуст.
+- F3-B4 (частично): CRUD-роуты `GET /suppliers`, `GET /suppliers/{id}`, `POST /suppliers`,
+  `PATCH /suppliers/{id}` — за гейтом `module_suppliers_enabled` (весь роутер; 404 при выкл).
+  `SupplierService.create_card/update_card`, `SupplierRepository.create/update`,
+  схемы `SupplierCreate/SupplierUpdate/SupplierOut` (расширена).
+- F3-F1 (карточка/справочник): mobile-first страница `pages/suppliers` (адаптивные карточки,
+  bottom-sheet форма, 44px таргеты), nav «Поставщики» (сайдбар + drawer + заголовок),
+  `entities/supplier` — RTK endpoints `getManagedSuppliers/createSupplier/updateSupplier`
+  (backend-direct, тег `Supplier`). Прайс-график/спарклайн — вне этого инкремента.
+- Тесты: `tests/test_suppliers_crud.py` (create/patch-partial/deactivate/get/404/validation/
+  **tenant-isolation**/**module-gate**) — зелёные; FE `tsc -b` + `vite build` зелёные;
+  e2e smoke на живом бэке (login→create 201→patch 200).
+
+**НЕ СДЕЛАНО (следующие инкременты F3):** F3-B2 `supplier_prices` (история цен, append-only),
+F3-B3 автосбор цен из накладной + price-change warning, F3-B4 `GET /suppliers/{id}/prices` +
+`GET /ingredients/{id}/price-history` + ручной ввод цены, F3-F2 сигнал изменения цены. AC-2/3/5/6/7/9
+относятся к этим инкрементам и остаются открытыми.
+
 ## Журнал изменений
+- 2026-07-08 — реализован справочник поставщиков + условия поставок (F3-B1 + CRUD + mobile UI);
+  история цен вынесена в следующий инкремент.
 - 2026-07-03 v1.0.1 — терминология: «жена» → «пилотная кофейня».
 - 2026-07-03 v1.0.0 — создан из стадии F3 (Functional_Stages) + блока C Specification_v04, адаптировано под web PWA и текущую архитектуру.
