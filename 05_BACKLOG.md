@@ -120,6 +120,53 @@ ssot_for: [alignment-tasks, open-decisions, verifications, deferred-items]
 
 ---
 
+## DONE — завершённые работы (вне текущей очереди фич)
+
+### SKU Factory Pattern & Dropdown Mechanism (2026-07-08)
+
+**Статус:** `done` · **Приоритет:** P0 (foundation для F1.2, F4.2, F4.5)  
+**Выполнено:** ultracode с многоагентной орхестрацией  
+**Документация:** `mvp.docs/SKU_MECHANISM.md`
+
+**Что сделано:**
+
+- ✅ **Backend (4 файла):**
+  - `mvp.be/app/services/sku_service.py` — SKUService factory с поиском, группировкой, org/subdivision логикой
+  - `mvp.be/app/db/repositories.py` — добавлены `.search()` методы (IngredientRepository, SupplierRepository)
+  - `mvp.be/app/api/v1/routes/ingredients.py` — API: `/search`, `/by-supplier/{id}`
+  - `mvp.be/app/api/v1/routes/suppliers.py` — API: `/search`
+
+- ✅ **Frontend (10 файлов в `mvp.fe/src/shared/sku/`):**
+  - Factory pattern: `IngredientSKUFactory`, `SupplierSKUFactory`
+  - Hook: `useSkuSearch` (дебаунс 300ms, группировка, live-search)
+  - Component: `SKUDropdown` (универсальный, реиспользуемый)
+  - Types, exports, README
+
+**Ключевые особенности:**
+
+- Live search (case-insensitive partial match)
+- Smart grouping: search results → supplier items → all others (alphabetical)
+- Org/subdivision aware: new=org, existing=subdivision
+- No ESUP writes (purely local)
+- Reusable factory interface
+
+**Почему это important:**
+
+- Foundation для маппинга SKU (F1.2: sku_mappings, авто-маппинг, localStorage миграция)
+- Foundation для заказов (F4.2: purchase-draft, prefill, AI-предложения)
+- Foundation для запасов (F4.4: stock levels, reorder thresholds)
+
+**Интеграция готова для:**
+
+1. Invoice workbench (recognizer → dropdown с supplier grouping)
+2. Purchase order form (F4.2)
+3. Stock management (F3.3)
+
+**Связи:** Заполняет пробелы найденные в анализе (вторая workflow). Готово к тестированию и интеграции.
+
+---
+
 ## Журнал изменений
+- 2026-07-08 v1.2.0 — добавлена DONE секция: SKU Factory Pattern & Dropdown (14 файлов, foundation для F1.2/F4.2/F4.5).
 - 2026-07-03 v1.1.0 — добавлена секция «Трассировка в Фазу 1»: сопоставление тикетов (ALIGN-01/03, DEC-02/05/06/07, VER-01, DEFER-04) с фичами `08_PHASE1_SPEC.md`.
 - 2026-07-02 v1.0.0 — создан из Части 2 анализа соответствия; заведены ALIGN/DEC/VER/DEFER.
