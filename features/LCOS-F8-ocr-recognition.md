@@ -1,7 +1,7 @@
 ---
 id: LCOS-F8
 type: feature
-title: Invoice OCR recognition (photo → InvoiceDraft)
+title: OCR-распознавание инвойса (фото → InvoiceDraft)
 epic: "[[LCOS-E2-invoice-intake]]"
 status: built
 phase: "Phase 1"
@@ -13,83 +13,83 @@ legacy_refs: [07 Э0/Э1, plan F1, "08 F0.1", "08 F0.2"]
 sources: ["APP_OVERVIEW.md §6", "plan/00_IMPLEMENTATION_PLAN.md §1", "mvp.be app/api/v1/routes/invoices.py:33", "mvp.be app/services/invoice_service.py:121", "mvp.be app/providers/ocr/claude.py", "mvp.fe src/shared/ocr"]
 updated: 2026-07-09
 ---
-# LCOS-F8 · Invoice OCR recognition (photo → InvoiceDraft)
-**Epic:** [[LCOS-E2-invoice-intake]] · **Status:** built · **Phase:** Phase 1
+# LCOS-F8 · OCR-распознавание инвойса (фото → InvoiceDraft)
+**Эпик:** [[LCOS-E2-invoice-intake]] · **Статус:** built · **Фаза:** Phase 1
 
-## Description
+## Описание
 
-The first step of the "invoice intake" wedge: the user photographs a paper invoice, the image is sent to the backend, where a vision-LLM (Claude Vision) recognizes it into a structured `InvoiceDraft` — number, date, total, currency, raw lines (description, quantity, unit, price, amount), and the supplier name/tax ID from the header. This is the "entry point" of the entire invoice flow (see [[invoice-status-machine]]).
+Первый шаг клина «приём инвойсов»: пользователь фотографирует бумажный инвойс, изображение отправляется на бэкенд, где vision-LLM (Claude Vision) распознаёт его в структурированный `InvoiceDraft` — номер, дату, итог, валюту, сырые строки (описание, количество, единица, цена, сумма) и имя поставщика/налоговый ID из шапки. Это «точка входа» всего потока инвойсов (см. [[invoice-status-machine]]).
 
-The `POST /invoices/recognize` endpoint **does not write to the ERP and does not persist** anything to the database — it merely returns a draft that a human edits on the frontend before `prepare`/`submit`. The OCR provider is resolved **lazily** (only on `/recognize`), so that write paths do not pay for a DB read of the AI provider selection from `system_settings.ai_provider` (`InvoiceService._get_ocr`). The model key and egress routing (VPN) live only on the backend — the frontend stores no secrets (`[[ADR-012]]`).
+Endpoint `POST /invoices/recognize` **не пишет в ERP и не сохраняет** ничего в базу данных — он лишь возвращает черновик, который человек редактирует на фронтенде перед `prepare`/`submit`. OCR-провайдер разрешается **лениво** (только на `/recognize`), чтобы пути записи не платили за чтение из БД выбора AI-провайдера из `system_settings.ai_provider` (`InvoiceService._get_ocr`). Ключ модели и маршрутизация egress (VPN) живут только на бэкенде — фронтенд не хранит секретов (`[[ADR-012]]`).
 
-Current limitation: **one page per request** is recognized (one file, one LLM call). Multi-page invoices and the "silent loss" of second pages are a known gap, tracked in [[LCOS-F29-multipage-recognize]] (epic [[LCOS-E6-ocr-quality]]).
+Текущее ограничение: распознаётся **одна страница на запрос** (один файл, один LLM-вызов). Многостраничные инвойсы и «молчаливая потеря» вторых страниц — известный пробел, отслеживаемый в [[LCOS-F29-multipage-recognize]] (эпик [[LCOS-E6-ocr-quality]]).
 
-## Capabilities
+## Возможности
 
-- Image upload (`multipart/form-data`, field `file`); allowed MIME types — `image/jpeg`, `image/png`, `image/webp` (otherwise `415`); empty file → `400`.
-- Vision-LLM recognition into `InvoiceDraft`: `number`, `issued_at`, `total_amount`, `currency`, `lines[]` (`line_no`, `description`, `quantity`, `unit`, `unit_price`, `line_total`), `supplier_name`, `supplier_tax_id`.
-- Provenance: `ocr_provider` (the provider name) is stamped on the draft so that `submit` (a separate instance where OCR is no longer resolved) persists the origin into `invoices.ocr_provider` / `ocr_raw`.
-- The recognition prompt is stored in the DB (`system_settings`, migration `1e12…`) and edited **without a redeploy** (`resolve_invoice_prompt`).
-- FE image preprocessing before upload (EXIF normalization, resize, JPEG) in `shared/ocr/preprocess` — reduces weight and stabilizes recognition.
-- Frontend provider pattern `backend | mock`: `mock` returns a demo draft for development without a real LLM.
+- Загрузка изображения (`multipart/form-data`, поле `file`); разрешённые MIME-типы — `image/jpeg`, `image/png`, `image/webp` (иначе `415`); пустой файл → `400`.
+- Распознавание vision-LLM в `InvoiceDraft`: `number`, `issued_at`, `total_amount`, `currency`, `lines[]` (`line_no`, `description`, `quantity`, `unit`, `unit_price`, `line_total`), `supplier_name`, `supplier_tax_id`.
+- Provenance: `ocr_provider` (имя провайдера) проставляется на черновике, чтобы `submit` (отдельный инстанс, где OCR уже не разрешается) сохранял происхождение в `invoices.ocr_provider` / `ocr_raw`.
+- Промпт распознавания хранится в БД (`system_settings`, миграция `1e12…`) и редактируется **без редеплоя** (`resolve_invoice_prompt`).
+- Предобработка изображения на FE перед загрузкой (нормализация EXIF, resize, JPEG) в `shared/ocr/preprocess` — снижает вес и стабилизирует распознавание.
+- Паттерн провайдера на фронтенде `backend | mock`: `mock` возвращает демо-черновик для разработки без реального LLM.
 
-## Role-based access
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | Upload a photo and receive a draft within their own subdivision; edit and submit the invoice. |
-| [[admin]] | Same as member, within their subdivision. |
-| [[superadmin]] | Access across all tenants; plus editing of the OCR prompt and `ai_provider` via the config API. |
-| [[sqladmin-operator]] | Not involved in the flow; switches `ai_provider` / OCR prompt in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Загружает фото и получает черновик внутри своей subdivision; редактирует и отправляет инвойс. |
+| [[admin]] | То же, что member, внутри своей subdivision. |
+| [[superadmin]] | Доступ по всем арендаторам; плюс редактирование OCR-промпта и `ai_provider` через config API. |
+| [[sqladmin-operator]] | Не участвует в потоке; переключает `ai_provider` / OCR-промпт в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
 
-The endpoint is tenant-scoped: the scope (`organization_id` / `subdivision_id`) is taken from the active JWT context (see [[auth]], [[multitenancy]]).
+Endpoint со scope арендатора: scope (`organization_id` / `subdivision_id`) берётся из активного контекста JWT (см. [[auth]], [[multitenancy]]).
 
-## Entities involved
+## Задействованные сущности
 
-- [[invoices]] — the target entity of the flow; **not created** on `/recognize`, but the draft's `ocr_provider`/`ocr_raw` are later persisted at `submit`.
-- [[invoice_lines]] — the draft's raw lines (domain `InvoiceLineDraft`); at this step they are not yet linked to the catalog/SKU.
-- [[system_settings]] — `ai_provider` (runtime selection of the OCR implementation) and the OCR prompt (edited without a redeploy).
-- [[integration_credentials]] — the Fernet-encrypted AI key (read by the backend, egress via VPN; the frontend never sees the key).
+- [[invoices]] — целевая сущность потока; **не создаётся** на `/recognize`, но `ocr_provider`/`ocr_raw` черновика позже сохраняются при `submit`.
+- [[invoice_lines]] — сырые строки черновика (домен `InvoiceLineDraft`); на этом шаге они ещё не привязаны к каталогу/SKU.
+- [[system_settings]] — `ai_provider` (runtime-выбор реализации OCR) и OCR-промпт (редактируется без редеплоя).
+- [[integration_credentials]] — зашифрованный Fernet AI-ключ (читается бэкендом, egress через VPN; фронтенд никогда не видит ключ).
 
-## Dependencies / relations
+## Зависимости / связи
 
-- **Requirements:** [[provider-abstraction]] (OCR behind a `Protocol` + registry, one `claude` implementation, `[[ADR-009]]`), [[fail-closed]] (VPN down while the toggle is on → refusal, no silent direct egress; `[[ADR-006]]`), [[erp-esupl-integration]] (LCOS read-only against third-party data).
-- **Features:** the result is passed downstream to [[LCOS-F9-line-matching]] (matching lines against the catalog) and [[LCOS-F10-invoice-status-machine]] (`prepare`/`submit`). Multi-page — [[LCOS-F29-multipage-recognize]]; quality/context/auto-crop — [[LCOS-F30-recognition-context]], [[LCOS-F31-auto-crop]], [[LCOS-F33-confidence-gate]].
-- **ADR:** [[ADR-009]] (provider seam, one implementation at a time), [[ADR-006]] (fail-closed egress), [[ADR-012]] (live provider paths only on the backend).
+- **Требования:** [[provider-abstraction]] (OCR за `Protocol` + реестром, одна реализация `claude`, `[[ADR-009]]`), [[fail-closed]] (VPN недоступен при включённом тумблере → отказ, нет молчаливого прямого egress; `[[ADR-006]]`), [[erp-esupl-integration]] (LCOS read-only против сторонних данных).
+- **Фичи:** результат передаётся дальше в [[LCOS-F9-line-matching]] (матчинг строк против каталога) и [[LCOS-F10-invoice-status-machine]] (`prepare`/`submit`). Многостраничность — [[LCOS-F29-multipage-recognize]]; качество/контекст/авто-кроп — [[LCOS-F30-recognition-context]], [[LCOS-F31-auto-crop]], [[LCOS-F33-confidence-gate]].
+- **ADR:** [[ADR-009]] (шов провайдера, одна реализация за раз), [[ADR-006]] (fail-closed egress), [[ADR-012]] (живые пути провайдеров только на бэкенде).
 
-## Acceptance criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. `POST /invoices/recognize` accepts `multipart/form-data` with a `file` field; returns an `InvoiceDraft` (`200`).
-- [ ] AC-BE-2. MIME outside `{image/jpeg,image/png,image/webp}` → `415`; empty file body → `400`.
-- [ ] AC-BE-3. The endpoint does NOT write to the ERP and does NOT persist the invoice/lines (no records in `invoices`/`invoice_lines`).
-- [ ] AC-BE-4. The OCR provider is resolved lazily: `prepare`/`submit`/`list` do not read `system_settings.ai_provider` (verified by the write path working without a configured OCR).
-- [ ] AC-BE-5. The draft has `ocr_provider = <implementation name>` stamped (provenance survives the round-trip to `submit`).
-- [ ] AC-BE-6. The recognition prompt is read from the DB (`system_settings`); editing the prompt changes behavior without a redeploy.
-- [ ] AC-BE-7. Fail-closed egress: with `ai_vpn_enabled=ON` and the VPN unavailable, the LLM request is rejected with a clear error, without direct egress (non-negotiable, covered by a test, blocks merge).
-- [ ] AC-BE-8. The AI key is read from `integration_credentials` (Fernet), with no env fallback; keys/tokens are not logged.
+- [ ] AC-BE-1. `POST /invoices/recognize` принимает `multipart/form-data` с полем `file`; возвращает `InvoiceDraft` (`200`).
+- [ ] AC-BE-2. MIME вне `{image/jpeg,image/png,image/webp}` → `415`; пустое тело файла → `400`.
+- [ ] AC-BE-3. Endpoint НЕ пишет в ERP и НЕ сохраняет инвойс/строки (нет записей в `invoices`/`invoice_lines`).
+- [ ] AC-BE-4. OCR-провайдер разрешается лениво: `prepare`/`submit`/`list` не читают `system_settings.ai_provider` (проверяется тем, что путь записи работает без настроенного OCR).
+- [ ] AC-BE-5. У черновика проставлен `ocr_provider = <имя реализации>` (provenance переживает круговой путь до `submit`).
+- [ ] AC-BE-6. Промпт распознавания читается из БД (`system_settings`); редактирование промпта меняет поведение без редеплоя.
+- [ ] AC-BE-7. Fail-closed egress: при `ai_vpn_enabled=ON` и недоступном VPN LLM-запрос отклоняется с ясной ошибкой, без прямого egress (незыблемое, покрыто тестом, блокирует merge).
+- [ ] AC-BE-8. AI-ключ читается из `integration_credentials` (Fernet), без env-фолбэка; ключи/токены не логируются.
 
 ### Frontend
-- [ ] AC-FE-1. The user uploads/takes a photo; the image passes through preprocessing (`shared/ocr/preprocess`: EXIF, resize, JPEG) before upload.
-- [ ] AC-FE-2. The FE calls `POST /invoices/recognize` (server-side LLM), no API key in the browser.
-- [ ] AC-FE-3. The recognized draft is displayed as an editable line form; a human edits it before `prepare`/`submit`.
-- [ ] AC-FE-4. The `mock` provider returns a demo draft in dev mode (`shared/ocr/providers/mock`).
-- [ ] AC-FE-5. Errors `415`/`400`/recognition failure are shown with a clear message, without crashing the form.
+- [ ] AC-FE-1. Пользователь загружает/делает фото; изображение проходит предобработку (`shared/ocr/preprocess`: EXIF, resize, JPEG) перед загрузкой.
+- [ ] AC-FE-2. FE вызывает `POST /invoices/recognize` (LLM на стороне сервера), нет API-ключа в браузере.
+- [ ] AC-FE-3. Распознанный черновик отображается как редактируемая форма строк; человек редактирует его перед `prepare`/`submit`.
+- [ ] AC-FE-4. Провайдер `mock` возвращает демо-черновик в dev-режиме (`shared/ocr/providers/mock`).
+- [ ] AC-FE-5. Ошибки `415`/`400`/сбой распознавания показываются с ясным сообщением, без падения формы.
 
-### Other (limitation)
-- [ ] AC-OTHER-1. A multi-page invoice in a single request is NOT supported — documented as a gap → [[LCOS-F29-multipage-recognize]] (interim fix for silent loss — [[LCOS-F26-multipage-fix]]).
+### Прочее (ограничение)
+- [ ] AC-OTHER-1. Многостраничный инвойс в одном запросе НЕ поддерживается — задокументировано как пробел → [[LCOS-F29-multipage-recognize]] (промежуточный фикс молчаливой потери — [[LCOS-F26-multipage-fix]]).
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **Multi-page** — the second+ pages are lost silently; interim fix (an explicit warning) — [[LCOS-F26-multipage-fix]], full solution — [[LCOS-F29-multipage-recognize]].
-- **OCR-accuracy eval** — a separate run (`scripts/ocr_eval.py`), not part of the regular pytest.
-- The post-recognition confidence gate is not yet built in ([[LCOS-F33-confidence-gate]]).
+- **Многостраничность** — вторые+ страницы теряются молча; промежуточный фикс (явное предупреждение) — [[LCOS-F26-multipage-fix]], полное решение — [[LCOS-F29-multipage-recognize]].
+- **Оценка точности OCR** — отдельный прогон (`scripts/ocr_eval.py`), не часть обычного pytest.
+- Пост-распознавательный гейт уверенности ещё не встроен ([[LCOS-F33-confidence-gate]]).
 
-## Sources
+## Источники
 
-- `APP_OVERVIEW.md §6` (key flow: recognize → InvoiceDraft), `§2/§3` (stack, lazy OCR resolver).
+- `APP_OVERVIEW.md §6` (ключевой поток: recognize → InvoiceDraft), `§2/§3` (стек, ленивый резолвер OCR).
 - `plan/00_IMPLEMENTATION_PLAN.md §1`.
-- `mvp.be/app/api/v1/routes/invoices.py:33` (`recognize_invoice`, MIME gate).
-- `mvp.be/app/services/invoice_service.py:114` (`_get_ocr` lazy resolver), `:121` (`recognize`).
-- `mvp.be/app/providers/ocr/claude.py`, `app/providers/ocr/base.py` (seam), `app/providers/ocr/prompt.py`.
+- `mvp.be/app/api/v1/routes/invoices.py:33` (`recognize_invoice`, гейт MIME).
+- `mvp.be/app/services/invoice_service.py:114` (`_get_ocr` ленивый резолвер), `:121` (`recognize`).
+- `mvp.be/app/providers/ocr/claude.py`, `app/providers/ocr/base.py` (шов), `app/providers/ocr/prompt.py`.
 - `mvp.fe/src/shared/ocr/providers/backend.ts:49` (`/invoices/recognize`), `src/shared/ocr/preprocess/*`.

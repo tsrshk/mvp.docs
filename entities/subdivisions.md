@@ -1,7 +1,7 @@
 ---
 id: subdivisions
 type: entity
-title: subdivisions — subdivision (location) within a tenant
+title: subdivisions — subdivision (локация) внутри арендатора
 status: built
 scope: subdivision
 table: subdivisions
@@ -13,38 +13,38 @@ updated: 2026-07-09
 ---
 # subdivisions · subdivision
 
-**Scope:** subdivision (a section within an org) · **Status:** built
+**Scope:** subdivision (раздел внутри org) · **Status:** built
 
-## Purpose
-A subdivision is a physical location (coffee shop) within an organization. It is used to
-attribute operational rows and as an access granule (a [[member]] is bound to a subdivision
-via [[memberships]]). Phase 1 does **not** implement data inheritance between subdivisions.
-POS binding: a subdivision = an Esupl team warehouse ([[erp-esupl-integration]]).
+## Назначение
+Subdivision — это физическая локация (кофейня) внутри организации. Используется для
+атрибуции операционных строк и как гранула доступа ([[member]] привязан к subdivision
+через [[memberships]]). Фаза 1 **не** реализует наследование данных между subdivisions.
+Привязка POS: subdivision = склад команды Esupl ([[erp-esupl-integration]]).
 
-## Key fields
-| Field | Type | Null | Notes |
+## Ключевые поля
+| Поле | Тип | Null | Примечания |
 |---|---|---|---|
 | `id` | uuid PK | no | `uuid4` |
-| `organization_id` | uuid FK→organizations | no | isolation boundary, `ondelete="CASCADE"`, indexed |
-| `name` | varchar(512) | no | location name |
-| `address` | varchar(1024) | yes | physical address |
-| `esupl_warehouse_id` | integer | yes | Esupl warehouse id for warehouse-target ([[LCOS-F12-warehouse-target]]) |
+| `organization_id` | uuid FK→organizations | no | граница изоляции, `ondelete="CASCADE"`, индексируется |
+| `name` | varchar(512) | no | название локации |
+| `address` | varchar(1024) | yes | физический адрес |
+| `esupl_warehouse_id` | integer | yes | id склада Esupl для warehouse-target ([[LCOS-F12-warehouse-target]]) |
 | `created_at` / `updated_at` | timestamptz | no | `TimestampMixin` |
 
-## Relations, FK, uniqueness
-- FK `organization_id → organizations.id` **ondelete=CASCADE** (deleting the organization
-  deletes its subdivisions).
+## Отношения, FK, уникальность
+- FK `organization_id → organizations.id` **ondelete=CASCADE** (удаление организации
+  удаляет её subdivisions).
 - `memberships` — one-to-many, `cascade="all, delete-orphan"`.
-- **Uniqueness:** `subdivisions_org_name` UNIQUE(`organization_id`, `name`) — the location
-  name is unique within an organization.
-- `subdivisions.id` is referenced by: [[invoices]], [[invoice_lines]], [[ingredients]]
+- **Уникальность:** `subdivisions_org_name` UNIQUE(`organization_id`, `name`) — название
+  локации уникально в пределах организации.
+- На `subdivisions.id` ссылаются: [[invoices]], [[invoice_lines]], [[ingredients]]
   (nullable override), [[refresh_sessions]] (active_subdivision_id, SET NULL),
-  [[integration_credentials]] (subdivision scope, planned).
+  [[integration_credentials]] (область subdivision, planned).
 
-## Used by features
-[[LCOS-F1-multitenancy]] (isolation), [[LCOS-F2-app-auth]] (switch-context, active subdivision in JWT),
-[[LCOS-F12-warehouse-target]] (warehouse-target selection → `esupl_warehouse_id`), [[LCOS-F10-invoice-status-machine]] (payload).
+## Используется фичами
+[[LCOS-F1-multitenancy]] (изоляция), [[LCOS-F2-app-auth]] (switch-context, активный subdivision в JWT),
+[[LCOS-F12-warehouse-target]] (выбор warehouse-target → `esupl_warehouse_id`), [[LCOS-F10-invoice-status-machine]] (payload).
 
-## Sources
-- `mvp.be/app/db/models.py:101-121` (`Subdivision` model)
+## Источники
+- `mvp.be/app/db/models.py:101-121` (модель `Subdivision`)
 - [[architecture]] — data-model

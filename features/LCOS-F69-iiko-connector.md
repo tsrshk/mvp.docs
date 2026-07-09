@@ -1,7 +1,7 @@
 ---
 id: LCOS-F69
 type: feature
-title: Second ERP connector (iiko)
+title: Второй ERP-коннектор (iiko)
 epic: "[[LCOS-E15-saas]]"
 status: future
 phase: "Phase 2"
@@ -13,51 +13,51 @@ legacy_refs: [plan P2-D]
 sources: ["plan/PHASE_P2_SAAS_OUTLINE.md §2 P2-D", "Local_OS_About.md Phase 2"]
 updated: 2026-07-09
 ---
-# LCOS-F69 · Second ERP connector (iiko)
+# LCOS-F69 · Второй ERP-коннектор (iiko)
 
 **Epic:** [[LCOS-E15-saas]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-Adds iiko as a second ERP/POS backend alongside Esupl. This is the trigger that finally exercises the ERP provider seam: [[ADR-009]] allows a second implementation *only* here (no speculative multi-provider build during Phase 1). A new `IikoErpProvider` implements the existing `ErpProvider` Protocol so recognition, prepare/submit and read flows work against iiko without rewriting any service.
+Добавляет iiko как второй бэкенд ERP/POS наряду с Esupl. Это триггер, который наконец задействует шов ERP-провайдера: [[ADR-009]] разрешает вторую реализацию *только* здесь (никакой спекулятивной multi-provider сборки в течение Phase 1). Новый `IikoErpProvider` реализует существующий Protocol `ErpProvider`, так что потоки распознавания, prepare/submit и чтения работают против iiko без переписывания какого-либо сервиса.
 
-The key change is *where* provider selection lives: today it is a deploy-level `ERP_PROVIDER` env var (one POS per deployment); serving multiple tenants requires moving the choice to the org level (an organization column/setting). That is a genuine architectural shift and must be captured in its own ADR when built.
+Ключевое изменение — *где* живёт выбор провайдера: сегодня это env-переменная уровня деплоя `ERP_PROVIDER` (один POS на деплой); обслуживание нескольких тенантов требует перемещения выбора на уровень org (столбец/настройка организации). Это настоящий архитектурный сдвиг, и он должен быть зафиксирован в собственном ADR при построении.
 
-## Capabilities
+## Возможности
 
-- `IikoErpProvider` behind the existing `ErpProvider` Protocol — a drop-in second implementation, services unchanged.
-- Provider selection moves from deploy-level (`ERP_PROVIDER` env) to org-level (organization column/setting).
-- iiko authentication/credentials via the existing per-org encrypted credential pattern.
-- Same read-only-plus-gated-write posture as the Esupl connector (no new write semantics introduced by the seam).
+- `IikoErpProvider` за существующим Protocol `ErpProvider` — drop-in вторая реализация, сервисы без изменений.
+- Выбор провайдера переезжает с уровня деплоя (`ERP_PROVIDER` env) на уровень org (столбец/настройка организации).
+- Аутентификация/учётные данные iiko через существующий пер-org паттерн зашифрованных учётных данных.
+- Та же поза «только чтение плюс закрытая гейтом запись», что и у коннектора Esupl (шов не вводит новой семантики записи).
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[admin]] | For a tenant whose POS is iiko, uses the normal invoice/read flows transparently. |
-| [[superadmin]] | Sets the per-org ERP provider; manages iiko credentials across tenants. |
-| [[sqladmin-operator]] | Configures the org-level provider choice + credentials in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
-| [[member]] | Uses invoice flows unaware of which ERP backend is active. |
+| [[admin]] | Для тенанта, чей POS — iiko, использует обычные потоки накладных/чтения прозрачно. |
+| [[superadmin]] | Задаёт пер-org ERP-провайдера; управляет учётными данными iiko по тенантам. |
+| [[sqladmin-operator]] | Настраивает выбор провайдера уровня org + учётные данные в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Использует потоки накладных, не зная, какой ERP-бэкенд активен. |
 
-## Involved entities
+## Задействованные сущности
 
-- [[organizations]] — gains the org-level ERP-provider selection (migrated off the deploy env var).
-- [[integration_credentials]] — per-org iiko token/credentials (Fernet-encrypted, backend-only).
-- [[system_settings]] — provider/flag resolution surface.
-- [[invoices]] — the domain whose prepare/submit path now targets iiko when selected.
+- [[organizations]] — получает выбор ERP-провайдера уровня org (мигрированный с env-переменной деплоя).
+- [[integration_credentials]] — пер-org токен/учётные данные iiko (зашифрованы Fernet, только на бэкенде).
+- [[system_settings]] — поверхность разрешения провайдера/флагов.
+- [[invoices]] — домен, чей путь prepare/submit теперь нацелен на iiko при выборе.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[provider-abstraction]] (second `ErpProvider` implementation, the seam's whole purpose), [[erp-esupl-integration]] (the first connector this mirrors; read-only + gated write posture preserved), [[fail-closed]] (iiko egress stays fail-closed), [[secret-encryption]] (iiko credentials encrypted).
-- **Features:** realizes the seam from [[LCOS-F5-provider-seams]]; reuses the flows in [[LCOS-F10-invoice-status-machine]] and [[LCOS-F11-esupl-read]] without change.
-- **Epics:** part of [[LCOS-E15-saas]]; demand-driven, built after [[LCOS-F68-billing]] when a paying tenant needs iiko.
-- **ADR:** [[ADR-009]] (second implementation allowed only at this trigger); a new ADR records moving provider selection deploy-level → org-level.
+- **Requirements:** [[provider-abstraction]] (вторая реализация `ErpProvider`, вся цель шва), [[erp-esupl-integration]] (первый коннектор, который это зеркалирует; поза «только чтение + закрытая гейтом запись» сохранена), [[fail-closed]] (egress iiko остаётся fail-closed), [[secret-encryption]] (учётные данные iiko зашифрованы).
+- **Features:** реализует шов из [[LCOS-F5-provider-seams]]; переиспользует потоки в [[LCOS-F10-invoice-status-machine]] и [[LCOS-F11-esupl-read]] без изменений.
+- **Epics:** часть [[LCOS-E15-saas]]; управляемый спросом, строится после [[LCOS-F68-billing]], когда платящему тенанту нужен iiko.
+- **ADR:** [[ADR-009]] (вторая реализация разрешена только на этом триггере); новый ADR фиксирует перемещение выбора провайдера уровень-деплоя → уровень-org.
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). Decomposed into a dedicated `PHASE_P2_D` file; a new ADR for org-level provider selection is a deliverable of that decomposition.
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Раскладываются в выделенный файл `PHASE_P2_D`; новый ADR для выбора провайдера уровня org — deliverable этой декомпозиции.
 
 ## Sources
 
-- `plan/PHASE_P2_SAAS_OUTLINE.md §2 P2-D` (`IikoErpProvider` behind `ErpProvider` Protocol; provider selection deploy → org level; ADR to be written).
-- `Local_OS_About.md` Phase 2 (iiko support in addition to Esupl).
+- `plan/PHASE_P2_SAAS_OUTLINE.md §2 P2-D` (`IikoErpProvider` за Protocol `ErpProvider`; выбор провайдера деплой → уровень org; ADR к написанию).
+- `Local_OS_About.md` Phase 2 (поддержка iiko в дополнение к Esupl).

@@ -1,7 +1,7 @@
 ---
 id: LCOS-F61
 type: feature
-title: Menu idea generation
+title: Генерация идей для меню
 epic: "[[LCOS-E13-menu-ideas]]"
 status: future
 phase: "Phase 2"
@@ -13,55 +13,55 @@ legacy_refs: [plan F9, "plan F9-B1", "plan F9-B2"]
 sources: ["plan/PHASE_F9_CROSS_RECIPE.md §1 (F9-B1 generation), §1 (F9-B2 API)", "plan/00_IMPLEMENTATION_PLAN.md §4"]
 updated: 2026-07-09
 ---
-# LCOS-F61 · Menu idea generation
+# LCOS-F61 · Генерация идей для меню
 **Epic:** [[LCOS-E13-menu-ideas]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The backend of the cross-recipe epic: on an explicit user click, the system proposes new menu positions built from ingredients the shop already buys, each with an economic rationale — what is already on hand, what must be bought and at roughly what price, and a suggested selling price. It answers the owner's recurring pain "what else can I add to the menu cheaply?" by turning the existing SKU catalog into concrete, costed ideas rather than another report. An idea is a proposal, not an action (Gate G7): the human decides, and a recipe is only finalized by tasting.
+Бэкенд эпика кросс-рецептов: по явному клику пользователя система предлагает новые позиции меню, собранные из ингредиентов, которые магазин уже закупает, каждая с экономическим обоснованием — что уже есть в наличии, что нужно докупить и примерно по какой цене, и предлагаемая цена продажи. Она отвечает на повторяющуюся боль владельца «что ещё дёшево добавить в меню?», превращая существующий каталог SKU в конкретные, просчитанные идеи, а не в очередной отчёт. Идея — это предложение, а не действие (Gate G7): решает человек, и рецепт финализируется только дегустацией.
 
-Generation is deliberately human-triggered — `POST /api/v1/menu-ideas/generate` — never scheduled or automatic, so there are no background LLM calls. `MenuIdeaService` builds the prompt context **deterministically** from the local SKU catalog ([[ingredients]] + [[packings]]), current prices (from [[LCOS-E4-suppliers]] / [[LCOS-F20-price-history]], latest non-stale), top sellers (from [[LCOS-E9-sales-analytics]] if present) and competitor positions (from [[LCOS-E11-competitor-menu]] if present), then makes a single `ai_complete` call under a strict JSON contract. Anti-hallucination mirrors the invoice matcher `_parse_matches`: any idea whose `uses_skus.ingredient_id` does not exist in the catalog is dropped wholesale. Cost for on-hand SKUs is recomputed in code from real prices (LLM numbers are never trusted); LLM prices are allowed only in `est_price_note` for missing ingredients and are flagged as estimates.
+Генерация намеренно запускается человеком — `POST /api/v1/menu-ideas/generate` — никогда по расписанию или автоматически, так что фоновых LLM-вызовов нет. `MenuIdeaService` строит контекст промпта **детерминированно** из локального каталога SKU ([[ingredients]] + [[packings]]), текущих цен (из [[LCOS-E4-suppliers]] / [[LCOS-F20-price-history]], последних не устаревших), топ-продаж (из [[LCOS-E9-sales-analytics]] при наличии) и позиций конкурентов (из [[LCOS-E11-competitor-menu]] при наличии), затем делает единственный вызов `ai_complete` под строгим JSON-контрактом. Защита от галлюцинаций зеркалирует матчер накладных `_parse_matches`: любая идея, чей `uses_skus.ingredient_id` отсутствует в каталоге, отбрасывается целиком. Стоимость имеющихся SKU пересчитывается в коде из реальных цен (числам LLM никогда не доверяют); цены LLM допустимы только в `est_price_note` для отсутствующих ингредиентов и помечаются как оценки.
 
-## Capabilities
+## Возможности
 
-- `POST /api/v1/menu-ideas/generate` — user-triggered generation with optional `season` / `focus`; one `ai_complete` call per request against the main model.
-- Deterministic context assembly from local catalog, current SKU prices, and (when available) sales top-sellers and competitor menu prices.
-- Strict JSON contract: `ideas[{title, description, uses_skus[{ingredient_id, qty_note}], missing_ingredients[{name, est_price_note}], selling_price_suggestion, rationale}]`.
-- Anti-hallucination post-validation: ideas referencing non-existent `ingredient_id` are discarded entirely.
-- Cost of on-hand SKUs recomputed in code (Decimal) from real prices; LLM price guesses confined to `est_price_note` and marked as estimates.
-- Persistence to a future organization-scoped `menu_ideas` table (`OrganizationScopedMixin`, uuid pk): `title`, `description`, `payload` JSONB (full idea + costing), `status` (`new|liked|dismissed|adopted`), optional `season`, `created_at`, `generated_by_model`.
-- Daily generation cap (`menu_ideas_daily_limit`, config registry, default 3) per Gate G11; over-limit returns a clear error.
-- `GET /api/v1/menu-ideas?status=` and `PATCH /api/v1/menu-ideas/{id}` (status change) behind the module gate `module_menu_ideas_enabled`.
-- Mock provider yields demo ideas for development without a live LLM.
+- `POST /api/v1/menu-ideas/generate` — генерация по инициативе пользователя с опциональными `season` / `focus`; один вызов `ai_complete` на запрос к основной модели.
+- Детерминированная сборка контекста из локального каталога, текущих цен SKU и (при наличии) топ-продаж и цен меню конкурентов.
+- Строгий JSON-контракт: `ideas[{title, description, uses_skus[{ingredient_id, qty_note}], missing_ingredients[{name, est_price_note}], selling_price_suggestion, rationale}]`.
+- Пост-валидация против галлюцинаций: идеи, ссылающиеся на несуществующий `ingredient_id`, отбрасываются целиком.
+- Стоимость имеющихся SKU пересчитывается в коде (Decimal) из реальных цен; догадки цен LLM ограничены `est_price_note` и помечены как оценки.
+- Персистентность в будущую таблицу `menu_ideas` со скоупом организации (`OrganizationScopedMixin`, uuid pk): `title`, `description`, `payload` JSONB (полная идея + калькуляция), `status` (`new|liked|dismissed|adopted`), опциональный `season`, `created_at`, `generated_by_model`.
+- Суточный лимит генерации (`menu_ideas_daily_limit`, config-реестр, default 3) по Gate G11; превышение возвращает понятную ошибку.
+- `GET /api/v1/menu-ideas?status=` и `PATCH /api/v1/menu-ideas/{id}` (смена статуса) за модульным гейтом `module_menu_ideas_enabled`.
+- Mock-провайдер выдаёт демо-идеи для разработки без живого LLM.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | Trigger generation and read ideas within their own subdivision/organization. |
-| [[admin]] | Same as member; primary consumer maintaining idea statuses via [[LCOS-F62-menu-ideas-ui]]. |
-| [[superadmin]] | Cross-tenant access; toggles `module_menu_ideas_enabled` and sets `menu_ideas_daily_limit` via the config API. |
-| [[sqladmin-operator]] | Flips the module gate and daily limit in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]); not involved in generation. |
+| [[member]] | Запускает генерацию и читает идеи в рамках своего подразделения/организации. |
+| [[admin]] | То же, что member; основной потребитель, ведущий статусы идей через [[LCOS-F62-menu-ideas-ui]]. |
+| [[superadmin]] | Кросс-тенантный доступ; переключает `module_menu_ideas_enabled` и задаёт `menu_ideas_daily_limit` через config-API. |
+| [[sqladmin-operator]] | Переключает модульный гейт и суточный лимит в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]); не участвует в генерации. |
 
-Tenant-scoped: `menu_ideas` is isolated per organization; the scope comes from the active JWT context ([[auth]], [[multitenancy]]).
+Тенант-скоуп: `menu_ideas` изолирована по организации; скоуп берётся из активного контекста JWT ([[auth]], [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[ingredients]] — the SKU catalog that seeds context; `uses_skus.ingredient_id` must resolve here or the idea is dropped.
-- [[packings]] — packing/price granularity used when recomputing on-hand cost in code.
-- `menu_ideas` (future organization-scoped table) — the idea store with `payload` JSONB and lifecycle `status`; entity doc to be created on activation.
+- [[ingredients]] — каталог SKU, сеющий контекст; `uses_skus.ingredient_id` должен разрешаться здесь, иначе идея отбрасывается.
+- [[packings]] — гранулярность фасовки/цены, используемая при пересчёте стоимости имеющегося в коде.
+- `menu_ideas` (будущая таблица со скоупом организации) — хранилище идей с `payload` JSONB и жизненным циклом `status`; документ-сущность создаётся при активации.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[provider-abstraction]] (LLM behind the provider seam + mock), [[fail-closed]] and [[vpn-egress]] (AI unavailable / VPN down → `503` envelope, previously generated ideas still readable), [[multitenancy]] (org-scoped rows, tenant isolation).
-- **Features:** reads the catalog from [[LCOS-F15-sku-catalog]] and prices from [[LCOS-F20-price-history]]; optionally enriched by [[LCOS-E9-sales-analytics]] top-sellers and [[LCOS-F56-positioning]] benchmarks; gated by [[LCOS-F6-module-gates]]; shares the human-triggered "propose" pattern with [[LCOS-F40-ai-order-proposal]]; consumed by [[LCOS-F62-menu-ideas-ui]].
-- **Epic siblings:** part of [[LCOS-E13-menu-ideas]]; downstream context feeds [[LCOS-E14-strategic-insights]].
+- **Requirements:** [[provider-abstraction]] (LLM за швом провайдера + mock), [[fail-closed]] и [[vpn-egress]] (AI недоступен / VPN лежит → `503`-конверт, ранее сгенерированные идеи остаются читаемыми), [[multitenancy]] (строки со скоупом org, тенант-изоляция).
+- **Features:** читает каталог из [[LCOS-F15-sku-catalog]] и цены из [[LCOS-F20-price-history]]; опционально обогащается топ-продажами [[LCOS-E9-sales-analytics]] и бенчмарками [[LCOS-F56-positioning]]; гейтится [[LCOS-F6-module-gates]]; разделяет запускаемый человеком паттерн «предложить» с [[LCOS-F40-ai-order-proposal]]; потребляется [[LCOS-F62-menu-ideas-ui]].
+- **Epic siblings:** часть [[LCOS-E13-menu-ideas]]; производный контекст питает [[LCOS-E14-strategic-insights]].
 
-## Acceptance criteria
+## Критерии приёмки
 
-Acceptance criteria: TBD (Phase 2 — detailed on activation). On activation, drafts cover: anti-hallucination drop of fake `ingredient_id`; code-side Decimal cost matching a manual calculation; daily limit + over-limit error; fail-closed `503` behavior; no LLM call without a user click; tenant isolation; and a live-catalog check of ≥3 meaningful ideas.
+Критерии приёмки: TBD (Phase 2 — детализируются при активации). При активации черновики покрывают: отбрасывание фейковых `ingredient_id` против галлюцинаций; кодовую Decimal-стоимость, совпадающую с ручным расчётом; суточный лимит + ошибку превышения; fail-closed поведение `503`; отсутствие LLM-вызова без клика пользователя; тенант-изоляцию; и проверку на живом каталоге ≥3 осмысленных идей.
 
 ## Sources
 
-- `plan/PHASE_F9_CROSS_RECIPE.md §1` — F9-B1 (deterministic context, single `ai_complete`, anti-hallucination, code-side costing, `menu_ideas` store, daily limit), F9-B2 (list/patch API, module gate).
-- `plan/00_IMPLEMENTATION_PLAN.md §4` (cross-cutting requirements: human-triggered AI, fail-closed, config registry, module gates).
+- `plan/PHASE_F9_CROSS_RECIPE.md §1` — F9-B1 (детерминированный контекст, единственный `ai_complete`, против галлюцинаций, калькуляция в коде, хранилище `menu_ideas`, суточный лимит), F9-B2 (API списка/patch, модульный гейт).
+- `plan/00_IMPLEMENTATION_PLAN.md §4` (сквозные требования: запускаемый человеком AI, fail-closed, config-реестр, модульные гейты).

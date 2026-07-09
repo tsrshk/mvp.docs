@@ -1,7 +1,7 @@
 ---
 id: LCOS-F35
 type: feature
-title: reorder_point on ingredients
+title: reorder_point на ingredients
 epic: "[[LCOS-E7-stock]]"
 status: planned
 phase: "Phase 1"
@@ -13,69 +13,69 @@ legacy_refs: [07 Э3, "08 F3.2"]
 sources: ["07_PHASES.md Э3", "08_PHASE1_SPEC.md F3.2", "mvp.be app/api/v1/routes/ingredients.py", "mvp.be app/services/catalog.py"]
 updated: 2026-07-09
 ---
-# LCOS-F35 · reorder_point on ingredients
+# LCOS-F35 · reorder_point на ingredients
 
 **Epic:** [[LCOS-E7-stock]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-A per-ingredient reorder threshold — the single number that turns a raw stock snapshot into a decision. `reorder_point` is a nullable `Numeric(14,3)` column on `ingredients`; when a snapshot's `quantity` falls at or below it, that ingredient is flagged `is_low` in `GET /stock` and surfaces in the "Low" shopping-list block on [[LCOS-F36-stock-screen]]. A NULL threshold means "not tracked" and never flags as low.
+Per-ingredient порог пополнения — единственное число, превращающее сырой снапшот остатков в решение. `reorder_point` — nullable колонка `Numeric(14,3)` на `ingredients`; когда `quantity` снапшота падает на уровень порога или ниже, этот ингредиент помечается `is_low` в `GET /stock` и всплывает в блоке списка покупок «Low» на [[LCOS-F36-stock-screen]]. Порог NULL означает «не отслеживается» и никогда не помечается как low.
 
-The value is entered by hand for now (Phase 1). A later feature — "suggest `reorder_point` from actual consumption" ([[LCOS-F49-reorder-suggestion]], Phase 2) — will propose thresholds from sales/consumption history, but that is explicitly out of scope here.
+Значение вводится вручную пока что (Phase 1). Более поздняя фича — «предложить `reorder_point` из фактического потребления» ([[LCOS-F49-reorder-suggestion]], Phase 2) — будет предлагать пороги из истории продаж/потребления, но это явно вне scope здесь.
 
-Mechanically this feature is small: add the column, expose it on the catalog read by extending the existing `IngredientRef` shape (rather than introducing a parallel Out-schema), and add a `PATCH /api/v1/ingredients/{id}` endpoint to `routes/ingredients.py` (which today only serves `GET` via `services/catalog.py::list_catalog`). The `is_low` computation itself lives in [[LCOS-F34-stock-levels]] `GET /stock`; this feature owns the threshold value it reads.
+Механически эта фича маленькая: добавить колонку, экспонировать её на чтении каталога расширением существующей формы `IngredientRef` (а не вводить параллельную Out-схему) и добавить endpoint `PATCH /api/v1/ingredients/{id}` в `routes/ingredients.py` (который сегодня только обслуживает `GET` через `services/catalog.py::list_catalog`). Само вычисление `is_low` живёт в [[LCOS-F34-stock-levels]] `GET /stock`; эта фича владеет значением порога, которое он читает.
 
-## Capabilities
+## Возможности
 
-- `ingredients.reorder_point` — nullable `Numeric(14,3)` threshold per ingredient, scoped by the ingredient's own tenant scope.
-- `PATCH /api/v1/ingredients/{id}` — set or clear an ingredient's `reorder_point`.
-- `reorder_point` added to the catalog read output (`IngredientRef` extended), so both the catalog and the stock screen can display and edit it.
-- Threshold semantics: `is_low = quantity <= reorder_point`; NULL threshold → never low.
+- `ingredients.reorder_point` — nullable порог `Numeric(14,3)` на ингредиент, скоупированный собственным scope тенанта ингредиента.
+- `PATCH /api/v1/ingredients/{id}` — установить или очистить `reorder_point` ингредиента.
+- `reorder_point` добавлен в вывод чтения каталога (`IngredientRef` расширен), так что и каталог, и stock-экран могут его отображать и редактировать.
+- Семантика порога: `is_low = quantity <= reorder_point`; порог NULL → никогда не low.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[member]] | View the threshold; may adjust it inline from the stock screen. |
-| [[admin]] | Sets/curates `reorder_point` values for the subdivision's ingredients. |
-| [[superadmin]] | Same across all tenants. |
-| [[sqladmin-operator]] | Not involved. |
+| [[member]] | Просмотреть порог; может корректировать его inline со stock-экрана. |
+| [[admin]] | Задаёт/курирует значения `reorder_point` для ингредиентов subdivision. |
+| [[superadmin]] | То же по всем тенантам. |
+| [[sqladmin-operator]] | Не участвует. |
 
-The endpoint is tenant-scoped via the active JWT context (see [[auth]], [[multitenancy]]); an ingredient can only be patched within its own tenant scope.
+Endpoint тенант-скоупирован через активный JWT-контекст (см. [[auth]], [[multitenancy]]); ингредиент можно патчить только в пределах его собственного scope тенанта.
 
-## Involved entities
+## Задействованные сущности
 
-- [[ingredients]] — gains the `reorder_point` column; the PATCH target and the value carried into the catalog read.
-- [[stock_levels]] — consumes `reorder_point` indirectly: `GET /stock` joins the latest snapshot's `quantity` against the ingredient threshold to compute `is_low` (owned by [[LCOS-F34-stock-levels]]).
+- [[ingredients]] — получает колонку `reorder_point`; цель PATCH и значение, переносимое в чтение каталога.
+- [[stock_levels]] — потребляет `reorder_point` косвенно: `GET /stock` джойнит `quantity` последнего снапшота против порога ингредиента для вычисления `is_low` (владеет [[LCOS-F34-stock-levels]]).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (threshold and PATCH scoped by tenant), [[provider-abstraction]] (catalog read path unchanged — same `IngredientRef` seam the ERP catalog sync populates).
-- **Features:** consumed by [[LCOS-F34-stock-levels]] (`is_low` in `GET /stock`) and edited from [[LCOS-F36-stock-screen]] (inline threshold set). Superseded-forward by [[LCOS-F49-reorder-suggestion]] (consumption-derived suggestion, Phase 2). Feeds order sizing in [[LCOS-F40-ai-order-proposal]].
-- **ADR:** [[ADR-016]] (the shortage signal is defined against this threshold; manual entry is the guaranteed path).
+- **Требования:** [[multitenancy]] (порог и PATCH скоупированы по тенанту), [[provider-abstraction]] (путь чтения каталога без изменений — тот же шов `IngredientRef`, который наполняет ERP-синхронизация каталога).
+- **Фичи:** потребляется [[LCOS-F34-stock-levels]] (`is_low` в `GET /stock`) и редактируется из [[LCOS-F36-stock-screen]] (inline-установка порога). Замещается-вперёд [[LCOS-F49-reorder-suggestion]] (предложение, выведенное из потребления, Phase 2). Питает расчёт размера заказа в [[LCOS-F40-ai-order-proposal]].
+- **ADR:** [[ADR-016]] (сигнал дефицита определён против этого порога; ручной ввод — гарантированный путь).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. Migration adds `ingredients.reorder_point Numeric(14,3)` nullable (default NULL = untracked).
-- [ ] AC-BE-2. `PATCH /api/v1/ingredients/{id}` sets and clears `reorder_point`; the value round-trips (stored, then returned on read).
-- [ ] AC-BE-3. The catalog read (`services/catalog.py::list_catalog` via `GET /api/v1/ingredients`) includes `reorder_point` by extending `IngredientRef` (no parallel Out-schema).
-- [ ] AC-BE-4. `is_low` in `GET /stock` is correct across all four cases: below, above, equal, and NULL threshold (test with fixed quantities).
-- [ ] AC-BE-5. Tenant isolation: an ingredient can only be patched/read within its own tenant scope.
+- [ ] AC-BE-1. Миграция добавляет `ingredients.reorder_point Numeric(14,3)` nullable (по умолчанию NULL = не отслеживается).
+- [ ] AC-BE-2. `PATCH /api/v1/ingredients/{id}` устанавливает и очищает `reorder_point`; значение round-trip'ит (сохранено, затем возвращено на чтении).
+- [ ] AC-BE-3. Чтение каталога (`services/catalog.py::list_catalog` через `GET /api/v1/ingredients`) включает `reorder_point` расширением `IngredientRef` (без параллельной Out-схемы).
+- [ ] AC-BE-4. `is_low` в `GET /stock` корректен во всех четырёх случаях: ниже, выше, равно и NULL-порог (тест с фиксированными количествами).
+- [ ] AC-BE-5. Изоляция тенантов: ингредиент можно патчить/читать только в пределах его собственного scope тенанта.
 
 ### Frontend
-- [ ] AC-FE-1. The stock table renders each ingredient's `reorder_point` (blank/dash when NULL).
-- [ ] AC-FE-2. The threshold is settable inline from the ingredient's row (calls `PATCH /ingredients/{id}`); the "Low" block re-derives immediately after a change.
-- [ ] AC-FE-3. Setting a threshold on a below-quantity ingredient moves it into the "Low" block; clearing it (NULL) removes it — verified against [[LCOS-F36-stock-screen]] AC.
+- [ ] AC-FE-1. Stock-таблица рендерит `reorder_point` каждого ингредиента (пусто/прочерк при NULL).
+- [ ] AC-FE-2. Порог устанавливается inline из строки ингредиента (вызывает `PATCH /ingredients/{id}`); блок «Low» перевыводится немедленно после изменения.
+- [ ] AC-FE-3. Установка порога на ингредиенте с количеством ниже перемещает его в блок «Low»; его очистка (NULL) убирает — проверено против AC [[LCOS-F36-stock-screen]].
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **Manual now, derived later** — automatic threshold suggestion from consumption is deferred to [[LCOS-F49-reorder-suggestion]] (Phase 2); Phase 1 is manual entry only.
-- Whether `reorder_point` should be per-warehouse (vs per-ingredient) is not needed in Phase 1 — one subdivision = one primary warehouse (`Subdivision.esupl_warehouse_id`).
+- **Вручную сейчас, выведено позже** — автоматическое предложение порога из потребления отложено в [[LCOS-F49-reorder-suggestion]] (Phase 2); Phase 1 — только ручной ввод.
+- Должен ли `reorder_point` быть per-warehouse (vs per-ingredient) — в Phase 1 не нужно — один subdivision = один основной склад (`Subdivision.esupl_warehouse_id`).
 
-## Sources
+## Источники
 
-- `07_PHASES.md Э3` (`ingredients.reorder_point` manual entry).
-- `08_PHASE1_SPEC.md F3.2` (column + `PATCH /ingredients/{id}` + `IngredientRef` extension — REQ-1, AC-1).
-- `mvp.be/app/api/v1/routes/ingredients.py` (currently GET-only, 22 lines).
+- `07_PHASES.md Э3` (`ingredients.reorder_point` ручной ввод).
+- `08_PHASE1_SPEC.md F3.2` (колонка + `PATCH /ingredients/{id}` + расширение `IngredientRef` — REQ-1, AC-1).
+- `mvp.be/app/api/v1/routes/ingredients.py` (сейчас только GET, 22 строки).
 - `mvp.be/app/services/catalog.py` (`list_catalog`).

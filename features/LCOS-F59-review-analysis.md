@@ -1,7 +1,7 @@
 ---
 id: LCOS-F59
 type: feature
-title: AI review analysis
+title: AI-анализ отзывов
 epic: "[[LCOS-E12-competitor-reviews]]"
 status: future
 phase: "Phase 2"
@@ -13,52 +13,52 @@ legacy_refs: [plan F8, "plan F8-B3"]
 sources: ["plan/PHASE_F8_COMPETITORS_REVIEWS.md §1 F8-B3", "plan/00_IMPLEMENTATION_PLAN.md §4 G11"]
 updated: 2026-07-09
 ---
-# LCOS-F59 · AI review analysis
+# LCOS-F59 · AI-анализ отзывов
 **Epic:** [[LCOS-E12-competitor-reviews]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-Turns stored raw reviews ([[LCOS-F58-review-storage]]) into structured signal. A `ReviewAnalysisService` takes a batch of not-yet-analyzed reviews, calls the shared `ai_complete` LLM seam (a cheap model selected from REGISTRY), and writes `sentiment` (`positive|neutral|negative`), `topics` (JSONB list of categories — service, music, coffee, desserts…) and `mentions` (JSONB list of referenced menu items) into a `review_analyses` row, strictly parsed from a fixed JSON contract. An invalid LLM response leaves the review unanalyzed (it is retried on the next batch) rather than writing garbage — the analysis is stored separately so a re-run with a newer model never rewrites the source.
+Превращает сохранённые сырые отзывы ([[LCOS-F58-review-storage]]) в структурированный сигнал. `ReviewAnalysisService` берёт партию ещё не проанализированных отзывов, вызывает общий LLM-шов `ai_complete` (дешёвая модель, выбранная из REGISTRY) и записывает `sentiment` (`positive|neutral|negative`), `topics` (JSONB-список категорий — сервис, музыка, кофе, десерты…) и `mentions` (JSONB-список упомянутых позиций меню) в строку `review_analyses`, строго распарсенную из фиксированного JSON-контракта. Некорректный ответ LLM оставляет отзыв непроанализированным (он повторяется в следующей партии), а не пишет мусор — анализ хранится отдельно, так что перезапуск с более новой моделью никогда не переписывает исходник.
 
-Runs are bounded and batched (`reviews_batch_size` REGISTRY, default 20) to respect the "no unbounded LLM calls" budget rule (G11): analysis fires after an import and once daily via the scheduler, never per-review inline. On top of the per-review analysis, trends are computed **deterministically without any LLM** — topic/sentiment counts aggregated by week, where "complaints about X rose" means the count of negative reviews with topic X over the last 4 weeks exceeds the previous 4.
+Прогоны ограничены и разбиты на партии (`reviews_batch_size` REGISTRY, default 20), чтобы соблюдать бюджетное правило «никаких неограниченных LLM-вызовов» (G11): анализ срабатывает после импорта и раз в сутки через планировщик, никогда попотзывно инлайн. Поверх попотзывного анализа тренды вычисляются **детерминированно без всякого LLM** — счётчики тем/тональности агрегируются по неделям, где «жалобы на X выросли» означает, что число негативных отзывов с темой X за последние 4 недели превышает предыдущие 4.
 
-## Capabilities
+## Возможности
 
-- `ReviewAnalysisService` batch analysis via the `ai_complete` provider seam; cheap model from REGISTRY.
-- Strict fixed-JSON contract → `sentiment` / `topics` / `mentions`; invalid response → review stays in the queue, no error, retried next batch (no garbage rows).
-- Batched and scheduled only (after import + daily job), batch size `reviews_batch_size` (default 20) — bounded LLM budget (G11).
-- Deterministic (non-LLM) weekly trend aggregation over `topics` / `sentiment`; rising-complaint detection by 4-week vs prior-4-week comparison.
-- Analysis decoupled from the review row — re-analysis with a new model never mutates the source.
+- Пакетный анализ `ReviewAnalysisService` через шов провайдера `ai_complete`; дешёвая модель из REGISTRY.
+- Строгий фиксированный JSON-контракт → `sentiment` / `topics` / `mentions`; некорректный ответ → отзыв остаётся в очереди, без ошибки, повторяется в следующей партии (без мусорных строк).
+- Только пакетно и по расписанию (после импорта + суточное задание), размер партии `reviews_batch_size` (default 20) — ограниченный бюджет LLM (G11).
+- Детерминированная (не LLM) еженедельная агрегация трендов по `topics` / `sentiment`; детекция роста жалоб сравнением 4 недель vs предыдущих 4.
+- Анализ отвязан от строки отзыва — повторный анализ новой моделью никогда не мутирует исходник.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[admin]] | Triggers analysis implicitly by importing reviews; consumes sentiment/topics/trends. |
-| [[member]] | Consumes analysis output (badges, trends) within their subdivision. |
-| [[superadmin]] | Same across all tenants; selects the analysis model / batch size via the config REGISTRY. |
-| [[sqladmin-operator]] | Tunes `reviews_batch_size` and the model selection in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[admin]] | Запускает анализ неявно импортом отзывов; потребляет тональность/темы/тренды. |
+| [[member]] | Потребляет результат анализа (бейджи, тренды) в рамках своего подразделения. |
+| [[superadmin]] | То же по всем тенантам; выбирает модель анализа / размер партии через config-REGISTRY. |
+| [[sqladmin-operator]] | Настраивает `reviews_batch_size` и выбор модели в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
 
-## Involved entities
+## Задействованные сущности
 
-- Future `review_analyses` table — written here (1:1 with `reviews`, CASCADE); consumed by [[LCOS-F60-reviews-api]] for lists, trends and digest.
-- Future `reviews` table — the source of the unanalyzed-batch query; owned by [[LCOS-F58-review-storage]].
-- [[system_settings]] — REGISTRY-backed model selection and `reviews_batch_size` (edited without a redeploy).
-- [[integration_credentials]] — Fernet-encrypted AI key used by the `ai_complete` seam (backend-only, egress via VPN).
-- [[subdivisions]] — tenant scope; only the org's own reviews are analyzed within its context.
+- Будущая таблица `review_analyses` — записывается здесь (1:1 с `reviews`, CASCADE); потребляется [[LCOS-F60-reviews-api]] для списков, трендов и дайджеста.
+- Будущая таблица `reviews` — источник запроса непроанализированной партии; принадлежит [[LCOS-F58-review-storage]].
+- [[system_settings]] — подкреплённый REGISTRY выбор модели и `reviews_batch_size` (редактируется без редеплоя).
+- [[integration_credentials]] — зашифрованный Fernet AI-ключ, используемый швом `ai_complete` (только на бэкенде, egress через VPN).
+- [[subdivisions]] — тенант-скоуп; анализируются только собственные отзывы org в её контексте.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[provider-abstraction]] (analysis behind the shared `ai_complete` LLM seam), [[vpn-egress]] (LLM egress routed/gated on the backend), [[fail-closed]] (AI unavailable → analysis deferred with an explicit status, never silently dropped; import still works), [[multitenancy]] (analysis stays within tenant scope).
-- **Features:** consumes [[LCOS-F58-review-storage]] and produces the input for [[LCOS-F60-reviews-api]]; scheduled by the digest scheduler shared with [[LCOS-F48-weekly-digest]].
-- **Epics:** part of [[LCOS-E12-competitor-reviews]].
-- **ADR:** [[ADR-009]] (provider seam, one implementation), [[ADR-012]] (live provider paths backend-only), [[ADR-006]] (fail-closed egress).
+- **Requirements:** [[provider-abstraction]] (анализ за общим LLM-швом `ai_complete`), [[vpn-egress]] (egress LLM маршрутизируется/закрывается на бэкенде), [[fail-closed]] (AI недоступен → анализ отложен с явным статусом, никогда тихо не отбрасывается; импорт всё равно работает), [[multitenancy]] (анализ остаётся в тенант-скоупе).
+- **Features:** потребляет [[LCOS-F58-review-storage]] и производит вход для [[LCOS-F60-reviews-api]]; планируется планировщиком дайджеста, общим с [[LCOS-F48-weekly-digest]].
+- **Epics:** часть [[LCOS-E12-competitor-reviews]].
+- **ADR:** [[ADR-009]] (шов провайдера, одна реализация), [[ADR-012]] (пути живого провайдера только на бэкенде), [[ADR-006]] (fail-closed egress).
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). Batch-analysis, invalid-JSON-requeue, deterministic-trend and bounded-budget (G11) criteria are drafted when the epic is activated.
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Критерии пакетного анализа, повторной постановки при невалидном JSON, детерминированных трендов и ограниченного бюджета (G11) прорабатываются при активации эпика.
 
 ## Sources
 
-- `plan/PHASE_F8_COMPETITORS_REVIEWS.md §1 F8-B3` (`ReviewAnalysisService`, fixed JSON contract, batching, deterministic trends).
-- `plan/00_IMPLEMENTATION_PLAN.md §4 G11` (no unbounded LLM calls — batch/schedule only).
+- `plan/PHASE_F8_COMPETITORS_REVIEWS.md §1 F8-B3` (`ReviewAnalysisService`, фиксированный JSON-контракт, пакетирование, детерминированные тренды).
+- `plan/00_IMPLEMENTATION_PLAN.md §4 G11` (никаких неограниченных LLM-вызовов — только пакет/расписание).

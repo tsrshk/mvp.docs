@@ -1,7 +1,7 @@
 ---
 id: OV-ROADMAP
 type: overview
-title: Roadmap — a single spine of phases and epics
+title: Roadmap — единый хребет фаз и эпиков
 status: current
 phase: cross-cutting
 updated: 2026-07-09
@@ -17,85 +17,85 @@ sources:
   - _RESTRUCTURE_PLAN.md (collision resolution 1, single spine)
 ---
 
-# LCOS roadmap — a single spine
+# Roadmap LCOS — единый хребет
 
-> This document **reconciles two diverging plans** — `07_PHASES.md` (stages Э0–Э8) and `plan/00_IMPLEMENTATION_PLAN.md` (stages S1/S2/F3–F10/P2) — into one delivery spine fixed in [[_RESTRUCTURE_PLAN]] (collision 1). No legacy codes are lost: each is carried into the `legacy_refs` of its epic and into the traceability map below.
+> Этот документ **примиряет два расходящихся плана** — `07_PHASES.md` (стадии Э0–Э8) и `plan/00_IMPLEMENTATION_PLAN.md` (стадии S1/S2/F3–F10/P2) — в один хребет поставки, зафиксированный в [[_RESTRUCTURE_PLAN]] (collision 1). Ни один легаси-код не потерян: каждый перенесён в `legacy_refs` своего эпика и в карту трассируемости ниже.
 
-## The single spine
+## Единый хребет
 
-The phase boundary is **[[glossary]]** (the product has closed the invoice pain at our own coffee shop).
+Граница фаз — **[[glossary]]** (продукт закрыл боль накладных в нашей собственной кофейне).
 
-- **Phase 1 — close the invoice pain at our own coffee shop = epics E1–E8.**
-  Platform + the invoice wedge + SKU identity + suppliers-basic + stabilization + OCR quality + stock + purchasing. The closed loop "order → WhatsApp → receipt by photo → discrepancies → received".
-- **Phase 2 — growth after Pilot-Gate = epics E9–E15.**
-  Sales analytics, local context, competitors, menu ideas, strategic insights, SaaS packaging.
+- **Фаза 1 — закрыть боль накладных в нашей кофейне = эпики E1–E8.**
+  Платформа + клин накладных + SKU identity + suppliers-basic + стабилизация + качество OCR + остатки + закупки. Замкнутая петля «заказ → WhatsApp → приёмка по фото → расхождения → принято».
+- **Фаза 2 — рост после Pilot-Gate = эпики E9–E15.**
+  Аналитика продаж, локальный контекст, конкуренты, идеи меню, стратегические инсайты, упаковка в SaaS.
 
-The boundary is taken from `07_PHASES.md` (Phase 1 = invoice pain + purchasing end to end, Phase 2 = positioning/growth), not from `plan/00` (where F3–F10 sat in "Phase 1" and Phase 2 = SaaS only). SaaS = [[LCOS-E15-saas]]; competitive positioning = [[LCOS-E11-competitor-menu]] / [[LCOS-E12-competitor-reviews]].
+Граница взята из `07_PHASES.md` (Фаза 1 = боль накладных + закупки от начала до конца, Фаза 2 = позиционирование/рост), а не из `plan/00` (где F3–F10 сидели в «Фазе 1», а Фаза 2 = только SaaS). SaaS = [[LCOS-E15-saas]]; конкурентное позиционирование = [[LCOS-E11-competitor-menu]] / [[LCOS-E12-competitor-reviews]].
 
-## Phase 1 — E1–E8 (documented in detail)
+## Фаза 1 — E1–E8 (документирована детально)
 
-| Epic | Name | Status | What it delivers | Ladder rung |
+| Эпик | Название | Статус | Что поставляет | Ступень лестницы |
 |------|----------|--------|----------|------------------|
-| [[LCOS-E1-platform]] | Platform and foundations | ✅ | Multitenancy, auth, config/secrets, provider seams, fail-closed, module gates, FE platform | (cross-cutting) |
-| [[LCOS-E2-invoice-intake]] | Invoice intake (the wedge) | ✅ | Photo → OCR → matching → validation → Esupl payload + gated write | 1 |
-| [[LCOS-E3-sku-identity]] | SKU identity and the learning-loop moat | ✅ | Two-context resolver, [[sku_mapping]], catalog+packings, [[ingredient_cache]] | 2 |
-| [[LCOS-E4-suppliers]] | Supplier directory and terms | 🟡 | Cards CRUD, flexible criteria (JSONB), self-service groundwork, price history (planned) | 3 |
-| [[LCOS-E5-stabilization]] | Stabilization and conformance | 🟡 | DEC-0011/0013/0012, fail-closed encryption, merge-blocking tests, dead-code cleanup | (cross-cutting) |
-| [[LCOS-E6-ocr-quality]] | OCR capture quality | 📝 | Multi-page, context in the prompt, auto-crop, confidence gate | 1 |
-| [[LCOS-E7-stock]] | Stock levels and the "running low" list | 📝 | `stock_levels` snapshots + sync, `reorder_point`, the `/stock` screen | 4 |
-| [[LCOS-E8-purchasing]] | Purchasing: order drafts and loop closure | 📝 | `purchase_orders`, manual and AI drafts, WhatsApp text, receipt reconciliation, live mode | 4 |
+| [[LCOS-E1-platform]] | Платформа и основания | ✅ | Мультитенантность, auth, config/secrets, швы провайдеров, fail-closed, module gates, FE-платформа | (сквозной) |
+| [[LCOS-E2-invoice-intake]] | Приёмка накладных (клин) | ✅ | Фото → OCR → сопоставление → валидация → payload Esupl + гейтированная запись | 1 |
+| [[LCOS-E3-sku-identity]] | SKU identity и moat обучающей петли | ✅ | Двухконтекстный resolver, [[sku_mapping]], каталог+packings, [[ingredient_cache]] | 2 |
+| [[LCOS-E4-suppliers]] | Справочник поставщиков и условия | 🟡 | CRUD карточек, гибкие критерии (JSONB), задел self-service, история цен (планируется) | 3 |
+| [[LCOS-E5-stabilization]] | Стабилизация и conformance | 🟡 | DEC-0011/0013/0012, fail-closed шифрование, merge-блокирующие тесты, dead-code-очистка | (сквозной) |
+| [[LCOS-E6-ocr-quality]] | Качество захвата OCR | 📝 | Multi-page, контекст в промпте, авто-кроп, confidence gate | 1 |
+| [[LCOS-E7-stock]] | Остатки и список «заканчивается» | 📝 | Снапшоты `stock_levels` + синк, `reorder_point`, экран `/stock` | 4 |
+| [[LCOS-E8-purchasing]] | Закупки: черновики заказов и замыкание петли | 📝 | `purchase_orders`, ручные и AI-черновики, текст для WhatsApp, сверка приёмки, живой режим | 4 |
 
-Legend: ✅ built · 🟡 partial · 📝 planned (Phase 1, real AC exists).
+Легенда: ✅ построено · 🟡 частично · 📝 запланировано (Фаза 1, реальный AC есть).
 
-**Critical path (07_PHASES §6):** Э0 → Э3 → Э4a → Э4b → Э5, i.e. along the spine **E2/API → E7 → E8**. Parallelized: E5-stabilization with E2/E3; E4 with E7. Phase 1 estimate ≈ 190 h ≈ 4 months at 10–15 h/week.
+**Критический путь (07_PHASES §6):** Э0 → Э3 → Э4a → Э4b → Э5, т.е. вдоль хребта **E2/API → E7 → E8**. Распараллелено: E5-стабилизация с E2/E3; E4 с E7. Оценка Фазы 1 ≈ 190 ч ≈ 4 месяца при 10–15 ч/неделю.
 
 ### → [[glossary]] ←
 
-The Phase 1 → Phase 2 transition criterion (`ADR-003`; historically **Wife-Gate**, the term replaced by the neutral "Pilot-Gate"): the pilot coffee shop's owner (Customer Zero) after **4 weeks of real use** confirms "worse without it", measurably saves **≥3 h/week**, and the full cycle has been lived for 2 weeks with no notebook and no manual double-entry into Esupl. Not passed — we do not move to the second phase.
+Критерий перехода Фаза 1 → Фаза 2 (`ADR-003`; исторически **Wife-Gate**, термин заменён нейтральным «Pilot-Gate»): владелец пилотной кофейни (Customer Zero) после **4 недель реального использования** подтверждает «хуже без этого», измеримо экономит **≥3 ч/неделю**, и полный цикл прожит 2 недели без блокнота и без ручного двойного ввода в Esupl. Не пройден — во вторую фазу не переходим.
 
-## Phase 2 — E9–E15 (light epics + feature stubs)
+## Фаза 2 — E9–E15 (лёгкие эпики + заглушки фич)
 
-| Epic | Name | Status | What it delivers |
+| Эпик | Название | Статус | Что поставляет |
 |------|----------|--------|----------|
-| [[LCOS-E9-sales-analytics]] | Sales analytics and digest | 🔭 | Read-only sync of sales from Esupl, `sales_history`, a weekly digest, a `reorder_point` hint from consumption |
-| [[LCOS-E10-local-context]] | Local context: weather and events | 🔭 | Weather provider, subdivision coordinates, neighborhood events, anomaly enrichment |
-| [[LCOS-E11-competitor-menu]] | Competitor menu and prices | 🔭 | Competitor directory, menu OCR (doc-type menu), comparison with the neighborhood, a positioning report |
-| [[LCOS-E12-competitor-reviews]] | Competitor reviews | 🔭 | Review storage+ingestion, AI analysis of sentiment/trends, a digest section |
-| [[LCOS-E13-menu-ideas]] | Cross-recipe menu ideas | 🔭 | Ideas for new items from existing ingredients + a cost estimate |
-| [[LCOS-E14-strategic-insights]] | Strategic insights and a weekly dialog | 🔭 | Weekly "3 questions", a free-form dialog with the context of all modules |
-| [[LCOS-E15-saas]] | SaaS (Phase 2) | 🔭 | Prod hardening, self-service onboarding, billing, a second ERP connector (iiko), scaling |
+| [[LCOS-E9-sales-analytics]] | Аналитика продаж и дайджест | 🔭 | Read-only синк продаж из Esupl, `sales_history`, еженедельный дайджест, подсказка `reorder_point` из потребления |
+| [[LCOS-E10-local-context]] | Локальный контекст: погода и события | 🔭 | Провайдер погоды, координаты subdivision, события района, обогащение аномалий |
+| [[LCOS-E11-competitor-menu]] | Меню и цены конкурентов | 🔭 | Справочник конкурентов, OCR меню (doc-type menu), сравнение с районом, отчёт о позиционировании |
+| [[LCOS-E12-competitor-reviews]] | Отзывы конкурентов | 🔭 | Хранение+ингест отзывов, AI-анализ sentiment/трендов, секция дайджеста |
+| [[LCOS-E13-menu-ideas]] | Кросс-рецептурные идеи меню | 🔭 | Идеи новых пунктов из имеющихся ингредиентов + оценка себестоимости |
+| [[LCOS-E14-strategic-insights]] | Стратегические инсайты и еженедельный диалог | 🔭 | Еженедельные «3 вопроса», свободный диалог с контекстом всех модулей |
+| [[LCOS-E15-saas]] | SaaS (Фаза 2) | 🔭 | Prod-hardening, self-service онбординг, биллинг, второй ERP-коннектор (iiko), масштабирование |
 
-Legend: 🔭 future (an epic stub + feature stubs with links, no detailed AC). Phase 2 estimate ≈ 105 h ≈ +2 months.
+Легенда: 🔭 будущее (заглушка эпика + заглушки фич со ссылками, без детального AC). Оценка Фазы 2 ≈ 105 ч ≈ +2 месяца.
 
-## Traceability map: legacy codes → LCOS-E#
+## Карта трассируемости: легаси-коды → LCOS-E#
 
-Nothing from the old numbering is lost — it is consolidated here and in each epic's `legacy_refs`.
+Ничего из старой нумерации не потеряно — она консолидирована здесь и в `legacy_refs` каждого эпика.
 
-| LCOS-E# | 07_PHASES (Э) | plan/00 (S/F/P) | Local_OS_About (F) | Specs / decisions |
+| LCOS-E# | 07_PHASES (Э) | plan/00 (S/F/P) | Local_OS_About (F) | Спецификации / решения |
 |---------|---------------|-----------------|--------------------|-----------------|
-| E1 Platform | — (cross-cutting principles §framework) | G1–G11 (cross-cutting requirements) | Technologies/architecture | Conformance R1–R9; ADR-004/005/006/007/008/009/010/011/012 |
-| E2 Invoice intake | Э0 (API contract), Э1 (partial) | F1 (OCR) | F1 OCR, F2 mapping+receipt | 08 F0.x; ADR-002/016 |
-| E3 SKU identity & moat | Э1 (mapping memory) | part of F2 | F2 (learning loop) | 08 F1.1/F1.2; DEC-0011/0013/0012; ADR-018/019/020 |
+| E1 Platform | — (сквозные принципы §framework) | G1–G11 (сквозные требования) | Технологии/архитектура | Conformance R1–R9; ADR-004/005/006/007/008/009/010/011/012 |
+| E2 Invoice intake | Э0 (API contract), Э1 (частично) | F1 (OCR) | F1 OCR, F2 mapping+receipt | 08 F0.x; ADR-002/016 |
+| E3 SKU identity & moat | Э1 (mapping memory) | часть F2 | F2 (learning loop) | 08 F1.1/F1.2; DEC-0011/0013/0012; ADR-018/019/020 |
 | E4 Supplier directory | Э2 (supplier settings) | F3 (directory/prices) | F3 directory, F4 comparison | 08 F2.x; ADR-017 (self-service seam) |
 | E5 Stabilization | Э1 (P0 debt) | S1 (stabilization) | — | 08 Ф1/F1.x; Conformance Part 2; ALIGN-01/VER-01/DEC-02/DEC-05 |
-| E6 OCR capture | (inside Э5 per journal) | S2 (OCR quality) | (inside F1) | plan S2 (multi-page, confidence gate) |
-| E7 Stock levels | Э3 (stock) | (in the purchasing branch) | — | 08 F3.x; ADR-016 |
-| E8 Purchasing | Э4a, Э4b, Э5 (loop closure) | (in the purchasing branch) | — | 08 F4.x/F5.x |
+| E6 OCR capture | (внутри Э5 по журналу) | S2 (OCR quality) | (внутри F1) | plan S2 (multi-page, confidence gate) |
+| E7 Stock levels | Э3 (stock) | (в ветке закупок) | — | 08 F3.x; ADR-016 |
+| E8 Purchasing | Э4a, Э4b, Э5 (loop closure) | (в ветке закупок) | — | 08 F4.x/F5.x |
 | E9 Sales analytics | Э6 (sales history) | F5 (sales analytics) | F5 | plan F5; Q1/Q2/Q3 |
 | E10 Local context | — | F6 (local context) | F6 | plan F6; Q4 |
 | E11 Competitor menu | Э7, Э8 (menu + report) | F7 (competitor menu) | F7 | plan F7 |
 | E12 Competitor reviews | — | F8 (reviews) | F8 | plan F8; Q5 |
 | E13 Menu ideas | — | F9 (cross-recipe) | F9 | plan F9 |
 | E14 Strategic insights | — | F10 (insights) | F10 | plan F10 |
-| E15 SaaS | — | P2 (SaaS outline) | Phase 2 (for the market) | plan P2 |
+| E15 SaaS | — | P2 (SaaS outline) | Фаза 2 (для рынка) | plan P2 |
 
-**Reconciliation notes:**
-- `07_PHASES` assigned Э6–Э8 (sales history + competitors) to its own "Phase 2" — the spine preserves that (E9, E11). Stock/orders (Э3/Э4/Э5) were in Phase 1 in `07_PHASES` → E7/E8 stay in the spine's Phase 1.
-- `plan/00` counted F3–F10 as part of Phase 1, with Phase 2 = SaaS only. The spine **moves the boundary to Pilot-Gate**: after the invoice+purchasing pain is closed. Analytics/competitors/SaaS = Phase 2.
-- `plan/00` stages `F3`/`F4` (suppliers + price comparison) are folded into the single epic [[LCOS-E4-suppliers]]; price comparison is one of its future features.
-- The "F" collision (plan F1–F10 vs 08 F0.1–F5.3 vs strategy routine-steps) is resolved: all replaced by `LCOS-F#`, legacy only in `legacy_refs` (see [[_RESTRUCTURE_PLAN]] collision 3).
+**Заметки о примирении:**
+- `07_PHASES` отнёс Э6–Э8 (история продаж + конкуренты) к своей «Фазе 2» — хребет это сохраняет (E9, E11). Остатки/заказы (Э3/Э4/Э5) были в Фазе 1 в `07_PHASES` → E7/E8 остаются в Фазе 1 хребта.
+- `plan/00` считал F3–F10 частью Фазы 1, при этом Фаза 2 = только SaaS. Хребет **сдвигает границу на Pilot-Gate**: после того, как боль накладных+закупок закрыта. Аналитика/конкуренты/SaaS = Фаза 2.
+- Стадии `plan/00` `F3`/`F4` (поставщики + сравнение цен) свёрнуты в единый эпик [[LCOS-E4-suppliers]]; сравнение цен — одна из его будущих фич.
+- Коллизия «F» (plan F1–F10 vs 08 F0.1–F5.3 vs routine-steps стратегии) разрешена: все заменены на `LCOS-F#`, легаси только в `legacy_refs` (см. [[_RESTRUCTURE_PLAN]] collision 3).
 
-## Dependencies (as-planned)
+## Зависимости (as-planned)
 
 ```
 Phase 1: E1 (foundation, ready)
@@ -111,19 +111,19 @@ Phase 2: E9 (sales) → E10 (context)
         everything → E14 (insights) → E15 (SaaS)
 ```
 
-## Consciously NOT in these phases
+## Сознательно НЕ в этих фазах
 
-Auto-sending orders and any write to Esupl other than the gated [[glossary]] `write_invoice`; demand forecasting (manual thresholds + hints from history); `supplier_prices`/price alerts before E4-future; a supplier portal (schema placeholder only, `ADR-017`); Celery/APScheduler (everything is button-driven in Phase 1); embeddings/pgvector matching (the `sku_embedding` column is unused, backlog `DEC-02`). Full list — [[product]] §5 dev stop-list.
+Авто-отправка заказов и любая запись в Esupl кроме гейтированного [[glossary]] `write_invoice`; прогнозирование спроса (ручные пороги + подсказки из истории); `supplier_prices`/ценовые алерты до E4-future; портал поставщика (только placeholder в схеме, `ADR-017`); Celery/APScheduler (в Фазе 1 всё запускается кнопкой); embeddings/pgvector-сопоставление (колонка `sku_embedding` не используется, backlog `DEC-02`). Полный список — [[product]] §5 dev stop-list.
 
-## Related documents
+## Связанные документы
 
-- [[product]] — identity and strategy (routine ladder ↔ epics)
-- [[architecture]] — the as-built implementation
-- [[MOC]] — map of content · [[index]] — the decision log
+- [[product]] — идентичность и стратегия (лестница рутин ↔ эпики)
+- [[architecture]] — as-built реализация
+- [[MOC]] — карта содержимого · [[index]] — журнал решений
 - [[glossary]] · [[global-requirements]] (R1–R9)
 
 ## Sources
 
-- `07_PHASES.md` v1.0.0 — stages Э0–Э8, critical path §6, forks §7.
-- `plan/00_IMPLEMENTATION_PLAN.md` v1.0.1 — stages S1/S2/F3–F10/P2, cross-cutting G1–G11, the Pilot-Gate definition §2.
-- `_RESTRUCTURE_PLAN.md` — collision resolution 1/2/3, the Epic→Feature ID map.
+- `07_PHASES.md` v1.0.0 — стадии Э0–Э8, критический путь §6, развилки §7.
+- `plan/00_IMPLEMENTATION_PLAN.md` v1.0.1 — стадии S1/S2/F3–F10/P2, сквозные G1–G11, определение Pilot-Gate §2.
+- `_RESTRUCTURE_PLAN.md` — collision resolution 1/2/3, карта Epic→Feature ID.

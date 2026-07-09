@@ -1,7 +1,7 @@
 ---
 id: LCOS-F26
 type: feature
-title: Multi-page silent-loss interim fix (DEC-07)
+title: Временное исправление молчаливой потери многостраничности (DEC-07)
 epic: "[[LCOS-E5-stabilization]]"
 status: planned
 phase: "Phase 1"
@@ -13,64 +13,64 @@ legacy_refs: [plan S1-F3, backlog DEC-07, Conformance D-g]
 sources: ["plan/PHASE_S1_STABILIZATION.md §S1-F3 §AC-8", "LCOS_Conformance_Alignment_GlobalRequirements.md D-g", "APP_OVERVIEW.md §6", "mvp.fe src/entities/invoice/model/sessionSlice.ts:22", "mvp.fe src/shared/ocr/providers/backend.ts:43"]
 updated: 2026-07-09
 ---
-# LCOS-F26 · Multi-page silent-loss interim fix (DEC-07)
+# LCOS-F26 · Временное исправление молчаливой потери многостраничности (DEC-07)
 
 **Epic:** [[LCOS-E5-stabilization]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-The frontend lets a user attach up to `MAX_INVOICE_PAGES = 3` pages, but the backend OCR path is single-page: `BackendOcrProvider` sends only `pages[0]`, so pages 2–3 are **silently discarded**. Silent data loss on the core wedge is unacceptable, and full multi-page recognition is a larger capability deferred to the OCR-quality epic ([[LCOS-F29-multipage-recognize]] in [[LCOS-E6-ocr-quality]]). This feature is the *interim* fix that removes the silent loss until then.
+Frontend позволяет пользователю прикрепить до `MAX_INVOICE_PAGES = 3` страниц, но бэкендный OCR-путь одностраничен: `BackendOcrProvider` отправляет только `pages[0]`, поэтому страницы 2–3 **молча отбрасываются**. Молчаливая потеря данных на ключевом клине недопустима, а полное многостраничное распознавание — это более крупная возможность, отложенная в эпик качества OCR ([[LCOS-F29-multipage-recognize]] в [[LCOS-E6-ocr-quality]]). Эта фича — *временное* исправление, которое убирает молчаливую потерю до того момента.
 
-Per DEC-07 = B, the fix is deliberately small and frontend-only: either cap `MAX_INVOICE_PAGES` at `1`, **or** keep multi-attach but show an explicit UI warning ("only the first page is recognized") whenever more than one file is attached. Either way, the user is never left believing a second page was processed when it was not. No backend change is made here; the durable multi-page pipeline is out of scope.
+Согласно DEC-07 = B, исправление намеренно маленькое и только на frontend: либо ограничить `MAX_INVOICE_PAGES` до `1`, **либо** сохранить мульти-attach, но показывать явное UI-предупреждение («распознаётся только первая страница») каждый раз, когда прикреплено более одного файла. В любом случае пользователь никогда не остаётся с убеждением, что вторая страница была обработана, когда это не так. Изменений на бэкенде здесь нет; устойчивый многостраничный пайплайн — вне scope.
 
-## Capabilities
+## Возможности
 
-- No silent page loss: attaching more than one page either is prevented (limit 1) or triggers a clear, visible warning that only the first page is recognized.
-- The interim behaviour is scoped to the FE upload/prepare surface (`prepare-step` / `invoice-workbench`); the backend `/invoices/recognize` contract is unchanged.
-- Documented handoff: the limitation and the eventual fix are cross-linked to the durable multi-page feature so the interim state is intentional, not forgotten.
+- Нет молчаливой потери страниц: прикрепление более одной страницы либо предотвращается (лимит 1), либо запускает понятное, видимое предупреждение, что распознаётся только первая страница.
+- Временное поведение ограничено поверхностью FE upload/prepare (`prepare-step` / `invoice-workbench`); контракт бэкенда `/invoices/recognize` без изменений.
+- Задокументированная передача: ограничение и итоговое исправление перекрёстно связаны с устойчивой многостраничной фичей, так что временное состояние — намеренное, а не забытое.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[member]] | On attaching more than one page, is prevented or clearly warned that only the first page is recognized; never silently loses page 2+. |
-| [[admin]] | Same as member within their subdivision. |
-| [[superadmin]] | Same; no additional multi-page capability at this stage. |
+| [[member]] | При прикреплении более одной страницы — предотвращено или чётко предупреждён, что распознаётся только первая страница; никогда молча не теряет страницу 2+. |
+| [[admin]] | То же, что и member, в пределах своего subdivision. |
+| [[superadmin]] | То же; никакой дополнительной многостраничной возможности на этом этапе. |
 
-Tenant scope is unchanged (from the active JWT); this feature does not alter access rules.
+Scope тенанта без изменений (из активного JWT); эта фича не меняет правила доступа.
 
-## Involved entities
+## Задействованные сущности
 
-- [[invoices]] — the recognized draft still yields a single-page invoice; no second-page lines are fabricated or lost without notice.
-- [[invoice_lines]] — only lines from the first recognized page are produced; the user is aware of that.
+- [[invoices]] — распознанный черновик по-прежнему даёт одностраничный счёт-фактуру; строки второй страницы не фабрикуются и не теряются без уведомления.
+- [[invoice_lines]] — производятся только строки с первой распознанной страницы; пользователь об этом осведомлён.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[global-requirements]] (`R9`: no silent data loss / behaviour matching the UI), [[provider-abstraction]] (the FE OCR provider seam `backend`/`mock` is where the single-page send lives).
-- **Features:** interim fix for the OCR entry point [[LCOS-F8-ocr-recognition]]; superseded by the durable [[LCOS-F29-multipage-recognize]] in [[LCOS-E6-ocr-quality]].
-- **Decisions:** DEC-07 = B (interim, FE-only) now, with (A) full multi-page as a later feature task.
+- **Требования:** [[global-requirements]] (`R9`: нет молчаливой потери данных / поведение соответствует UI), [[provider-abstraction]] (FE OCR-шов провайдера `backend`/`mock` — там, где живёт одностраничная отправка).
+- **Фичи:** временное исправление для точки входа OCR [[LCOS-F8-ocr-recognition]]; замещается устойчивым [[LCOS-F29-multipage-recognize]] в [[LCOS-E6-ocr-quality]].
+- **Решения:** DEC-07 = B (временно, только FE) сейчас, с (A) полной многостраничностью как более поздней задачей-фичей.
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. No backend change: `/invoices/recognize` remains single-page; this feature does not modify the OCR provider or service contract.
+- [ ] AC-BE-1. Изменений на бэкенде нет: `/invoices/recognize` остаётся одностраничным; эта фича не модифицирует OCR-провайдер или контракт сервиса.
 
 ### Frontend
-- [ ] AC-FE-1. Attaching more than one page either is disallowed (`MAX_INVOICE_PAGES=1`) or shows an explicit warning ("only the first page is recognized") — there is no path where page 2+ is dropped without user-visible notice.
-- [ ] AC-FE-2. If the warning approach is chosen, `MAX_INVOICE_PAGES` and the `pages[0]` send in `shared/ocr/providers/backend.ts` are made consistent with the warning (the user is told exactly what is processed).
-- [ ] AC-FE-3. `npm run build` green; the existing single-page happy path is unchanged.
+- [ ] AC-FE-1. Прикрепление более одной страницы либо запрещено (`MAX_INVOICE_PAGES=1`), либо показывает явное предупреждение («распознаётся только первая страница») — нет пути, где страница 2+ отбрасывается без видимого пользователю уведомления.
+- [ ] AC-FE-2. Если выбран подход с предупреждением, `MAX_INVOICE_PAGES` и отправка `pages[0]` в `shared/ocr/providers/backend.ts` приводятся в соответствие с предупреждением (пользователю точно сообщают, что обрабатывается).
+- [ ] AC-FE-3. `npm run build` зелёный; существующий одностраничный happy path без изменений.
 
-### Other
-- [ ] AC-OTHER-1. The limitation is documented and cross-linked to [[LCOS-F29-multipage-recognize]] so the interim state is explicit.
+### Прочее
+- [ ] AC-OTHER-1. Ограничение задокументировано и перекрёстно связано с [[LCOS-F29-multipage-recognize]], так что временное состояние явное.
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **Limit-1 vs warning:** owner choice; the plan accepts either as long as the silent loss is gone (`AC-8`).
-- **Durable multi-page** (backend recognition of all pages) is explicitly out of scope here and lives in [[LCOS-F29-multipage-recognize]] (epic [[LCOS-E6-ocr-quality]]).
+- **Лимит-1 vs предупреждение:** выбор владельца; план принимает любой вариант, лишь бы молчаливая потеря исчезла (`AC-8`).
+- **Устойчивая многостраничность** (бэкендное распознавание всех страниц) явно вне scope здесь и живёт в [[LCOS-F29-multipage-recognize]] (эпик [[LCOS-E6-ocr-quality]]).
 
-## Sources
+## Источники
 
-- `plan/PHASE_S1_STABILIZATION.md §2 S1-F3` (DEC-07 = B interim), `§5 AC-8`.
-- `LCOS_Conformance_Alignment_GlobalRequirements.md §2.2 D-g` (FE `MAX_INVOICE_PAGES=3` but backend sends `pages[0]`; pages 2–3 silently lost; recommendation B now, A later).
-- `APP_OVERVIEW.md §6` (single-page recognition; multi-page is a known gap).
-- Current state: `mvp.fe/src/entities/invoice/model/sessionSlice.ts:22` (`MAX_INVOICE_PAGES = 3`), `:122` (slice cap); `mvp.fe/src/shared/ocr/providers/backend.ts:43` (`const page = pages[0]`).
+- `plan/PHASE_S1_STABILIZATION.md §2 S1-F3` (DEC-07 = B временно), `§5 AC-8`.
+- `LCOS_Conformance_Alignment_GlobalRequirements.md §2.2 D-g` (FE `MAX_INVOICE_PAGES=3`, но бэкенд шлёт `pages[0]`; страницы 2–3 молча теряются; рекомендация B сейчас, A позже).
+- `APP_OVERVIEW.md §6` (одностраничное распознавание; многостраничность — известный пробел).
+- Текущее состояние: `mvp.fe/src/entities/invoice/model/sessionSlice.ts:22` (`MAX_INVOICE_PAGES = 3`), `:122` (лимит в slice); `mvp.fe/src/shared/ocr/providers/backend.ts:43` (`const page = pages[0]`).

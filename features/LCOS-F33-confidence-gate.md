@@ -1,7 +1,7 @@
 ---
 id: LCOS-F33
 type: feature
-title: Post-recognition confidence gate (verify-these-fields)
+title: Пост-распознавательный гейт уверенности (проверьте эти поля)
 epic: "[[LCOS-E6-ocr-quality]]"
 status: planned
 phase: "Phase 1"
@@ -13,71 +13,71 @@ legacy_refs: [plan S2 (S2-F4), "scan-preprocessing-plan Phase 4", "08_PHASE1_SPE
 sources: ["plan/PHASE_S2_OCR_CAPTURE.md §2 (S2-F4), §4 AC-5", "mvp.fe src/shared/ocr/rules.ts", "mvp.fe src/shared/ocr/confidence.ts", "mvp.fe src/shared/ocr/invoiceType.ts"]
 updated: 2026-07-09
 ---
-# LCOS-F33 · Post-recognition confidence gate (verify-these-fields)
+# LCOS-F33 · Пост-распознавательный гейт уверенности (проверьте эти поля)
 **Epic:** [[LCOS-E6-ocr-quality]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-Recognition is never perfect, and the epic's kill-criterion is explicit: bad lines must not slip silently into the draft. After a draft comes back from `/recognize`, this feature runs the existing recognition-rule validators and surfaces anything shaky **at the top of the workbench** as a focused "verify these fields" section — not a separate full-screen form. Clean drafts show the normal green workbench with no interruption.
+Распознавание никогда не идеально, и kill-критерий эпика явен: плохие строки не должны молча проскользнуть в черновик. После того как черновик возвращается с `/recognize`, эта фича запускает существующие валидаторы правил распознавания и всплывает всё шаткое **в верхней части workbench** как сфокусированную секцию «проверьте эти поля» — не отдельную полноэкранную форму. Чистые черновики показывают обычный зелёный workbench без прерывания.
 
-All the checks already exist as single-source-of-truth modules on the frontend: `rules.ts` (`waybillSeries`, `waybillNumber`, `totalRow`) defines the field formats and which totals/tax rows must not appear as products; `confidence.ts` defines the `LOW_CONFIDENCE = 0.9` cutoff for shakily-read lines; `invoiceType.ts` decides which identifier is mandatory for the chosen type. This feature wires those into a post-recognition pass plus per-line arithmetic verification (`qty × unitPrice` vs `sum`, the "lineSumMismatch" check), and reuses the existing validation-panel mechanism with click-to-focus jumps to the offending field.
+Все проверки уже существуют как модули единого источника истины на frontend: `rules.ts` (`waybillSeries`, `waybillNumber`, `totalRow`) определяет форматы полей и то, какие строки итогов/налогов не должны появляться как товары; `confidence.ts` определяет порог `LOW_CONFIDENCE = 0.9` для шатко прочитанных строк; `invoiceType.ts` решает, какой идентификатор обязателен для выбранного типа. Эта фича подключает их в пост-распознавательный проход плюс построчную арифметическую проверку (`qty × unitPrice` vs `sum`, проверка «lineSumMismatch») и переиспользует существующий механизм панели валидации с click-to-focus переходами к нарушающему полю.
 
-The gate distinguishes severities from `rules.ts`: `block` fields forbid sending, `warn` fields let the invoice through flagged (e.g. the waybill series/number are `warn` because vision models miss them often and a hard block would trap the user). The old spec's sanity check — a line whose value deviates >3× from typical — must land in the warn section rather than pass unnoticed. This keeps the human "only confirms" while guaranteeing no silent data loss ([[invoice-status-machine]]).
+Гейт различает severity из `rules.ts`: поля `block` запрещают отправку, поля `warn` пропускают счёт-фактуру помеченным (например, серия/номер накладной — `warn`, потому что vision-модели часто их упускают, а жёсткий блок запер бы пользователя). Sanity-check из старой спеки — строка, чьё значение отклоняется >3× от типичного — должна приземляться в секцию warn, а не проходить незамеченной. Это удерживает человека в роли «только подтверждает», гарантируя отсутствие молчаливой потери данных ([[invoice-status-machine]]).
 
-## Capabilities
+## Возможности
 
-- Post-recognition validation pass over the draft using `rules.ts` field rules (`waybillSeries`/`waybillNumber` format), `totalRow` (drop/flag summary rows misread as products), and per-line arithmetic (`qty × unitPrice ≈ sum`).
-- Low-confidence line flagging via the shared `LOW_CONFIDENCE = 0.9` cutoff (`isLowConfidence`) — same threshold used by the lines table highlight and photo overlay, so they cannot drift.
-- Type-aware required identifier: for `paper`, a missing/invalid waybill blank is surfaced; for `electronic`, a missing document number is surfaced (`invoiceType.ts.identifier`).
-- Severity handling from `rules.ts`: `block` forbids send; `warn` allows send with a flag (waybill series/number are `warn`).
-- A "verify these fields" section pinned to the top of the workbench (reusing the validation-panel mechanism) with click-to-focus jumps; fully valid drafts show the normal green panel and no section.
-- The old >3×-of-typical line-value sanity check routed into the warn section rather than passing silently.
+- Пост-распознавательный проход валидации над черновиком с использованием правил полей `rules.ts` (формат `waybillSeries`/`waybillNumber`), `totalRow` (отбросить/пометить строки-итоги, неверно прочитанные как товары) и построчной арифметики (`qty × unitPrice ≈ sum`).
+- Пометка строк низкой уверенности через общий порог `LOW_CONFIDENCE = 0.9` (`isLowConfidence`) — тот же порог, что использует подсветка таблицы строк и оверлей фото, так что они не могут разъехаться.
+- Type-aware обязательный идентификатор: для `paper` всплывает отсутствующий/невалидный бланк накладной; для `electronic` всплывает отсутствующий номер документа (`invoiceType.ts.identifier`).
+- Обработка severity из `rules.ts`: `block` запрещает отправку; `warn` разрешает отправку с пометкой (серия/номер накладной — `warn`).
+- Секция «проверьте эти поля», закреплённая в верхней части workbench (переиспользуя механизм панели валидации) с click-to-focus переходами; полностью валидные черновики показывают обычную зелёную панель и никакой секции.
+- Старая sanity-check значения строки >3× от типичного маршрутизируется в секцию warn, а не проходит молча.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[member]] | Sees flagged fields after recognition, jumps to each, corrects them before `prepare`/`submit`; blocked from sending only on `block`-severity issues. |
-| [[admin]] | Same as member, within their subdivision. |
-| [[superadmin]] | Same across tenants. |
-| [[sqladmin-operator]] | Not in the flow. |
+| [[member]] | Видит помеченные поля после распознавания, прыгает к каждому, исправляет их до `prepare`/`submit`; заблокирован от отправки только на проблемах severity `block`. |
+| [[admin]] | То же, что и member, в пределах своего subdivision. |
+| [[superadmin]] | То же по всем тенантам. |
+| [[sqladmin-operator]] | Не в потоке. |
 
-Client-side gate over the recognized draft; tenant scope inherited from the invoice flow ([[auth]], [[multitenancy]]).
+Клиентский гейт над распознанным черновиком; scope тенанта унаследован из потока счёта-фактуры ([[auth]], [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[invoices]] — header fields validated (waybill series/number vs document number per type, total).
-- [[invoice_lines]] — per-line arithmetic and low-confidence checks; flagged lines are highlighted for review, not dropped.
+- [[invoices]] — валидируются поля заголовка (серия/номер накладной vs номер документа по типу, итог).
+- [[invoice_lines]] — построчная арифметика и проверки низкой уверенности; помеченные строки подсвечиваются для ревью, не отбрасываются.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[invoice-status-machine]] (the gate sits between `recognize` and `prepare`/`submit`; no silent data loss), [[provider-abstraction]] (validators consume the canonical `OcrResult`, provider-agnostic).
-- **Features:** consumes output of [[LCOS-F8-ocr-recognition]] and [[LCOS-F29-multipage-recognize]]; shares the `rules.ts`/`invoiceType.ts` SSOT with [[LCOS-F30-recognition-context]] (what the prompt asks for is what the gate verifies); precedes [[LCOS-F9-line-matching]]. Enforces the epic kill-criterion from [[LCOS-E5-stabilization]].
-- **ADR:** [[ADR-009]] (provider seam; validators are provider-agnostic).
+- **Требования:** [[invoice-status-machine]] (гейт сидит между `recognize` и `prepare`/`submit`; нет молчаливой потери данных), [[provider-abstraction]] (валидаторы потребляют канонический `OcrResult`, провайдер-агностично).
+- **Фичи:** потребляет вывод [[LCOS-F8-ocr-recognition]] и [[LCOS-F29-multipage-recognize]]; делит SSOT `rules.ts`/`invoiceType.ts` с [[LCOS-F30-recognition-context]] (что промпт запрашивает — то гейт проверяет); предшествует [[LCOS-F9-line-matching]]. Обеспечивает kill-критерий эпика из [[LCOS-E5-stabilization]].
+- **ADR:** [[ADR-009]] (шов провайдера; валидаторы провайдер-агностичны).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Frontend
-- [ ] AC-FE-1. After `/recognize`, the draft is run through `rules.ts` (`waybillSeries`/`waybillNumber`/`totalRow`) + per-line `qty × unitPrice ≈ sum` + low-confidence (`isLowConfidence`, cutoff `0.9`) checks.
-- [ ] AC-FE-2. An invoice with an invalid blank number or a line-sum mismatch shows a "verify these fields" section atop the workbench with click-to-focus jumps to each offending field; a fully valid draft shows no section (green panel).
-- [ ] AC-FE-3. Type-aware requirement: `paper` surfaces a missing/invalid waybill blank; `electronic` surfaces a missing document number (from `invoiceType.ts.identifier`).
-- [ ] AC-FE-4. Severity respected: `block`-severity issues disable send; `warn`-severity issues (e.g. waybill series/number) allow send while flagged.
-- [ ] AC-FE-5. The >3×-of-typical line-value sanity check is routed into the warn section (never silently accepted).
-- [ ] AC-FE-6. The low-confidence cutoff is read from the shared `confidence.ts` (`LOW_CONFIDENCE`) so the panel, lines table and photo overlay agree.
+- [ ] AC-FE-1. После `/recognize` черновик прогоняется через `rules.ts` (`waybillSeries`/`waybillNumber`/`totalRow`) + построчную `qty × unitPrice ≈ sum` + низкую уверенность (`isLowConfidence`, порог `0.9`).
+- [ ] AC-FE-2. Счёт-фактура с невалидным номером бланка или несовпадением суммы строки показывает секцию «проверьте эти поля» наверху workbench с click-to-focus переходами к каждому нарушающему полю; полностью валидный черновик не показывает секции (зелёная панель).
+- [ ] AC-FE-3. Type-aware требование: `paper` всплывает отсутствующий/невалидный бланк накладной; `electronic` всплывает отсутствующий номер документа (из `invoiceType.ts.identifier`).
+- [ ] AC-FE-4. Severity соблюдён: проблемы severity `block` отключают отправку; проблемы severity `warn` (например, серия/номер накладной) разрешают отправку помеченными.
+- [ ] AC-FE-5. Sanity-check значения строки >3× от типичного маршрутизируется в секцию warn (никогда не принимается молча).
+- [ ] AC-FE-6. Порог низкой уверенности читается из общего `confidence.ts` (`LOW_CONFIDENCE`), так что панель, таблица строк и оверлей фото согласуются.
 
 ### Backend
-- [ ] AC-BE-1. No new backend endpoint: the gate runs on the client over the returned draft; `submit` remains the authoritative server-side validator (a `block` issue passed client-side is still caught server-side, not silently persisted).
+- [ ] AC-BE-1. Нового бэкенд-endpoint нет: гейт работает на клиенте над возвращённым черновиком; `submit` остаётся авторитетным серверным валидатором (проблема `block`, пропущенная на клиенте, всё равно ловится на сервере, не персистится молча).
 
-### Other (QA)
-- [ ] AC-OTHER-1. Unit tests cover each rule branch (valid vs invalid series/number, totals-row drop, line-sum mismatch, low-confidence) and that a clean draft yields an empty issue set.
+### Прочее (QA)
+- [ ] AC-OTHER-1. Unit-тесты покрывают каждую ветку правила (валидная vs невалидная серия/номер, отбрасывание строки итогов, несовпадение суммы строки, низкая уверенность) и то, что чистый черновик даёт пустой набор проблем.
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **Kill-criterion (no silent loss):** lines below confidence / failing arithmetic must be flagged or block — never pass unseen; this is the epic gate inherited from [[LCOS-E5-stabilization]].
-- **block vs warn calibration:** waybill series/number are `warn` today (models miss them); revisit if capture-quality features (F31/F32) raise reliability enough to promote to `block`.
-- **Not a full-screen form:** must reuse the existing validation-panel mechanism (focus transitions), keeping the workbench in view.
+- **Kill-критерий (нет молчаливой потери):** строки ниже уверенности / провалившие арифметику должны быть помечены или блокировать — никогда не проходить незамеченными; это гейт эпика, унаследованный из [[LCOS-E5-stabilization]].
+- **Калибровка block vs warn:** серия/номер накладной сегодня `warn` (модели их упускают); пересмотреть, если фичи качества захвата (F31/F32) поднимут надёжность достаточно, чтобы промотировать до `block`.
+- **Не полноэкранная форма:** должна переиспользовать существующий механизм панели валидации (переходы фокуса), удерживая workbench в поле зрения.
 
-## Sources
+## Источники
 
-- `plan/PHASE_S2_OCR_CAPTURE.md` §2 S2-F4 (run `rules.ts` validators + `lineSumMismatch`, "verify these fields" section with focus transitions, not full-screen; >3× sanity check into warn), §4 AC-5.
-- `mvp.fe/src/shared/ocr/rules.ts` (`waybillSeries`/`waybillNumber` format + `severity`, `totalRow`), `src/shared/ocr/confidence.ts` (`LOW_CONFIDENCE = 0.9`, `isLowConfidence`), `src/shared/ocr/invoiceType.ts` (`identifier` → required field per type).
+- `plan/PHASE_S2_OCR_CAPTURE.md` §2 S2-F4 (запуск валидаторов `rules.ts` + `lineSumMismatch`, секция «проверьте эти поля» с переходами фокуса, не полноэкранная; sanity-check >3× в warn), §4 AC-5.
+- `mvp.fe/src/shared/ocr/rules.ts` (`waybillSeries`/`waybillNumber` формат + `severity`, `totalRow`), `src/shared/ocr/confidence.ts` (`LOW_CONFIDENCE = 0.9`, `isLowConfidence`), `src/shared/ocr/invoiceType.ts` (`identifier` → обязательное поле по типу).

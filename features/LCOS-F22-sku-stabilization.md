@@ -1,7 +1,7 @@
 ---
 id: LCOS-F22
 type: feature
-title: SKU-identity stabilization (DEC-0011/0013/0012)
+title: Стабилизация SKU-идентичности (DEC-0011/0013/0012)
 epic: "[[LCOS-E5-stabilization]]"
 status: built
 phase: "Phase 1"
@@ -13,85 +13,85 @@ legacy_refs: [08 F1.1, 08 F1.2, DEC-0012, TZ__STABILIZATION S6/S8/S9]
 sources: ["TZ__STABILIZATION_2026-07-09__ALIGNED.md", "APP_OVERVIEW.md §7 §8 §13", "mvp.be app/services/invoice_service.py:295", "mvp.be alembic/versions/0008_*, 0009_sku_mapping_packing", "mvp.be pyproject.toml:65"]
 updated: 2026-07-09
 ---
-# LCOS-F22 · SKU-identity stabilization (DEC-0011/0013/0012)
+# LCOS-F22 · Стабилизация SKU-идентичности (DEC-0011/0013/0012)
 
 **Epic:** [[LCOS-E5-stabilization]] · **Status:** built · **Phase:** Phase 1
 
-## Description
+## Описание
 
-This feature ratifies and hardens the two-context SKU identity model that the whole invoice wedge depends on. It is the point at which the moat design (`[[LCOS-F13-sku-identity-resolver]]`, `[[LCOS-F14-learning-loop]]`) stopped being aspirational and was made verifiable, adversarially reviewed, and merge-gated. It closes out the alignment tasks S5–S9 of the aligned stabilization TZ against the real code and the ratified decisions `[[DEC-0011]]`/`[[DEC-0013]]`.
+Эта фича ратифицирует и укрепляет двухконтекстную модель SKU-идентичности, от которой зависит весь клин фичи со счетами-фактурами. Это тот момент, когда дизайн рва (`[[LCOS-F13-sku-identity-resolver]]`, `[[LCOS-F14-learning-loop]]`) перестал быть декларативным и стал верифицируемым, состязательно отревьюенным и защищённым merge-гейтом. Она закрывает задачи согласования S5–S9 согласованного ТЗ по стабилизации относительно реального кода и ратифицированных решений `[[DEC-0011]]`/`[[DEC-0013]]`.
 
-The **confirmed data flow is SSOT and must not change without a new DEC** (`TZ__STABILIZATION_2026-07-09__ALIGNED.md`):
-- **Draft (`prepare()`, tolerant):** the Esupl payload is built from the *local* catalog — `esupl_item_id` (int) and `esupl_unit_id` (POS mirror), plus packing. Fuzzy / AI / exact-cache hints live **only here**. `pos_ingredient_id` is never touched.
-- **Commit (`submit()` → `_resolve_commit_identities`, fail-closed):** `pos_ingredient_id` is resolved **only** from `[[sku_mapping]]` (`method='manual'` OR `confirmed_by` set), priority subdivision → org. It is then live-validated against POS (`GET /teams/{id}/products?id=`); no exact match → `None`, fail-closed, never `items[0]`. Unit: POS is authoritative, OCR is a tolerant cross-check (block only when both are present and differ). Cache/fuzzy/AI do **not** participate at commit.
+**Подтверждённый поток данных — это SSOT и не должен меняться без нового DEC** (`TZ__STABILIZATION_2026-07-09__ALIGNED.md`):
+- **Черновик (`prepare()`, толерантный):** payload для Esupl строится из *локального* каталога — `esupl_item_id` (int) и `esupl_unit_id` (зеркало POS), плюс packing. Fuzzy / AI / exact-cache подсказки живут **только здесь**. `pos_ingredient_id` никогда не затрагивается.
+- **Коммит (`submit()` → `_resolve_commit_identities`, fail-closed):** `pos_ingredient_id` резолвится **только** из `[[sku_mapping]]` (`method='manual'` ИЛИ установлен `confirmed_by`), приоритет subdivision → org. Затем он live-валидируется против POS (`GET /teams/{id}/products?id=`); нет точного совпадения → `None`, fail-closed, никогда не `items[0]`. Единица измерения: POS авторитетен, OCR — толерантная перекрёстная проверка (блокировать только когда обе присутствуют и различаются). Cache/fuzzy/AI **не** участвуют на коммите.
 
-The decisive stabilization outcome was to **reject variant C** (auto-creating `sku_mapping` rows with `cache_exact` / `confirmed_by='system'` on an exact cache hit) and uphold **variant A**: a mapping becomes commit-eligible only through an explicit human action. Variant C would have reverted correct code and broken the green `merge_gate` tests, so it was vetoed (`[[ADR-018]]`). The learning-loop was also fully migrated out of browser `localStorage` into the backend `[[sku_mapping]]` table using the DEC-0012 composite key plus packing (migrations `0008`/`0009`), with persist happening *before* send so a confirmed mapping survives an invoice reject (`[[ADR-020]]`).
+Решающим итогом стабилизации было **отклонить вариант C** (авто-создание строк `sku_mapping` с `cache_exact` / `confirmed_by='system'` при точном попадании в кэш) и утвердить **вариант A**: маппинг становится пригодным к коммиту только через явное человеческое действие. Вариант C откатил бы корректный код и сломал зелёные тесты `merge_gate`, поэтому был наложен вето (`[[ADR-018]]`). Learning-loop также был полностью мигрирован из браузерного `localStorage` в бэкендную таблицу `[[sku_mapping]]` с использованием композитного ключа DEC-0012 плюс packing (миграции `0008`/`0009`), с сохранением *до* отправки, чтобы подтверждённый маппинг пережил отклонение счёта-фактуры (`[[ADR-020]]`).
 
-## Capabilities
+## Возможности
 
-- Durable commit-time identity: line → `pos_ingredient_id` resolved solely from `[[sku_mapping]]`, subdivision-first then org, with POS live-validation and fail-closed `None` on no exact match.
-- Draft/commit separation enforced in code: tolerant hints (fuzzy/AI/exact-cache) confined to `prepare()`; commit reads only human-confirmed mappings.
-- Learning-loop persisted server-side under the DEC-0012 composite key (`scope`, `supplier_external_id`, `source_key`) + packing; `localStorage` module deleted.
-- Persist-then-commit ordering: the confirmed mapping is written in its own transaction on send, before the submit mutation, so it survives a fail-closed reject of the first invoice.
-- Unit authority (D2): payload takes the POS unit; the comparator is empty-tolerant and normalized; a mismatch blocks only when both OCR and POS units are present and differ.
-- Merge-gated invariants: `pytest -m merge_gate` covers durable-id and DEC-0013 commit-gate behaviour (durable `pos_ingredient_id`, never a surrogate).
-- Dead-column recognition: `invoice_lines.sku_embedding` is confirmed unused and flagged for removal (see `[[LCOS-F25-deadcode-cleanup]]`).
+- Устойчивая идентичность на момент коммита: строка → `pos_ingredient_id` резолвится исключительно из `[[sku_mapping]]`, сначала subdivision, затем org, с live-валидацией против POS и fail-closed `None` при отсутствии точного совпадения.
+- Разделение draft/commit, обеспеченное в коде: толерантные подсказки (fuzzy/AI/exact-cache) заключены в `prepare()`; коммит читает только подтверждённые человеком маппинги.
+- Learning-loop сохраняется на стороне сервера под композитным ключом DEC-0012 (`scope`, `supplier_external_id`, `source_key`) + packing; модуль `localStorage` удалён.
+- Порядок «сначала сохранить, потом коммитить»: подтверждённый маппинг записывается в собственной транзакции при отправке, до мутации submit, поэтому он переживает fail-closed отклонение первого счёта-фактуры.
+- Авторитет единицы измерения (D2): payload берёт единицу из POS; компаратор толерантен к пустым значениям и нормализован; несовпадение блокирует только когда обе единицы (OCR и POS) присутствуют и различаются.
+- Инварианты под merge-гейтом: `pytest -m merge_gate` покрывает поведение устойчивого id и commit-гейта DEC-0013 (устойчивый `pos_ingredient_id`, никогда суррогат).
+- Распознавание мёртвой колонки: `invoice_lines.sku_embedding` подтверждён как неиспользуемый и помечен на удаление (см. `[[LCOS-F25-deadcode-cleanup]]`).
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[member]] | Confirm a line↔SKU mapping while editing an invoice in their subdivision; the confirmation is persisted as a `method='manual'` mapping and becomes commit-eligible. |
-| [[admin]] | Same as member within their subdivision. |
-| [[superadmin]] | Same across all tenants; can inspect/repair mappings via the operator plane. |
-| [[sqladmin-operator]] | Does not participate in the flow; may inspect `[[sku_mapping]]` rows in SQLAdmin. |
+| [[member]] | Подтвердить маппинг строка↔SKU при редактировании счёта-фактуры в своём subdivision; подтверждение сохраняется как маппинг `method='manual'` и становится пригодным к коммиту. |
+| [[admin]] | То же, что и member, в пределах своего subdivision. |
+| [[superadmin]] | То же по всем тенантам; может инспектировать/чинить маппинги через operator-плоскость. |
+| [[sqladmin-operator]] | Не участвует в потоке; может инспектировать строки `[[sku_mapping]]` в SQLAdmin. |
 
-Every read/write is tenant-scoped: `organization_id` / `subdivision_id` come from the active JWT context (see [[auth]], [[multitenancy]]).
+Каждое чтение/запись тенант-скоупировано: `organization_id` / `subdivision_id` берутся из активного JWT-контекста (см. [[auth]], [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[sku_mapping]] — the moat and the *only* commit-time source of `pos_ingredient_id`. Composite key `(scope, supplier_external_id, source_key)` + `packing`; carries `method`, `confidence`, `confirmed_by`.
-- [[ingredient_cache]] — non-authoritative, scope-aware draft cache; participates in `prepare()` hints only, never at commit (VER-022, closed by `[[DEC-0013]]`).
-- [[invoice_lines]] — each saved line holds the durable `pos_ingredient_id`; the unused `sku_embedding` column is flagged dead.
-- [[ingredients]] + [[packings]] — the local catalog mirror from which the draft payload (`esupl_item_id`, `esupl_unit_id`, packing) is built.
+- [[sku_mapping]] — ров и *единственный* источник `pos_ingredient_id` на момент коммита. Композитный ключ `(scope, supplier_external_id, source_key)` + `packing`; несёт `method`, `confidence`, `confirmed_by`.
+- [[ingredient_cache]] — неавторитетный, scope-aware черновой кэш; участвует только в подсказках `prepare()`, никогда на коммите (VER-022, закрыт `[[DEC-0013]]`).
+- [[invoice_lines]] — каждая сохранённая строка держит устойчивый `pos_ingredient_id`; неиспользуемая колонка `sku_embedding` помечена как мёртвая.
+- [[ingredients]] + [[packings]] — зеркало локального каталога, из которого строится черновой payload (`esupl_item_id`, `esupl_unit_id`, packing).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[sku-identity-resolver]] (the two-context resolver contract this stabilizes), [[fail-closed]] (commit resolves to `None` rather than guessing; no `items[0]`), [[erp-esupl-integration]] (POS is authoritative at commit; read-only).
-- **Features:** implements the resolver in [[LCOS-F13-sku-identity-resolver]] and the moat in [[LCOS-F14-learning-loop]]; commit is invoked by [[LCOS-F10-invoice-status-machine]]; draft hints consume [[LCOS-F16-ingredient-cache]] and [[LCOS-F15-sku-catalog]]. The read validation path is [[LCOS-F11-esupl-read]].
-- **Decisions:** [[DEC-0011]] (two-context identity, T2/T5), [[DEC-0013]] (variant A upheld; VER-022 closed), [[ADR-018]] (variant C vetoed), [[ADR-019]]/[[ADR-020]] (composite-key moat + persist-then-commit).
+- **Требования:** [[sku-identity-resolver]] (контракт двухконтекстного резолвера, который здесь стабилизируется), [[fail-closed]] (коммит резолвится в `None` вместо угадывания; никакого `items[0]`), [[erp-esupl-integration]] (POS авторитетен на коммите; read-only).
+- **Фичи:** реализует резолвер в [[LCOS-F13-sku-identity-resolver]] и ров в [[LCOS-F14-learning-loop]]; коммит вызывается из [[LCOS-F10-invoice-status-machine]]; черновые подсказки потребляют [[LCOS-F16-ingredient-cache]] и [[LCOS-F15-sku-catalog]]. Путь read-валидации — [[LCOS-F11-esupl-read]].
+- **Решения:** [[DEC-0011]] (двухконтекстная идентичность, T2/T5), [[DEC-0013]] (вариант A утверждён; VER-022 закрыт), [[ADR-018]] (вариант C отклонён вето), [[ADR-019]]/[[ADR-020]] (ров на композитном ключе + «сначала сохранить, потом коммитить»).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [x] AC-BE-1. `submit()` resolves `pos_ingredient_id` **only** via `_resolve_commit_identities` reading `[[sku_mapping]]` where `method='manual'` OR `confirmed_by` is set, priority subdivision → org.
-- [x] AC-BE-2. Commit live-validates against `GET /teams/{id}/products?id=`; no exact match → `pos_ingredient_id=None` (fail-closed), never `items[0]`.
-- [x] AC-BE-3. No cache/fuzzy/AI is consulted at commit; those hints exist only in `prepare()`. Draft never mutates `pos_ingredient_id`.
-- [x] AC-BE-4. Unit authority (D2): payload uses the POS unit; comparator is empty-tolerant/normalized; block only when both OCR and POS units are present and differ. Covered by `test_esupl_commit_validation_flags_real_unit_mismatch`, `test_esupl_commit_validation_tolerates_missing_ocr_unit`, and the added `test_unit_present_equal_passes`.
-- [x] AC-BE-5. Learning-loop persisted server-side under the DEC-0012 composite key + packing (migrations `0008`/`0009`, downgrade works); no `cache_exact` / `confirmed_by='system'` auto-create exists (variant C absent).
-- [x] AC-BE-6. Persist-then-commit: the confirmed mapping is written in a separate transaction before the send mutation and survives an invoice reject (`[[ADR-020]]`).
-- [x] AC-BE-7. `pytest -m merge_gate` is green and covers durable-id + DEC-0013 commit-gate; `TrackerErpProvider` asserts a durable `pos_ingredient_id`, not a surrogate.
+- [x] AC-BE-1. `submit()` резолвит `pos_ingredient_id` **только** через `_resolve_commit_identities`, читая `[[sku_mapping]]` где `method='manual'` ИЛИ установлен `confirmed_by`, приоритет subdivision → org.
+- [x] AC-BE-2. Коммит live-валидирует против `GET /teams/{id}/products?id=`; нет точного совпадения → `pos_ingredient_id=None` (fail-closed), никогда не `items[0]`.
+- [x] AC-BE-3. Никакие cache/fuzzy/AI не консультируются на коммите; эти подсказки существуют только в `prepare()`. Черновик никогда не мутирует `pos_ingredient_id`.
+- [x] AC-BE-4. Авторитет единицы измерения (D2): payload использует единицу из POS; компаратор толерантен к пустым значениям/нормализован; блокировать только когда обе единицы (OCR и POS) присутствуют и различаются. Покрыто `test_esupl_commit_validation_flags_real_unit_mismatch`, `test_esupl_commit_validation_tolerates_missing_ocr_unit` и добавленным `test_unit_present_equal_passes`.
+- [x] AC-BE-5. Learning-loop сохраняется на стороне сервера под композитным ключом DEC-0012 + packing (миграции `0008`/`0009`, downgrade работает); нет авто-создания `cache_exact` / `confirmed_by='system'` (вариант C отсутствует).
+- [x] AC-BE-6. Сначала сохранить, потом коммитить: подтверждённый маппинг записывается в отдельной транзакции до мутации отправки и переживает отклонение счёта-фактуры (`[[ADR-020]]`).
+- [x] AC-BE-7. `pytest -m merge_gate` зелёный и покрывает устойчивый id + commit-гейт DEC-0013; `TrackerErpProvider` утверждает устойчивый `pos_ingredient_id`, а не суррогат.
 
 ### Frontend
-- [x] AC-FE-1. On send, confirmed line mappings are persisted to the backend (`POST /ingredients/mappings`, `method='manual'`, `confirmed_by=` authenticated user) in the `onSend` handler, before `sendInvoice`.
-- [x] AC-FE-2. On a later invoice for the same supplier, the FE fetches `GET /ingredients/mappings?supplier_external_id=` and auto-fills lines by `normalizeSourceKey(rawName)`.
-- [x] AC-FE-3. FE `source_key` normalization mirrors the backend `normalize_source_key` (verified by a golden-vector parity test).
-- [x] AC-FE-4. The `localStorage` learning-loop module is deleted; no browser-persisted mappings remain.
+- [x] AC-FE-1. При отправке подтверждённые маппинги строк сохраняются на бэкенд (`POST /ingredients/mappings`, `method='manual'`, `confirmed_by=` аутентифицированный пользователь) в обработчике `onSend`, до `sendInvoice`.
+- [x] AC-FE-2. При последующем счёте-фактуре от того же поставщика FE запрашивает `GET /ingredients/mappings?supplier_external_id=` и автозаполняет строки по `normalizeSourceKey(rawName)`.
+- [x] AC-FE-3. Нормализация `source_key` на FE зеркалит бэкендный `normalize_source_key` (проверено golden-vector тестом на паритет).
+- [x] AC-FE-4. Модуль learning-loop на `localStorage` удалён; браузер-сохранённых маппингов не осталось.
 
-### Other (verification)
-- [x] AC-OTHER-1. Verified 2026-07-09 on real Postgres+pgvector: BE 209 / merge_gate 17 / FE 43 green (`APP_OVERVIEW.md §12/§13`).
-- [x] AC-OTHER-2. Adversarial review (22 findings) resolved, including the critical bootstrap persist-order bug.
+### Прочее (верификация)
+- [x] AC-OTHER-1. Верифицировано 2026-07-09 на реальном Postgres+pgvector: BE 209 / merge_gate 17 / FE 43 зелёные (`APP_OVERVIEW.md §12/§13`).
+- [x] AC-OTHER-2. Состязательное ревью (22 находки) разрешено, включая критический баг порядка сохранения при bootstrap.
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **VER-021 durability (OPEN, owner-run):** whether `pos_ingredient_id` is stable under edit / delete-recreate is *not* empirically confirmed; the probe requires writes to the sandbox and cannot close in a read-only session. Merge stays gated. See [[VER-021_ESUPL_DURABILITY_TEST]] and [[LCOS-F28-esupl-contracts]].
-- **`sku_embedding` drop (backlog DEC-02, open):** the unused column is flagged; removal lands in [[LCOS-F25-deadcode-cleanup]].
-- **S6 factory `save()` (P1):** `IngredientSKUFactory.save()` is orphaned; either wire it into an explicit "create mapping from picker" (`method='manual'`) flow or delete it — see [[LCOS-F25-deadcode-cleanup]]. Must **not** implement `cache_exact`/`confirmed_by='system'` auto-create (that is the vetoed variant C).
+- **Устойчивость VER-021 (OPEN, выполняется владельцем):** стабилен ли `pos_ingredient_id` при edit / delete-recreate — эмпирически *не* подтверждено; проба требует записи в песочницу и не может закрыться в read-only сессии. Merge остаётся под гейтом. См. [[VER-021_ESUPL_DURABILITY_TEST]] и [[LCOS-F28-esupl-contracts]].
+- **Удаление `sku_embedding` (backlog DEC-02, открыто):** неиспользуемая колонка помечена; удаление приземляется в [[LCOS-F25-deadcode-cleanup]].
+- **Фабрика `save()` из S6 (P1):** `IngredientSKUFactory.save()` осиротела; либо подключить её в явный поток «создать маппинг из picker» (`method='manual'`), либо удалить — см. [[LCOS-F25-deadcode-cleanup]]. **Не** должна реализовывать авто-создание `cache_exact`/`confirmed_by='system'` (это вариант C, наложено вето).
 
-## Sources
+## Источники
 
-- `TZ__STABILIZATION_2026-07-09__ALIGNED.md` — confirmed data flow (SSOT), tasks S5/S6/S8/S9, "Removed vs original TZ" table (variant C vetoed).
-- `APP_OVERVIEW.md §7` (two-context identity), `§8` (learning loop, persist-then-commit), `§11` (`sku_mapping`, `sku_embedding` dead column), `§12/§13` (test counts, done/open).
-- `mvp.be/app/services/invoice_service.py:295-336` (`_resolve_commit_identities`), `:141-143, :218-226` (per-org team/token resolve pattern).
-- `mvp.be/alembic/versions/0008_*`, `0009_sku_mapping_packing` (composite key + packing migration).
-- `mvp.be/pyproject.toml:65-67` (`merge_gate` marker); `tests/features/invoice/recognition/test_merge_gate_durable_id.py`, `test_dec0013_commit_gate.py`, `test_persist_survives_reject.py`.
+- `TZ__STABILIZATION_2026-07-09__ALIGNED.md` — подтверждённый поток данных (SSOT), задачи S5/S6/S8/S9, таблица «Removed vs original TZ» (вариант C отклонён вето).
+- `APP_OVERVIEW.md §7` (двухконтекстная идентичность), `§8` (learning loop, «сначала сохранить, потом коммитить»), `§11` (`sku_mapping`, мёртвая колонка `sku_embedding`), `§12/§13` (счётчики тестов, done/open).
+- `mvp.be/app/services/invoice_service.py:295-336` (`_resolve_commit_identities`), `:141-143, :218-226` (паттерн per-org резолва team/token).
+- `mvp.be/alembic/versions/0008_*`, `0009_sku_mapping_packing` (миграция композитного ключа + packing).
+- `mvp.be/pyproject.toml:65-67` (маркер `merge_gate`); `tests/features/invoice/recognition/test_merge_gate_durable_id.py`, `test_dec0013_commit_gate.py`, `test_persist_survives_reject.py`.

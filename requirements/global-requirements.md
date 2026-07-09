@@ -1,7 +1,7 @@
 ---
 id: REQ-GLOBAL
 type: requirement
-title: Global requirements of the current stage (normative, R1–R9)
+title: Глобальные требования текущего этапа (нормативные, R1–R9)
 status: built
 scope: cross-cutting
 roles: [member, admin, superadmin, sqladmin-operator]
@@ -13,98 +13,98 @@ sources: [LCOS_Conformance_Alignment_GlobalRequirements.md Part 3, 01_ARCHITECTU
 updated: 2026-07-09
 ---
 
-# REQ-GLOBAL · Global requirements of the current stage (R1–R9)
+# REQ-GLOBAL · Глобальные требования текущего этапа (R1–R9)
 
-**Type:** normative contract, verifiable by test/review. **Status:** built. This fills the never-created `02_REQUIREMENTS` slot. MUST/SHALL wording. Reflects the actual model + the Part 2 Conformance decisions. Each block delegates the details to its dedicated SSOT doc — here is the **summary of normatives**, not a duplicate.
+**Type:** нормативный контракт, проверяемый тестом/ревью. **Status:** built. Заполняет так и не созданный слот `02_REQUIREMENTS`. Формулировки MUST/SHALL. Отражает фактическую модель + решения Conformance из Part 2. Каждый блок делегирует детали своему выделенному SSOT-документу — здесь **сводка нормативов**, а не дубликат.
 
-> **Trust order:** code + CLAUDE.md > DEC-0011/0013 > this doc > descriptive docs. On a conflict with the code — the code wins (see the known doc↔code corrections at the bottom).
+> **Порядок доверия:** code + CLAUDE.md > DEC-0011/0013 > этот документ > описательные доки. При конфликте с кодом — побеждает код (см. известные doc↔code корректировки внизу).
 
-## R1 — Configuration and secrets: three levels → [[config-secrets]]
-- **R1.1** `.env` (via `Settings`/pydantic-settings) — the **only** reader of the environment. Only: DB, KEK (`SECRETS_ENC_KEY`+id+old), `JWT_SECRET`, `SESSION_SECRET`, `ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH`, the static `ERP_PROVIDER`, URLs, cookie flags, ports, the declarative gluetun VPN.
-- **R1.2** [[system_settings]] (DB, KV + whitelist `REGISTRY`) — non-secret runtime settings (`ai_provider`, models, `ai_vpn_enabled`, `module_*`, `erp_write_enabled`). Resolution is strictly **DB(validated) → registry default**, no env.
-- **R1.3** [[integration_credentials]] (DB, Fernet) — all integration secrets. Resolution **active row → decrypt → otherwise None**, no env.
-- **R1.4** No R1.2/R1.3 value is read from env (test: grep + absence of env keys).
+## R1 — Конфигурация и секреты: три уровня → [[config-secrets]]
+- **R1.1** `.env` (через `Settings`/pydantic-settings) — **единственный** читатель окружения. Только: БД, KEK (`SECRETS_ENC_KEY`+id+old), `JWT_SECRET`, `SESSION_SECRET`, `ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH`, статический `ERP_PROVIDER`, URL, флаги cookie, порты, декларативный VPN gluetun.
+- **R1.2** [[system_settings]] (БД, KV + whitelist `REGISTRY`) — несекретные runtime-настройки (`ai_provider`, модели, `ai_vpn_enabled`, `module_*`, `erp_write_enabled`). Разрешение строго **DB(validated) → registry default**, без env.
+- **R1.3** [[integration_credentials]] (БД, Fernet) — все интеграционные секреты. Разрешение **active row → decrypt → иначе None**, без env.
+- **R1.4** Никакое значение R1.2/R1.3 не читается из env (тест: grep + отсутствие env-ключей).
 
-## R2 — Secret encryption at-rest → [[secret-encryption]]
-- **R2.1** Secrets are Fernet ciphertext `enc:v2:<key_id>:<token>`; the KEK is only in `.env`.
-- **R2.2** `encrypt()` with an empty keyring **must** fail (`RuntimeError`), not write plaintext (after A1).
-- **R2.3** `decrypt()` on ciphertext with an empty keyring → `RuntimeError` (not silent garbage).
-- **R2.4** Rotation: a new KEK in `SECRETS_ENC_KEY` (a new id), the old one in `SECRETS_ENC_KEYS_OLD` (decrypt-only); old ciphertexts remain readable.
-- **R2.5** `validate_keyring()` at startup; an invalid KEK → refusal to load.
+## R2 — Шифрование секретов at-rest → [[secret-encryption]]
+- **R2.1** Секреты — Fernet-шифртекст `enc:v2:<key_id>:<token>`; KEK только в `.env`.
+- **R2.2** `encrypt()` при пустом keyring **обязан** упасть (`RuntimeError`), не писать plaintext (после A1).
+- **R2.3** `decrypt()` над шифртекстом при пустом keyring → `RuntimeError` (не тихий мусор).
+- **R2.4** Ротация: новый KEK в `SECRETS_ENC_KEY` (новый id), старый в `SECRETS_ENC_KEYS_OLD` (decrypt-only); старые шифртексты остаются читаемыми.
+- **R2.5** `validate_keyring()` при старте; невалидный KEK → отказ загрузки.
 
-## R3 — App authentication → [[auth]]
-- **R3.1** Access — JWT HS256 (`jwt_secret`), TTL 15 min, HttpOnly `lcos_access`, payload `{sub,is_superadmin,org,sub_div,role,type,iat,exp}`, stateless authorization.
-- **R3.2** Refresh — opaque `token_urlsafe(48)`, stored **only as a SHA-256 hash**, TTL 30 min sliding, HttpOnly `lcos_refresh`, `family_id`.
-- **R3.3** `POST /auth/refresh`: not found/expired → 401; **revoked → reuse-detected: revoke the entire `family_id` + 401**; otherwise rotation within the same `family_id`, context restored from `active_subdivision_id`.
-- **R3.4** `POST /auth/login` — wrong credentials → generic 401.
-- **R3.5** `POST /auth/logout` — revoke the current refresh, clear cookies, 204.
-- **R3.6** `GET /auth/me` — the single source of the FE sidebar/scope.
-- **R3.7** `POST /auth/switch-context` — authorization via `_role_for` (403 without access; 404 only for the superadmin); requires a live refresh (otherwise 401); reissues only access.
-- **R3.8** User passwords — argon2 (`app/auth/password.py`).
-- **R3.9** Passwords are not logged; a failed login does not disclose the reason.
+## R3 — Аутентификация приложения → [[auth]]
+- **R3.1** Access — JWT HS256 (`jwt_secret`), TTL 15 мин, HttpOnly `lcos_access`, payload `{sub,is_superadmin,org,sub_div,role,type,iat,exp}`, stateless авторизация.
+- **R3.2** Refresh — opaque `token_urlsafe(48)`, хранится **только как SHA-256 хеш**, TTL 30 мин sliding, HttpOnly `lcos_refresh`, `family_id`.
+- **R3.3** `POST /auth/refresh`: не найдено/истёк → 401; **revoked → reuse-detected: отзыв всего `family_id` + 401**; иначе ротация в рамках того же `family_id`, контекст восстановлен из `active_subdivision_id`.
+- **R3.4** `POST /auth/login` — неверные креды → generic 401.
+- **R3.5** `POST /auth/logout` — отзыв текущего refresh, очистка cookie, 204.
+- **R3.6** `GET /auth/me` — единственный источник сайдбара/scope FE.
+- **R3.7** `POST /auth/switch-context` — авторизация через `_role_for` (403 без доступа; 404 только для superadmin); требует живого refresh (иначе 401); переиздаёт только access.
+- **R3.8** Пароли пользователей — argon2 (`app/auth/password.py`).
+- **R3.9** Пароли не логируются; неудачный вход не раскрывает причину.
 
-## R4 — Super-admin plane (SQLAdmin) → [[sqladmin-operator]], [[config-secrets]]
-- **R4.1** SQLAdmin login — a separate backend: `ADMIN_USERNAME` + bcrypt `ADMIN_PASSWORD_HASH` from env, session-cookie (`SESSION_SECRET`). **No row in [[users]].** The planes do not mix.
-- **R4.2** Manages: [[system_settings]], [[integration_credentials]], [[organizations]], [[subdivisions]], [[users]], [[memberships]], the catalog. [[refresh_sessions]] — read-only.
-- **R4.3** `IntegrationCredentialAdmin.on_model_change`: plaintext → `encrypt()` before persist (idempotent) → `rotated_at` → deactivation of other active rows of the same (scope,provider,org,subdivision). List/detail — last-4 mask. The field is write-only plaintext, read-masked.
-- **R4.4** `UserAdmin.on_model_change`: `password_hash` accepts plaintext → argon2 (skip if already `$argon2`).
-- **R4.5** No endpoint/view returns a decrypted secret to the outside.
+## R4 — Плоскость супер-админа (SQLAdmin) → [[sqladmin-operator]], [[config-secrets]]
+- **R4.1** Вход SQLAdmin — отдельный backend: `ADMIN_USERNAME` + bcrypt `ADMIN_PASSWORD_HASH` из env, session-cookie (`SESSION_SECRET`). **Без строки в [[users]].** Плоскости не смешиваются.
+- **R4.2** Управляет: [[system_settings]], [[integration_credentials]], [[organizations]], [[subdivisions]], [[users]], [[memberships]], каталогом. [[refresh_sessions]] — read-only.
+- **R4.3** `IntegrationCredentialAdmin.on_model_change`: plaintext → `encrypt()` перед persist (идемпотентно) → `rotated_at` → деактивация других активных строк той же (scope,provider,org,subdivision). List/detail — маска last-4. Поле write-only plaintext, read-masked.
+- **R4.4** `UserAdmin.on_model_change`: `password_hash` принимает plaintext → argon2 (пропуск, если уже `$argon2`).
+- **R4.5** Ни один endpoint/view не возвращает наружу расшифрованный секрет.
 
-> **Correction:** the `admin_system` routes are gated by the **SQLAdmin OPERATOR** plane, not the app-JWT superadmin (see the inventory doc↔code correction).
+> **Корректировка:** маршруты `admin_system` гейтятся плоскостью **SQLAdmin OPERATOR**, а не app-JWT superadmin (см. doc↔code корректировку в инвентаре).
 
-## R5 — Multitenancy and scoping → [[multitenancy]]
-- **R5.1** Hierarchy: [[organizations]] (isolation boundary) → [[subdivisions]] (= Esupl warehouse) → [[memberships]] (user↔subdivision+role). [[users]] — the only global table.
-- **R5.2** `organization_id` is denormalized onto every operational/catalog row, `ondelete=RESTRICT`; operational rows carry `subdivision_id` too.
-- **R5.3** Tenant repositories **require `organization_id` in the constructor** — a query without a scope is structurally impossible.
-- **R5.4** Scope from the signed access-JWT (`org`,`sub_div`), **never** from client input. `get_tenant_context` → 403 without an `organization_id`.
-- **R5.5** Roles: `is_superadmin` (global flag on [[users]]) + `Role.admin` (per-subdivision). No RBAC matrix (non-goal). A user without a membership and not a superadmin logs in but the context is closed (403).
-- **R5.6** FE scope from the `/auth/me` cache (the backend is authoritative); per-browser stores are keyed by `orgScopeToken()`.
+## R5 — Мультитенантность и scoping → [[multitenancy]]
+- **R5.1** Иерархия: [[organizations]] (граница изоляции) → [[subdivisions]] (= склад Esupl) → [[memberships]] (user↔subdivision+role). [[users]] — единственная глобальная таблица.
+- **R5.2** `organization_id` денормализован на каждую операционную/каталожную строку, `ondelete=RESTRICT`; операционные строки несут ещё и `subdivision_id`.
+- **R5.3** Tenant-репозитории **требуют `organization_id` в конструкторе** — запрос без scope структурно невозможен.
+- **R5.4** Scope из подписанного access-JWT (`org`,`sub_div`), **никогда** из клиентского ввода. `get_tenant_context` → 403 без `organization_id`.
+- **R5.5** Роли: `is_superadmin` (глобальный флаг на [[users]]) + `Role.admin` (на уровне подразделения). RBAC-матрицы нет (non-goal). Пользователь без membership и не superadmin входит, но контекст закрыт (403).
+- **R5.6** Scope FE из кэша `/auth/me` (авторитетен backend); per-browser хранилища ключуются `orgScopeToken()`.
 
-## R6 — Key management → [[secret-encryption]], [[erp-esupl-integration]]
-- **R6.1** AI key: `integration_credentials(scope=platform, provider=anthropic)`. active→decrypt, no env. Absence → `AiUnavailableError` (503).
-- **R6.2** POS token: `integration_credentials(scope=org, provider=esupl, org_id)`. Absence → an unauthenticated call → Esupl 401. Set by the superadmin (SQLAdmin) or the org-admin (`PUT /organizations/{id}/pos-config`) — write-only, response `{is_set,last4}`.
-- **R6.3** One active secret per (scope,provider,org,subdivision) — a partial-unique index + deactivation on write.
-- **R6.4** Secrets are read **without a cache** — rotation is instant.
-- **R6.5** `esupl_team_id`/`esupl_warehouse_id`/`ingredients.esupl_*`/`packings.esupl_packing_id` — **non-secret** ID columns; the only Esupl secret is the token.
+## R6 — Управление ключами → [[secret-encryption]], [[erp-esupl-integration]]
+- **R6.1** AI-ключ: `integration_credentials(scope=platform, provider=anthropic)`. active→decrypt, без env. Отсутствие → `AiUnavailableError` (503).
+- **R6.2** POS-токен: `integration_credentials(scope=org, provider=esupl, org_id)`. Отсутствие → неаутентифицированный вызов → Esupl 401. Задаётся superadmin (SQLAdmin) или org-admin (`PUT /organizations/{id}/pos-config`) — write-only, ответ `{is_set,last4}`.
+- **R6.3** Один активный секрет на (scope,provider,org,subdivision) — partial-unique индекс + деактивация при записи.
+- **R6.4** Секреты читаются **без кэша** — ротация мгновенна.
+- **R6.5** `esupl_team_id`/`esupl_warehouse_id`/`ingredients.esupl_*`/`packings.esupl_packing_id` — **несекретные** ID-колонки; единственный секрет Esupl — токен.
 
 ## R7 — Provider seams → [[provider-abstraction]]
-- **R7.1** `services` depend only on `providers/*/base.py` (Protocol). Direction: `api → services → providers/repositories`.
-- **R7.2** ERP: one provider `esupl`, the choice is static (`ERP_PROVIDER` from env).
-- **R7.3** OCR/AI: **one** implementation `claude`, the choice is runtime (`system_settings.ai_provider`). Debt DEC-01 (gemini as a second implementation + the resolver's dual role): claude-only OR the LLM behind a Protocol+registry with the invariant "OCR name ≡ ai_provider enum" under test.
-- **R7.4** Cross-infra (egress, VPN toggle, session_scope) is injected via `ProviderContext` (module-global), does not leak into Protocol signatures. See [[vpn-egress]].
-- **R7.5** New implementations on a seam are **not written** without an explicit trigger.
+- **R7.1** `services` зависят только от `providers/*/base.py` (Protocol). Направление: `api → services → providers/repositories`.
+- **R7.2** ERP: один провайдер `esupl`, выбор статический (`ERP_PROVIDER` из env).
+- **R7.3** OCR/AI: **одна** реализация `claude`, выбор runtime (`system_settings.ai_provider`). Долг DEC-01 (gemini как вторая реализация + двойная роль резолвера): claude-only ЛИБО LLM за Protocol+registry с инвариантом "OCR name ≡ ai_provider enum" под тестом.
+- **R7.4** Cross-infra (egress, VPN toggle, session_scope) инжектируется через `ProviderContext` (module-global), не протекает в сигнатуры Protocol. См. [[vpn-egress]].
+- **R7.5** Новые реализации на шве **не пишутся** без явного триггера.
 
-## R8 — Fail-closed — consolidated catalog → [[fail-closed]]
-- **R8.1** VPN for AI: `ai_vpn_enabled` defaults to True; a dead/slow tunnel → `VpnUnavailableError` (503), **never** silent direct egress. `get_client(via_vpn=True)` without a vpn client → an error. See [[vpn-egress]].
-- **R8.2** No AI key → `AiUnavailableError`. No POS token → Esupl 401. Both with no env fallback.
-- **R8.3** `erp_write_enabled` defaults to False; when OFF `write_invoice` → a synthetic `esupl-prepared-<number>` without egress; the same code path when ON. See [[invoice-status-machine]].
-- **R8.4** Ciphertext with an empty keyring → `RuntimeError`; `encrypt()` without a keyring → `RuntimeError` (R2.2).
-- **R8.5** Settings/secrets do not fall back to env: DB→registry default or →None.
-- **R8.6** Startup guard: refusal with empty/default `SESSION_SECRET`/`JWT_SECRET`; `SECRETS_ENC_KEY` required (R2.2/A1).
+## R8 — Fail-closed — сводный каталог → [[fail-closed]]
+- **R8.1** VPN для AI: `ai_vpn_enabled` по умолчанию True; мёртвый/медленный туннель → `VpnUnavailableError` (503), **никогда** тихий прямой egress. `get_client(via_vpn=True)` без vpn-клиента → ошибка. См. [[vpn-egress]].
+- **R8.2** Нет AI-ключа → `AiUnavailableError`. Нет POS-токена → Esupl 401. Оба без env fallback.
+- **R8.3** `erp_write_enabled` по умолчанию False; при OFF `write_invoice` → синтетический `esupl-prepared-<number>` без egress; тот же путь кода при ON. См. [[invoice-status-machine]].
+- **R8.4** Шифртекст при пустом keyring → `RuntimeError`; `encrypt()` без keyring → `RuntimeError` (R2.2).
+- **R8.5** Настройки/секреты не падают в env: DB→registry default или →None.
+- **R8.6** Startup guard: отказ при пустых/дефолтных `SESSION_SECRET`/`JWT_SECRET`; `SECRETS_ENC_KEY` обязателен (R2.2/A1).
 
-## R9 — SSOT and no dead code
-- **R9.1** The front-end stores no secrets: auth only via HttpOnly cookies; `VITE_*` — only non-secret endpoint/provider toggles ([[ADR-012]]).
-- **R9.2** Live provider paths — only `backend`/`mock`; no browser-direct LLM/ERP (after A2).
-- **R9.3** No dead modules/exports without a live consumer (after A2/D-b/D-c). **Known:** `invoice_lines.sku_embedding` UNUSED → backlog DEC-02; FE `shared/llm`/`prompt.ts`/`parse.ts` — vestigial dead code.
-- **R9.4** Unified error envelope `{"error":{code,message,details?}}`; the catch-all manually returns CORS headers.
-- **R9.5** Logs redact secrets (`redact()`): `admin_password_hash`, `session_secret`, `jwt_secret`, `secrets_enc_key(_old)`, the password in `database_url`.
+## R9 — SSOT и отсутствие мёртвого кода
+- **R9.1** Front-end не хранит секретов: auth только через HttpOnly cookie; `VITE_*` — только несекретные toggles endpoint/provider ([[ADR-012]]).
+- **R9.2** Живые пути провайдеров — только `backend`/`mock`; никакого browser-direct LLM/ERP (после A2).
+- **R9.3** Нет мёртвых модулей/экспортов без живого потребителя (после A2/D-b/D-c). **Известно:** `invoice_lines.sku_embedding` UNUSED → backlog DEC-02; FE `shared/llm`/`prompt.ts`/`parse.ts` — рудиментарный мёртвый код.
+- **R9.4** Единый конверт ошибки `{"error":{code,message,details?}}`; catch-all вручную возвращает CORS-заголовки.
+- **R9.5** Логи редактируют секреты (`redact()`): `admin_password_hash`, `session_secret`, `jwt_secret`, `secrets_enc_key(_old)`, пароль в `database_url`.
 
-## R-Deploy — prod checklist (does not block Phase 1, recorded)
-- Real `SECRETS_ENC_KEY`/`JWT_SECRET`/`SESSION_SECRET`; `COOKIE_SECURE=true`.
-- `CSRF_ENABLED=true` **requires** a prior edit of `backendRequest.ts` (read/send `X-CSRF-Token`) — otherwise mutations break (D-d).
-- Rate limiting on `/auth/login`. CI running the non-negotiable tests (V-a) as a merge gate. `Dockerfile.prod`/IaC for Hetzner.
+## R-Deploy — prod-чеклист (не блокирует Phase 1, зафиксирован)
+- Реальные `SECRETS_ENC_KEY`/`JWT_SECRET`/`SESSION_SECRET`; `COOKIE_SECURE=true`.
+- `CSRF_ENABLED=true` **требует** предварительной правки `backendRequest.ts` (чтение/отправка `X-CSRF-Token`) — иначе мутации ломаются (D-d).
+- Rate limiting на `/auth/login`. CI, гоняющий non-negotiable тесты (V-a) как merge gate. `Dockerfile.prod`/IaC для Hetzner.
 
-## Known doc↔code corrections (baked-in, code is authoritative)
-- **Supplier** matching — a blended **trigram 0.65 + token-Jaccard 0.35, min 0.4** (NOT "Jaccard≥0.5"). See [[erp-esupl-integration]] N8. (**SKU** matching on the FE fuzzy — 50% Jaccard + 50% Dice, floor 0.34 — a different function, do not confuse.)
-- FE suppliers-page / supplier-selector / breadcrumbs / footer **exist**.
-- `invoice_lines.sku_embedding` — **UNUSED** (dead code, backlog DEC-02).
-- The `admin_system` routes are gated by the **SQLAdmin OPERATOR** plane, not the app-JWT superadmin.
-- Migration chain: `0001..0009` + OCR-prompt (`1e12…`). The newest ADR — [[ADR-020]].
+## Известные doc↔code корректировки (baked-in, авторитетен код)
+- **Supplier** matching — смешанный **trigram 0.65 + token-Jaccard 0.35, min 0.4** (НЕ "Jaccard≥0.5"). См. [[erp-esupl-integration]] N8. (**SKU** matching на FE fuzzy — 50% Jaccard + 50% Dice, floor 0.34 — другая функция, не путать.)
+- FE suppliers-page / supplier-selector / breadcrumbs / footer **существуют**.
+- `invoice_lines.sku_embedding` — **UNUSED** (мёртвый код, backlog DEC-02).
+- Маршруты `admin_system` гейтятся плоскостью **SQLAdmin OPERATOR**, а не app-JWT superadmin.
+- Цепочка миграций: `0001..0009` + OCR-prompt (`1e12…`). Новейший ADR — [[ADR-020]].
 - Wife-Gate == Pilot-Gate ([[ADR-003]]).
 
-## Acceptance criteria (test scenarios)
-The full list — Part 4 Conformance; the key merge-blocking ones (V-a): fail-closed VPN, `ERP_WRITE_ENABLED` gating, tenant-isolation, refresh reuse-detection, `test_exact_cache_match_does_not_commit_and_creates_no_mapping`. Tests run on a real Postgres+pgvector (testcontainers), egress via `respx`.
+## Критерии приёмки (тестовые сценарии)
+Полный список — Part 4 Conformance; ключевые merge-blocking (V-a): fail-closed VPN, `ERP_WRITE_ENABLED` gating, tenant-isolation, refresh reuse-detection, `test_exact_cache_match_does_not_commit_and_creates_no_mapping`. Тесты гоняются на реальном Postgres+pgvector (testcontainers), egress через `respx`.
 
-## Sources
+## Источники
 - LCOS_Conformance_Alignment_GlobalRequirements.md → Part 3 (R1–R9, R-Deploy), Part 4 (AC), Part 2 (A1/D-*/V-*).
 - 01_ARCHITECTURE.md, APP_OVERVIEW.md (verified_against_code 2026-07-09), 04_DECISIONS.md (ADR-001..020).

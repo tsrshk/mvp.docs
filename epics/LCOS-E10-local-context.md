@@ -1,7 +1,7 @@
 ---
 id: LCOS-E10
 type: epic
-title: Local context — weather and events
+title: Локальный контекст — погода и события
 status: future
 phase: "Phase 2"
 features: ["[[LCOS-F50-weather]]", "[[LCOS-F51-coordinates]]", "[[LCOS-F52-local-events]]", "[[LCOS-F53-digest-enrichment]]"]
@@ -10,42 +10,42 @@ sources: [plan/00_IMPLEMENTATION_PLAN.md F6, 06_STRATEGY.md]
 updated: 2026-07-09
 ---
 
-# LCOS-E10 · Local context — weather and events
+# LCOS-E10 · Локальный контекст — погода и события
 
-**Status:** 🔭 future · **Phase:** Phase 2
+**Статус:** 🔭 future · **Фаза:** Phase 2
 
-## Description
+## Описание
 
-Enriching analytics with external local context: a weather provider + storage, subdivision coordinates, local events (manual entry), and enrichment of anomalies in the digest ("sales dropped — it rained / there was a concert nearby"). The goal is for the AI manager's suggestions to account for what a human sees but the bare POS numbers do not.
+Обогащение аналитики внешним локальным контекстом: провайдер погоды + хранение, координаты подразделения, локальные события (ручной ввод) и обогащение аномалий в дайджесте («продажи упали — шёл дождь / рядом был концерт»). Цель — чтобы подсказки AI-управляющего учитывали то, что человек видит, а голые цифры POS — нет.
 
-## Goal / value
+## Цель / ценность
 
-Increase the relevance of the digest ([[LCOS-E9-sales-analytics]]) and order proposals: explain demand anomalies through external factors instead of leaving the owner guessing.
+Повысить релевантность дайджеста ([[LCOS-E9-sales-analytics]]) и предложений заказа: объяснять аномалии спроса через внешние факторы вместо того, чтобы оставлять владельца в догадках.
 
-## Features
+## Фичи
 
-| ID | Name | Status | Link |
+| ID | Название | Статус | Ссылка |
 |---|---|---|---|
-| LCOS-F50 | Weather provider + storage | 🔭 future | [[LCOS-F50-weather]] |
-| LCOS-F51 | Subdivision coordinates | 🔭 future | [[LCOS-F51-coordinates]] |
-| LCOS-F52 | Local events (manual entry) | 🔭 future | [[LCOS-F52-local-events]] |
-| LCOS-F53 | Anomaly enrichment in the digest | 🔭 future | [[LCOS-F53-digest-enrichment]] |
+| LCOS-F50 | Провайдер погоды + хранение | 🔭 future | [[LCOS-F50-weather]] |
+| LCOS-F51 | Координаты подразделения | 🔭 future | [[LCOS-F51-coordinates]] |
+| LCOS-F52 | Локальные события (ручной ввод) | 🔭 future | [[LCOS-F52-local-events]] |
+| LCOS-F53 | Обогащение аномалий в дайджесте | 🔭 future | [[LCOS-F53-digest-enrichment]] |
 
-## Key entities / requirements
+## Ключевые сущности / требования
 
-- Entities: [[subdivisions]] (coordinates); future weather/events tables — stubs.
-- Requirements: [[provider-abstraction]], [[vpn-egress]], [[multitenancy]].
-- Roles: [[admin]] (enters events/coordinates), [[member]].
+- Сущности: [[subdivisions]] (координаты); будущие таблицы погоды/событий — заглушки.
+- Требования: [[provider-abstraction]], [[vpn-egress]], [[multitenancy]].
+- Роли: [[admin]] (вводит события/координаты), [[member]].
 
-## Gates
+## Гейты
 
-- **Weather provider behind a seam:** external call through the VPN egress policy ([[vpn-egress]], [[ADR-006]]).
+- **Провайдер погоды за швом:** внешний вызов через политику VPN egress ([[vpn-egress]], [[ADR-006]]).
 - AC: TBD (Phase 2).
 
 ## legacy_refs
 
 plan F6.
 
-## Sources
+## Источники
 
 - plan/00_IMPLEMENTATION_PLAN.md F6, 06_STRATEGY.md

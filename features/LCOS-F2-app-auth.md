@@ -1,7 +1,7 @@
 ---
 id: LCOS-F2
 type: feature
-title: Application auth (JWT + refresh)
+title: Аутентификация приложения (JWT + refresh)
 epic: "[[LCOS-E1-platform]]"
 status: built
 phase: "Phase 1"
@@ -13,81 +13,81 @@ legacy_refs: [plan/00 G2, LCOS_Conformance R3, APP_OVERVIEW §4]
 sources: ["APP_OVERVIEW.md §4", "01_ARCHITECTURE.md (Auth & multi-tenancy)", "LCOS_Conformance_Alignment_GlobalRequirements.md R3", "mvp.be app/auth/router.py:29", "mvp.be app/auth/tokens.py:37", "mvp.be app/auth/dependencies.py:32", "mvp.fe src/entities/auth", "mvp.fe src/shared/api/backendRequest.ts"]
 updated: 2026-07-09
 ---
-# LCOS-F2 · Application auth (JWT + refresh)
-**Epic:** [[LCOS-E1-platform]] · **Status:** built · **Phase:** Phase 1
+# LCOS-F2 · Аутентификация приложения (JWT + refresh)
+**Эпик:** [[LCOS-E1-platform]] · **Статус:** built · **Фаза:** Phase 1
 
-## Description
+## Описание
 
-The authentication plane for **real coffee-shop users** (the React PWA). This is one of the **two entirely separate auth mechanisms** that must never be mixed (a `CLAUDE.md` non-negotiable): application auth (this feature) versus the SQLAdmin operator login ([[LCOS-F3-sqladmin-operator]]). Application users live in the global `users` table, passwords are hashed with **argon2** (`app/auth/password.py`), and sessions use a **short-lived JWT access cookie + an opaque, server-tracked refresh cookie**.
+Плоскость аутентификации для **реальных пользователей кофейни** (React PWA). Это один из **двух полностью раздельных механизмов аутентификации**, которые никогда нельзя смешивать (незыблемое требование `CLAUDE.md`): аутентификация приложения (эта фича) против логина оператора SQLAdmin ([[LCOS-F3-sqladmin-operator]]). Пользователи приложения живут в глобальной таблице `users`, пароли хешируются через **argon2** (`app/auth/password.py`), а сессии используют **короткоживущий access-cookie JWT + непрозрачный refresh-cookie, отслеживаемый на сервере**.
 
-The access token is a signed JWT (PyJWT, HS256, `jwt_secret`, TTL **15 min**) carrying `{sub, is_superadmin, org, sub_div, role, type, iat, exp}` in the HttpOnly cookie `lcos_access`; every request authorizes **statelessly** from the signed token with no DB lookup. The refresh token is an **opaque** `token_urlsafe(48)` string (not a JWT) whose **SHA-256 hash only** is stored in `refresh_sessions`; it is HttpOnly cookie `lcos_refresh`, TTL **30 min sliding**, grouped by `family_id` for rotation and reuse-detection. The active tenant context is persisted on the refresh row (`active_subdivision_id`) so it survives a refresh.
+Access-токен — это подписанный JWT (PyJWT, HS256, `jwt_secret`, TTL **15 min**), несущий `{sub, is_superadmin, org, sub_div, role, type, iat, exp}` в HttpOnly-cookie `lcos_access`; каждый запрос авторизуется **без состояния** по подписанному токену без обращения к БД. Refresh-токен — **непрозрачная** строка `token_urlsafe(48)` (не JWT), в `refresh_sessions` хранится **только её SHA-256-хеш**; это HttpOnly-cookie `lcos_refresh`, TTL **30 min sliding**, сгруппирован по `family_id` для ротации и обнаружения повторного использования. Активный контекст арендатора сохраняется в строке refresh (`active_subdivision_id`), так что он переживает refresh.
 
-Fail-closed properties matter here: invalid credentials return a **generic 401** (reason never disclosed), and **reuse of a revoked refresh token revokes the entire `family_id`** (theft detection). The frontend holds **no tokens in JS** — it sends `credentials:'include'` and transparently refreshes once on a 401.
+Fail-closed-свойства здесь важны: неверные учётные данные возвращают **обобщённый 401** (причина никогда не раскрывается), а **повторное использование отозванного refresh-токена отзывает весь `family_id`** (обнаружение кражи). Фронтенд **не хранит токены в JS** — он отправляет `credentials:'include'` и прозрачно делает refresh один раз при 401.
 
-## Capabilities
+## Возможности
 
-- `POST /auth/login`: argon2-verify → compute default context → issue access + refresh cookies with a fresh `family_id` (CSRF cookie too if enabled). Bad creds → generic 401.
-- `POST /auth/refresh`: look up by hash; not-found/expired → 401; **revoked → reuse-detected: revoke whole `family_id` + 401**; else rotate within the same `family_id`, restore context from `active_subdivision_id`, reissue access.
-- `POST /auth/logout`: revoke the current refresh row, clear cookies, 204.
-- `GET /auth/me`: the **sole source** of the FE sidebar/active scope — regular user sees only their subdivisions, superadmin sees the full org/subdivision tree.
-- `POST /auth/switch-context`: authorize via `_role_for` (403 without access; 404 only reachable by superadmin, avoiding existence leaks); requires a live, non-revoked refresh; reissues only the access cookie.
-- Stateless authorization from the signed access-JWT (no per-request DB lookup); access revocation is not instant (mitigated by 15-min TTL) — an explicit non-goal.
-- Argon2 password hashing for `users`; short login strings allowed (`LoginIn.email` is a plain `str`, not `EmailStr`).
-- FE transport: HttpOnly cookies only, refresh-once-on-401 then replay (except `/auth/refresh` and `/auth/login`).
+- `POST /auth/login`: argon2-проверка → вычисление дефолтного контекста → выдача cookie access + refresh со свежим `family_id` (плюс CSRF-cookie, если включён). Неверные учётные данные → обобщённый 401.
+- `POST /auth/refresh`: поиск по хешу; не найдено/истекло → 401; **отозвано → обнаружено повторное использование: отзыв всего `family_id` + 401**; иначе ротация внутри того же `family_id`, восстановление контекста из `active_subdivision_id`, перевыпуск access.
+- `POST /auth/logout`: отзыв текущей строки refresh, очистка cookie, 204.
+- `GET /auth/me`: **единственный источник** сайдбара/активного scope FE — обычный пользователь видит только свои subdivision, superadmin видит полное дерево org/subdivision.
+- `POST /auth/switch-context`: авторизация через `_role_for` (403 без доступа; 404 достижим только superadmin, что избегает утечек существования); требует живой, не отозванный refresh; перевыпускает только access-cookie.
+- Авторизация без состояния по подписанному access-JWT (без обращения к БД на каждый запрос); отзыв access не мгновенный (смягчён 15-минутным TTL) — явная не-цель.
+- Хеширование паролей argon2 для `users`; допускаются короткие строки логина (`LoginIn.email` — обычная `str`, не `EmailStr`).
+- Транспорт FE: только HttpOnly-cookie, refresh один раз при 401, затем повтор (кроме `/auth/refresh` и `/auth/login`).
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | Log in, refresh, log out; `/auth/me` returns only their subdivisions; may `switch-context` among those. |
-| [[admin]] | Same as member; admin capability is a per-subdivision membership `Role`, not an auth distinction. |
-| [[superadmin]] | `/auth/me` returns the full org/subdivision tree; may `switch-context` into any org/subdivision (403/404 semantics avoid existence leaks). |
-| [[sqladmin-operator]] | **Not part of this plane** — the operator login is env/bcrypt/session-cookie and has no row in `users` (see [[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Логин, refresh, logout; `/auth/me` возвращает только его subdivision; может `switch-context` среди них. |
+| [[admin]] | То же, что member; административная возможность — это membership-`Role` на уровне subdivision, а не различие в auth. |
+| [[superadmin]] | `/auth/me` возвращает полное дерево org/subdivision; может `switch-context` в любую org/subdivision (семантика 403/404 избегает утечек существования). |
+| [[sqladmin-operator]] | **Не часть этой плоскости** — логин оператора — env/bcrypt/session-cookie, и у него нет строки в `users` (см. [[LCOS-F3-sqladmin-operator]]). |
 
-## Involved entities
+## Задействованные сущности
 
-- [[users]] — global identity; `password_hash` (argon2, nullable for external providers), `is_superadmin`, `is_active`.
-- [[memberships]] — user ↔ subdivision + `Role`; drives what `/auth/me` returns and what `switch-context` authorizes.
-- [[refresh_sessions]] — stores only `token_hash` (SHA-256), `family_id` (rotation/reuse-detection), `active_subdivision_id` (context restore, `SET NULL`), `expires_at`, `last_used_at`, `revoked`.
-- [[subdivisions]] / [[organizations]] — the scope embedded into the access-JWT claims (`org`, `sub_div`).
+- [[users]] — глобальная идентичность; `password_hash` (argon2, nullable для внешних провайдеров), `is_superadmin`, `is_active`.
+- [[memberships]] — пользователь ↔ subdivision + `Role`; определяет, что возвращает `/auth/me` и что авторизует `switch-context`.
+- [[refresh_sessions]] — хранит только `token_hash` (SHA-256), `family_id` (ротация/обнаружение повторного использования), `active_subdivision_id` (восстановление контекста, `SET NULL`), `expires_at`, `last_used_at`, `revoked`.
+- [[subdivisions]] / [[organizations]] — scope, встроенный в claims access-JWT (`org`, `sub_div`).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[auth]] (JWT access + opaque refresh, rotation, reuse-detection), [[fail-closed]] (generic 401, family revoke on reuse, live-refresh required for switch), [[global-requirements]] (R3).
-- **Features:** produces the scope consumed by [[LCOS-F1-multitenancy]]; distinct plane from [[LCOS-F3-sqladmin-operator]]; consumed client-side by [[LCOS-F7-frontend-platform]] (AuthGuard, `backendRequest`).
-- **ADR:** [[ADR-007]] (two independent auth planes, never mixed).
+- **Требования:** [[auth]] (access JWT + непрозрачный refresh, ротация, обнаружение повторного использования), [[fail-closed]] (обобщённый 401, отзыв family при повторном использовании, требование живого refresh для switch), [[global-requirements]] (R3).
+- **Фичи:** производит scope, потребляемый [[LCOS-F1-multitenancy]]; отдельная плоскость от [[LCOS-F3-sqladmin-operator]]; потребляется на клиенте через [[LCOS-F7-frontend-platform]] (AuthGuard, `backendRequest`).
+- **ADR:** [[ADR-007]] (две независимые плоскости auth, никогда не смешиваются).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. `POST /auth/login` with valid creds sets HttpOnly `lcos_access` (JWT, 15 min) + `lcos_refresh` (opaque); a protected endpoint returns 401 without a valid access cookie.
-- [ ] AC-BE-2. Access-JWT is HS256-signed with `jwt_secret`, payload `{sub, is_superadmin, org, sub_div, role, type, iat, exp}`; authorization is resolved statelessly from it.
-- [ ] AC-BE-3. Refresh token is opaque `token_urlsafe(48)`; only its SHA-256 hash is stored; TTL 30 min sliding.
-- [ ] AC-BE-4. `POST /auth/refresh` rotates within `family_id`; reuse of a **revoked** token revokes the whole `family_id` and returns 401 (merge-gated reuse-detection test).
-- [ ] AC-BE-5. `POST /auth/login` with bad creds → generic 401 that does not disclose which field was wrong; passwords never logged.
-- [ ] AC-BE-6. `POST /auth/logout` revokes the current refresh row and clears cookies (204).
-- [ ] AC-BE-7. `GET /auth/me` returns only the caller's subdivisions for a regular user and the full tree for a superadmin.
-- [ ] AC-BE-8. `POST /auth/switch-context` returns 403 without access, 404 only for superadmin, requires a live refresh session, and reissues only the access cookie.
-- [ ] AC-BE-9. `users.password_hash` is produced/verified with argon2 (`app/auth/password.py`), distinct from the operator's bcrypt path (V-b).
+- [ ] AC-BE-1. `POST /auth/login` с валидными учётными данными устанавливает HttpOnly `lcos_access` (JWT, 15 min) + `lcos_refresh` (непрозрачный); защищённый endpoint возвращает 401 без валидного access-cookie.
+- [ ] AC-BE-2. Access-JWT подписан HS256 через `jwt_secret`, payload `{sub, is_superadmin, org, sub_div, role, type, iat, exp}`; авторизация разрешается по нему без состояния.
+- [ ] AC-BE-3. Refresh-токен — непрозрачный `token_urlsafe(48)`; хранится только его SHA-256-хеш; TTL 30 min sliding.
+- [ ] AC-BE-4. `POST /auth/refresh` делает ротацию внутри `family_id`; повторное использование **отозванного** токена отзывает весь `family_id` и возвращает 401 (тест обнаружения повторного использования под merge-gate).
+- [ ] AC-BE-5. `POST /auth/login` с неверными учётными данными → обобщённый 401, не раскрывающий, какое поле было неверным; пароли никогда не логируются.
+- [ ] AC-BE-6. `POST /auth/logout` отзывает текущую строку refresh и очищает cookie (204).
+- [ ] AC-BE-7. `GET /auth/me` возвращает только subdivision вызывающего для обычного пользователя и полное дерево для superadmin.
+- [ ] AC-BE-8. `POST /auth/switch-context` возвращает 403 без доступа, 404 только для superadmin, требует живой сессии refresh и перевыпускает только access-cookie.
+- [ ] AC-BE-9. `users.password_hash` создаётся/проверяется через argon2 (`app/auth/password.py`), отдельно от bcrypt-пути оператора (V-b).
 
 ### Frontend
-- [ ] AC-FE-1. No tokens live in JS; `backendRequest` sends `credentials:'include'` (HttpOnly cookies only).
-- [ ] AC-FE-2. On a 401 (except `/auth/refresh` and `/auth/login`) the transport POSTs `/auth/refresh` **once** and replays the original request; a genuine failure lands the user on `/login`.
-- [ ] AC-FE-3. `AuthGuard` gates all non-public routes via `useMeQuery()` — loading → spinner, error → redirect to `/login`.
-- [ ] AC-FE-4. The login screen shows a single generic "invalid login or password" message on failure.
+- [ ] AC-FE-1. Токены не живут в JS; `backendRequest` отправляет `credentials:'include'` (только HttpOnly-cookie).
+- [ ] AC-FE-2. При 401 (кроме `/auth/refresh` и `/auth/login`) транспорт делает POST `/auth/refresh` **один раз** и повторяет исходный запрос; при настоящем сбое пользователь попадает на `/login`.
+- [ ] AC-FE-3. `AuthGuard` защищает все непубличные маршруты через `useMeQuery()` — loading → спиннер, error → редирект на `/login`.
+- [ ] AC-FE-4. Экран логина при сбое показывает единое обобщённое сообщение «неверный логин или пароль».
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- Access-token revocation is **not instant** (non-goal) — mitigated by the 15-min TTL + refresh revocation.
-- No rate-limiting on `/auth/login` was observed (Conformance DEFER; prod checklist R-Deploy).
-- CSRF double-submit is supported server-side but **off by default** and the FE sends no `X-CSRF-Token`; enabling `csrf_enabled` in prod requires wiring `backendRequest.ts` first ([[LCOS-F66-prod-hardening]]).
+- Отзыв access-токена **не мгновенный** (не-цель) — смягчён 15-минутным TTL + отзывом refresh.
+- Ограничение частоты на `/auth/login` не наблюдалось (Conformance DEFER; чек-лист прода R-Deploy).
+- CSRF double-submit поддерживается на стороне сервера, но **выключен по умолчанию**, и FE не отправляет `X-CSRF-Token`; включение `csrf_enabled` в проде требует сначала подключить `backendRequest.ts` ([[LCOS-F66-prod-hardening]]).
 
-## Sources
+## Источники
 
-- `APP_OVERVIEW.md §4` (two auth planes, roles).
-- `01_ARCHITECTURE.md` — "Auth & multi-tenancy" (JWT access + refresh flow, tenant scoping, seeded accounts).
-- `LCOS_Conformance_Alignment_GlobalRequirements.md` R3 / Part 4 (auth test scenarios).
+- `APP_OVERVIEW.md §4` (две плоскости auth, роли).
+- `01_ARCHITECTURE.md` — «Auth & multi-tenancy» (поток access + refresh JWT, scope арендатора, засеянные аккаунты).
+- `LCOS_Conformance_Alignment_GlobalRequirements.md` R3 / Part 4 (сценарии тестов auth).
 - `mvp.be/app/auth/router.py:29` (`login`), `:46` (`refresh`), `:51` (`me`), `:56` (`switch_context`).
 - `mvp.be/app/auth/tokens.py:37` (`create_access_token`), `:72` (`generate_refresh_token`), `:76` (`hash_refresh_token`).
 - `mvp.be/app/auth/dependencies.py:32` (`get_current_context`, 401).
-- `mvp.fe/src/entities/auth` (authApi me/login/logout/switchContext), `src/shared/api/backendRequest.ts` (refresh-once-on-401).
+- `mvp.fe/src/entities/auth` (authApi me/login/logout/switchContext), `src/shared/api/backendRequest.ts` (refresh один раз при 401).

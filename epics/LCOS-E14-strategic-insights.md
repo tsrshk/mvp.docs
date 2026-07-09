@@ -1,7 +1,7 @@
 ---
 id: LCOS-E14
 type: epic
-title: Strategic insights and weekly dialog
+title: Стратегические инсайты и еженедельный диалог
 status: future
 phase: "Phase 2"
 features: ["[[LCOS-F63-insight-context]]", "[[LCOS-F64-weekly-questions]]", "[[LCOS-F65-freeform-dialog]]"]
@@ -10,41 +10,41 @@ sources: [plan/00_IMPLEMENTATION_PLAN.md F10, 06_STRATEGY.md]
 updated: 2026-07-09
 ---
 
-# LCOS-E14 · Strategic insights and weekly dialog
+# LCOS-E14 · Стратегические инсайты и еженедельный диалог
 
-**Status:** 🔭 future · **Phase:** Phase 2
+**Статус:** 🔭 future · **Фаза:** Phase 2
 
-## Description
+## Описание
 
-The top layer of the AI manager: an insight context builder (combines stock, sales, local context, competitors), a weekly "3 questions" session (the AI asks the owner the three key questions of the week), and free-form dialog. Here the product gets a chat-like interface for the first time — per the strategy's dev stop-list, a chat UI is not built before this step.
+Верхний слой AI-управляющего: построитель контекста инсайтов (объединяет остатки, продажи, локальный контекст, конкурентов), еженедельная сессия «3 вопроса» (AI задаёт владельцу три ключевых вопроса недели) и свободный диалог. Здесь продукт впервые получает чат-подобный интерфейс — по dev-стоп-листу стратегии чат-UI не строится до этого шага.
 
-## Goal / value
+## Цель / ценность
 
-Close the product promise — "an AI manager you talk to about the business." This is the routine-ladder step that provides long-term lock-in: a weekly strategic contact resting on all the epics below.
+Закрыть продуктовое обещание — «AI-управляющий, с которым говоришь о бизнесе». Это шаг лестницы рутин, дающий долгосрочный lock-in: еженедельный стратегический контакт, опирающийся на все нижележащие эпики.
 
-## Features
+## Фичи
 
-| ID | Name | Status | Link |
+| ID | Название | Статус | Ссылка |
 |---|---|---|---|
-| LCOS-F63 | Insight context builder | 🔭 future | [[LCOS-F63-insight-context]] |
-| LCOS-F64 | Weekly "3 questions" session | 🔭 future | [[LCOS-F64-weekly-questions]] |
-| LCOS-F65 | Free-form dialog | 🔭 future | [[LCOS-F65-freeform-dialog]] |
+| LCOS-F63 | Построитель контекста инсайтов | 🔭 future | [[LCOS-F63-insight-context]] |
+| LCOS-F64 | Еженедельная сессия «3 вопроса» | 🔭 future | [[LCOS-F64-weekly-questions]] |
+| LCOS-F65 | Свободный диалог | 🔭 future | [[LCOS-F65-freeform-dialog]] |
 
-## Key entities / requirements
+## Ключевые сущности / требования
 
-- Entities: aggregates data from [[stock_levels]], [[ingredients]], [[suppliers]], and Phase-2 sales/context tables.
-- Requirements: [[provider-abstraction]], [[vpn-egress]], [[multitenancy]], [[fail-closed]].
-- Roles: [[admin]] (conducts the dialog), [[member]].
+- Сущности: агрегирует данные из [[stock_levels]], [[ingredients]], [[suppliers]] и таблиц продаж/контекста Phase 2.
+- Требования: [[provider-abstraction]], [[vpn-egress]], [[multitenancy]], [[fail-closed]].
+- Роли: [[admin]] (ведёт диалог), [[member]].
 
-## Gates
+## Гейты
 
-- **Dev stop-list (06_STRATEGY):** chat UI not before this step — do not build the dialog prematurely.
+- **Dev-стоп-лист (06_STRATEGY):** чат-UI не раньше этого шага — не строить диалог преждевременно.
 - AC: TBD (Phase 2).
 
 ## legacy_refs
 
 plan F10.
 
-## Sources
+## Источники
 
 - plan/00_IMPLEMENTATION_PLAN.md F10, 06_STRATEGY.md

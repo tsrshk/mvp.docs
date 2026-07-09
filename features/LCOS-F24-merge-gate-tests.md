@@ -1,7 +1,7 @@
 ---
 id: LCOS-F24
 type: feature
-title: Merge-blocking non-negotiable tests (VER-01)
+title: Блокирующие merge неотменяемые тесты (VER-01)
 epic: "[[LCOS-E5-stabilization]]"
 status: partial
 phase: "Phase 1"
@@ -13,83 +13,83 @@ legacy_refs: [plan S1-B7 S1-B8, 08 F1.5, backlog VER-01 VER-02, Conformance V-a/
 sources: ["plan/PHASE_S1_STABILIZATION.md §S1-B7 §S1-B8", "08_PHASE1_SPEC.md F1.5", "LCOS_Conformance_Alignment_GlobalRequirements.md V-a/V-b Part 4", "APP_OVERVIEW.md §12", "mvp.be pyproject.toml:65", "TZ__STABILIZATION_2026-07-09__ALIGNED.md S8"]
 updated: 2026-07-09
 ---
-# LCOS-F24 · Merge-blocking non-negotiable tests (VER-01)
+# LCOS-F24 · Блокирующие merge неотменяемые тесты (VER-01)
 
 **Epic:** [[LCOS-E5-stabilization]] · **Status:** partial · **Phase:** Phase 1
 
-## Description
+## Описание
 
-The non-negotiable invariants of the platform — fail-closed VPN egress, correct egress-client selection, the `ERP_WRITE_ENABLED` gate, tenant isolation, refresh reuse-detection, and secret encryption — are worthless as guarantees unless a test fails when they break. This feature makes those invariants merge-blocking: each is covered by a test on real Postgres+pgvector (egress mocked with `respx`), and the tests are grouped behind a single marker so a broken invariant cannot merge.
+Неотменяемые инварианты платформы — fail-closed VPN-egress, корректный выбор egress-клиента, гейт `ERP_WRITE_ENABLED`, изоляция тенантов, обнаружение повторного использования refresh и шифрование секретов — бесполезны как гарантии, если при их поломке тест не падает. Эта фича делает эти инварианты блокирующими merge: каждый покрыт тестом на реальном Postgres+pgvector (egress замокан через `respx`), и тесты сгруппированы под единым маркером, чтобы сломанный инвариант не мог смёржиться.
 
-Two marker tracks exist. The SKU/commit track (`merge_gate`, 17 tests: durable-id + DEC-0013 commit-gate) is **built and green** and was extended during stabilization (S8) with the previously-missing DB/HTTP/component tests (criteria API 422 + JSONB round-trip, `get_esupl_access` None-branches, `sync_catalog_from_erp`, per-org bootstrap resilience, `CriteriaFields`). The platform track (VER-01 / `non_negotiable`) is **partial**: the underlying test files exist (`test_egress.py`, `test_provider_egress.py`, `test_vpn_toggle.py`, `test_tenant_isolation.py`, `test_tenant.py`, `test_auth.py`, `test_secrets.py`, `test_secret_isolation.py`), but the unifying `non_negotiable` pytest marker from plan S1-B7/08 F1.5 is **not yet registered** in `pyproject.toml` (only `merge_gate` is), so there is no single `pytest -m non_negotiable` entry point and no per-scenario merge mapping. Completing this feature = confirm coverage, add the missing cases, register the marker, and prove each scenario fails on deliberate breakage (spot-check VPN + ERP gate).
+Существуют два трека маркеров. Трек SKU/commit (`merge_gate`, 17 тестов: устойчивый id + commit-гейт DEC-0013) **построен и зелёный** и был расширен во время стабилизации (S8) ранее отсутствовавшими DB/HTTP/component-тестами (criteria API 422 + JSONB round-trip, None-ветви `get_esupl_access`, `sync_catalog_from_erp`, устойчивость per-org bootstrap, `CriteriaFields`). Платформенный трек (VER-01 / `non_negotiable`) **частичный**: базовые файлы тестов существуют (`test_egress.py`, `test_provider_egress.py`, `test_vpn_toggle.py`, `test_tenant_isolation.py`, `test_tenant.py`, `test_auth.py`, `test_secrets.py`, `test_secret_isolation.py`), но объединяющий pytest-маркер `non_negotiable` из plan S1-B7/08 F1.5 **ещё не зарегистрирован** в `pyproject.toml` (только `merge_gate`), поэтому нет единой точки входа `pytest -m non_negotiable` и нет пер-сценарного merge-маппинга. Завершение этой фичи = подтвердить покрытие, добавить недостающие кейсы, зарегистрировать маркер и доказать, что каждый сценарий падает при преднамеренной поломке (spot-check VPN + ERP-гейт).
 
-## Capabilities
+## Возможности
 
-- One command per gate track: `pytest -m merge_gate` (SKU/commit, done) and `pytest -m non_negotiable` (platform, to add).
-- Fail-closed VPN test: `ai_vpn_enabled=True` + dead tunnel → `VpnUnavailableError` (503 `vpn_unavailable`), with an assertion that **no** request went through the direct client.
-- Egress-client selection test: `via_vpn=True` → vpn_client; `False` → direct; missing vpn_client while `via_vpn=True` → error, not fallback.
-- ERP write-gate test: OFF → synthetic `esupl-prepared-<number>`, zero HTTP calls (respx); ON → real POST with the org Bearer token.
-- Tenant-isolation test: a repository cannot be instantiated without `organization_id`; org A data is invisible in org B scope (suppliers/invoices/ingredients).
-- Refresh reuse-detection test: replaying a rotated refresh revokes the whole `family_id` and returns 401.
-- Secret tests: plaintext in → `enc:v2:*` in DB; rotation visible on next call (no cache); no AI key → `AiUnavailableError` without reading env.
-- Password test (VER-02): `users.password_hash` is argon2 (`app/auth/password.py`); bcrypt is only the SQLAdmin operator (`core/security.py`); the two paths are not crossed.
+- Одна команда на трек гейта: `pytest -m merge_gate` (SKU/commit, готово) и `pytest -m non_negotiable` (платформа, добавить).
+- Fail-closed VPN-тест: `ai_vpn_enabled=True` + мёртвый туннель → `VpnUnavailableError` (503 `vpn_unavailable`), с утверждением, что **ни один** запрос не прошёл через прямой клиент.
+- Тест выбора egress-клиента: `via_vpn=True` → vpn_client; `False` → direct; отсутствующий vpn_client при `via_vpn=True` → ошибка, а не фоллбэк.
+- Тест ERP write-гейта: OFF → синтетический `esupl-prepared-<number>`, ноль HTTP-вызовов (respx); ON → реальный POST с org Bearer-токеном.
+- Тест изоляции тенантов: репозиторий нельзя инстанцировать без `organization_id`; данные org A невидимы в scope org B (suppliers/invoices/ingredients).
+- Тест обнаружения повторного использования refresh: воспроизведение ротированного refresh отзывает весь `family_id` и возвращает 401.
+- Тесты секретов: plaintext на входе → `enc:v2:*` в БД; ротация видна при следующем вызове (без кэша); нет AI-ключа → `AiUnavailableError` без чтения env.
+- Тест паролей (VER-02): `users.password_hash` — argon2 (`app/auth/password.py`); bcrypt только у SQLAdmin-оператора (`core/security.py`); два пути не пересекаются.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[superadmin]] | Beneficiary: the gate protects cross-tenant isolation and secret handling that superadmin config touches. |
-| [[admin]] | Beneficiary: tenant isolation and the write-gate protect their data and ERP writes. |
-| [[member]] | Beneficiary: fail-closed egress protects their OCR/AI calls from silent leakage. |
-| [[sqladmin-operator]] | Not a runtime actor; the encryption/auth-plane separation tests cover the operator plane. |
+| [[superadmin]] | Бенефициар: гейт защищает межтенантную изоляцию и обработку секретов, которые затрагивает superadmin config. |
+| [[admin]] | Бенефициар: изоляция тенантов и write-гейт защищают их данные и ERP-записи. |
+| [[member]] | Бенефициар: fail-closed egress защищает их OCR/AI-вызовы от молчаливой утечки. |
+| [[sqladmin-operator]] | Не рантайм-актор; тесты разделения encryption/auth-плоскости покрывают operator-плоскость. |
 
-This is a QA/CI feature; there is no end-user surface.
+Это QA/CI-фича; поверхности для конечного пользователя нет.
 
-## Involved entities
+## Задействованные сущности
 
-- [[integration_credentials]] — subject of the secret-encryption and no-cache-rotation tests.
-- [[sku_mapping]] — subject of the `merge_gate` durable-id / DEC-0013 commit-gate track.
-- [[invoices]] — subject of the `ERP_WRITE_ENABLED` gate test (synthetic id at OFF, real POST at ON).
+- [[integration_credentials]] — предмет тестов шифрования секретов и no-cache-ротации.
+- [[sku_mapping]] — предмет трека `merge_gate`: устойчивый id / commit-гейт DEC-0013.
+- [[invoices]] — предмет теста гейта `ERP_WRITE_ENABLED` (синтетический id при OFF, реальный POST при ON).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[fail-closed]] (`R8` catalog is the checklist these tests enforce), [[global-requirements]] (R1–R9 conformance, Part 4 acceptance scenarios), [[multitenancy]] (`R5.3`/`R5.4` isolation), [[auth]] (`R3.3` refresh reuse-detection, `R3.8` argon2), [[secret-encryption]] (`R2`).
-- **Features:** the fail-closed encrypt case is co-owned with [[LCOS-F23-failclosed-encryption]]; the SKU/commit track is the gate for [[LCOS-F22-sku-stabilization]]; VPN/egress cases guard [[LCOS-F5-provider-seams]] and [[LCOS-F8-ocr-recognition]]; the write-gate guards [[LCOS-F10-invoice-status-machine]].
-- **Decisions:** [[ADR-006]] (fail-closed egress).
+- **Требования:** [[fail-closed]] (каталог `R8` — чеклист, который эти тесты обеспечивают), [[global-requirements]] (соответствие R1–R9, Part 4 сценарии приёмки), [[multitenancy]] (изоляция `R5.3`/`R5.4`), [[auth]] (`R3.3` обнаружение повторного refresh, `R3.8` argon2), [[secret-encryption]] (`R2`).
+- **Фичи:** fail-closed encrypt-кейс со-владеется с [[LCOS-F23-failclosed-encryption]]; трек SKU/commit — это гейт для [[LCOS-F22-sku-stabilization]]; VPN/egress-кейсы охраняют [[LCOS-F5-provider-seams]] и [[LCOS-F8-ocr-recognition]]; write-гейт охраняет [[LCOS-F10-invoice-status-machine]].
+- **Решения:** [[ADR-006]] (fail-closed egress).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. Fail-closed VPN: `ai_vpn_enabled=True` + dead tunnel → `VpnUnavailableError` (503); assert no direct-client request occurred.
-- [ ] AC-BE-2. Egress-client selection: `via_vpn=True` → vpn_client, `False` → direct; missing vpn_client at `via_vpn=True` → error (not fallback).
-- [ ] AC-BE-3. `ERP_WRITE_ENABLED` OFF → synthetic `esupl-prepared-<number>`, zero HTTP calls (respx); ON → real POST with the org Bearer token (same code path).
-- [ ] AC-BE-4. Tenant isolation: tenant repository cannot be constructed without `organization_id`; org A data not visible under org B scope.
-- [ ] AC-BE-5. Refresh reuse-detection: replaying a rotated refresh revokes the whole `family_id` + 401.
-- [ ] AC-BE-6. Secrets: plaintext → `enc:v2:*`; rotation effective on next call (no cache); no AI key → `AiUnavailableError` without env read.
-- [ ] AC-BE-7. Passwords (VER-02): app users use argon2 (`app/auth/password.py`); bcrypt only for the SQLAdmin operator (`core/security.py`); paths not crossed.
-- [ ] AC-BE-8. A `non_negotiable` pytest marker is registered in `pyproject.toml`; `pytest -m non_negotiable` runs green and each scenario above cites the test that closes it.
-- [ ] AC-BE-9. Spot-check: deliberately breaking the VPN invariant and the ERP write-gate makes the corresponding test fail (proves the gate bites).
-- [x] AC-BE-10. `pytest -m merge_gate` (17: durable-id + DEC-0013 commit-gate) is green on real Postgres+pgvector; S8 gaps (criteria API 422 + JSONB, `get_esupl_access` None-branches, catalog sync, bootstrap resilience, `CriteriaFields`) added.
+- [ ] AC-BE-1. Fail-closed VPN: `ai_vpn_enabled=True` + мёртвый туннель → `VpnUnavailableError` (503); утвердить, что запроса через прямой клиент не было.
+- [ ] AC-BE-2. Выбор egress-клиента: `via_vpn=True` → vpn_client, `False` → direct; отсутствующий vpn_client при `via_vpn=True` → ошибка (не фоллбэк).
+- [ ] AC-BE-3. `ERP_WRITE_ENABLED` OFF → синтетический `esupl-prepared-<number>`, ноль HTTP-вызовов (respx); ON → реальный POST с org Bearer-токеном (тот же путь кода).
+- [ ] AC-BE-4. Изоляция тенантов: тенант-репозиторий нельзя сконструировать без `organization_id`; данные org A не видны в scope org B.
+- [ ] AC-BE-5. Обнаружение повторного refresh: воспроизведение ротированного refresh отзывает весь `family_id` + 401.
+- [ ] AC-BE-6. Секреты: plaintext → `enc:v2:*`; ротация эффективна при следующем вызове (без кэша); нет AI-ключа → `AiUnavailableError` без чтения env.
+- [ ] AC-BE-7. Пароли (VER-02): пользователи приложения используют argon2 (`app/auth/password.py`); bcrypt только для SQLAdmin-оператора (`core/security.py`); пути не пересекаются.
+- [ ] AC-BE-8. Pytest-маркер `non_negotiable` зарегистрирован в `pyproject.toml`; `pytest -m non_negotiable` запускается зелёным, и каждый сценарий выше ссылается на тест, который его закрывает.
+- [ ] AC-BE-9. Spot-check: преднамеренная поломка VPN-инварианта и ERP write-гейта заставляет соответствующий тест упасть (доказывает, что гейт «кусается»).
+- [x] AC-BE-10. `pytest -m merge_gate` (17: устойчивый id + commit-гейт DEC-0013) зелёный на реальном Postgres+pgvector; пробелы S8 (criteria API 422 + JSONB, None-ветви `get_esupl_access`, синхронизация каталога, устойчивость bootstrap, `CriteriaFields`) добавлены.
 
 ### Frontend
-- [x] AC-FE-1. FE test suite (`vitest`) is green (43 passed), including the golden-vector `source_key` normalization parity test that guards the moat auto-fill invariant.
-- [ ] AC-FE-2. Component tests exist for `CriteriaFields` render/emit and the criteria-schema HTTP client path (S8 additions kept green).
+- [x] AC-FE-1. FE-набор тестов (`vitest`) зелёный (43 passed), включая golden-vector тест паритета нормализации `source_key`, который охраняет инвариант автозаполнения рва.
+- [ ] AC-FE-2. Компонентные тесты существуют для рендера/emit `CriteriaFields` и HTTP-клиента criteria-схемы (добавления S8 остаются зелёными).
 
-### Other (infra/CI)
-- [ ] AC-OTHER-1. Tests run on real Postgres+pgvector (not SQLite), egress via `respx`; a live DB env (`DATABASE_URL`) is required (`S0`).
-- [ ] AC-OTHER-2. A CI pipeline that runs `pytest -m non_negotiable` as a merge gate is captured in the prod checklist (`R-Deploy`); CI itself is DEFER-02 for Phase 1 (currently manual).
+### Прочее (infra/CI)
+- [ ] AC-OTHER-1. Тесты работают на реальном Postgres+pgvector (не SQLite), egress через `respx`; требуется живое DB-окружение (`DATABASE_URL`) (`S0`).
+- [ ] AC-OTHER-2. CI-пайплайн, запускающий `pytest -m non_negotiable` как merge-гейт, зафиксирован в prod-чеклисте (`R-Deploy`); сам CI — это DEFER-02 для Phase 1 (сейчас вручную).
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **`non_negotiable` marker not yet registered** — only `merge_gate` exists in `pyproject.toml:65-67`; this is the main remaining gap that keeps the feature `partial`.
-- **CI enforcement deferred** — CLAUDE.md wants CI-enforced non-negotiables; Phase 1 runs them manually (DEFER-02).
-- **VER-021 is separate** — the durability gate ([[LCOS-F28-esupl-contracts]], [[VER-021_ESUPL_DURABILITY_TEST]]) is owner-run and orthogonal to this test suite; merge remains gated on it independently.
+- **Маркер `non_negotiable` ещё не зарегистрирован** — только `merge_gate` существует в `pyproject.toml:65-67`; это основной оставшийся пробел, который держит фичу в статусе `partial`.
+- **Принуждение через CI отложено** — CLAUDE.md хочет CI-обеспеченных неотменяемых инвариантов; Phase 1 запускает их вручную (DEFER-02).
+- **VER-021 — отдельно** — гейт устойчивости ([[LCOS-F28-esupl-contracts]], [[VER-021_ESUPL_DURABILITY_TEST]]) выполняется владельцем и ортогонален этому набору тестов; merge остаётся под гейтом по нему независимо.
 
-## Sources
+## Источники
 
-- `plan/PHASE_S1_STABILIZATION.md §1 S1-B7` (six non-negotiable scenarios), `S1-B8` (argon2 vs bcrypt), `§5 AC-3`.
-- `08_PHASE1_SPEC.md F1.5` (REQ-1 confirm/extend, REQ-2 `non_negotiable` marker + `pyproject.toml`).
-- `LCOS_Conformance_Alignment_GlobalRequirements.md` — V-a (merge-blocking tests), V-b (passwords), Part 4 test scenarios.
-- `APP_OVERVIEW.md §12` (real Postgres+pgvector, respx, `merge_gate` = 17, 209/43 green).
-- `TZ__STABILIZATION_2026-07-09__ALIGNED.md S8` (merge_gate = 17 not 5; S8 added DB/HTTP/component tests).
-- `mvp.be/pyproject.toml:65-67` (only `merge_gate` registered); `mvp.be/tests/` (existing egress/tenant/auth/secret suites).
+- `plan/PHASE_S1_STABILIZATION.md §1 S1-B7` (шесть неотменяемых сценариев), `S1-B8` (argon2 vs bcrypt), `§5 AC-3`.
+- `08_PHASE1_SPEC.md F1.5` (REQ-1 подтвердить/расширить, REQ-2 маркер `non_negotiable` + `pyproject.toml`).
+- `LCOS_Conformance_Alignment_GlobalRequirements.md` — V-a (блокирующие merge тесты), V-b (пароли), Part 4 сценарии тестов.
+- `APP_OVERVIEW.md §12` (реальный Postgres+pgvector, respx, `merge_gate` = 17, 209/43 зелёные).
+- `TZ__STABILIZATION_2026-07-09__ALIGNED.md S8` (merge_gate = 17, а не 5; S8 добавил DB/HTTP/component-тесты).
+- `mvp.be/pyproject.toml:65-67` (зарегистрирован только `merge_gate`); `mvp.be/tests/` (существующие egress/tenant/auth/secret наборы).

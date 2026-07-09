@@ -1,6 +1,6 @@
 ---
 doc: README
-title: LCOS documentation vault — map & conventions
+title: Хранилище документации LCOS — карта и соглашения
 version: 2.0.0
 status: current
 updated: 2026-07-09
@@ -8,45 +8,45 @@ owner: Ivan
 trust_tier: 0
 ---
 
-# LCOS documentation vault
+# Хранилище документации LCOS
 
-A Confluence/Jira-style knowledge base in Markdown, designed to be opened as an **Obsidian vault**. Cross-references use Obsidian wiki-links — double square brackets around a file basename. Requirements follow **SSOT**: each capability/requirement is written once and linked, never duplicated.
+База знаний в стиле Confluence/Jira в формате Markdown, рассчитанная на открытие как **Obsidian vault**. Перекрёстные ссылки используют вики-ссылки Obsidian — двойные квадратные скобки вокруг basename файла. Требования следуют **SSOT**: каждая возможность/требование записывается один раз и связывается ссылками, никогда не дублируется.
 
-Start here: **[[MOC]]** (Map of Content) — the linked index to everything.
+Начните отсюда: **[[MOC]]** (Map of Content) — связанный индекс всего.
 
-## Structure
+## Структура
 
-| Folder | What lives here |
+| Папка | Что здесь находится |
 |---|---|
-| `00-overview/` | [[product]] (vision/strategy), [[architecture]] (as-built SSOT), [[roadmap]] (phases), [[glossary]], [[MOC]] |
-| `epics/` | `LCOS-E1..E15` — epic docs, each linking its features |
-| `features/` | `LCOS-F1..F71` — feature docs (parent epic, description, capabilities, role access, entities, **AC split by Backend / Frontend / other**) |
-| `entities/` | Data-model docs, one per table (SSOT for the schema) |
+| `00-overview/` | [[product]] (видение/стратегия), [[architecture]] (as-built SSOT), [[roadmap]] (фазы), [[glossary]], [[MOC]] |
+| `epics/` | `LCOS-E1..E15` — документы эпиков, каждый ссылается на свои фичи |
+| `features/` | `LCOS-F1..F71` — документы фич (родительский эпик, описание, возможности, доступ по ролям, сущности, **AC разбит по Backend / Frontend / прочему**) |
+| `entities/` | Документы модели данных, по одному на таблицу (SSOT схемы) |
 | `roles/` | `superadmin`, `admin`, `member`, `sqladmin-operator`, `supplier-future` |
-| `requirements/` | Cross-cutting SSOT: auth, multitenancy, config-secrets, fail-closed, vpn-egress, provider-abstraction, erp-esupl-integration, sku-identity-resolver, invoice-status-machine, secret-encryption, supplier-criteria-registry, global-requirements (R1–R9) |
+| `requirements/` | Сквозной SSOT: auth, multitenancy, config-secrets, fail-closed, vpn-egress, provider-abstraction, erp-esupl-integration, sku-identity-resolver, invoice-status-machine, secret-encryption, supplier-criteria-registry, global-requirements (R1–R9) |
 | `adr/` | Architecture Decision Records `ADR-001..020` + `DEC-0011`/`DEC-0013` + [[index]] |
-| `reference/` | External integration reference (`esupl-api/`) |
-| `work/` | Live process docs (aligned TZ, fix journals, open gates, per-phase specs `work/plan/`, backlog, tasks) |
-| `archive/` | Inert historical & superseded docs — never read as current, never revived |
+| `reference/` | Справочник внешних интеграций (`esupl-api/`) |
+| `work/` | Живые процессные документы (согласованный ТЗ, журналы правок, открытые gate, поэтапные спецификации `work/plan/`, backlog, задачи) |
+| `archive/` | Инертные исторические и вытесненные документы — никогда не читаются как актуальные, никогда не возрождаются |
 
-## Numbering & IDs
-- **Epics** `LCOS-E#`, **features** `LCOS-F#` (grouped-typed, project key `LCOS`). Every feature declares its parent epic in front-matter and links back.
-- Phase 1 (`E1–E8`) is documented fully with AC. Phase 2 (`E9–E15`) is documented as stubs (activated on demand). The boundary is the **Pilot-Gate** (see [[glossary]], [[ADR-003]]).
-- Legacy codes from the old plans (Э0–Э8 / S1–S2 / F3–F10 / P2) are preserved in each doc's `legacy_refs` and mapped in [[roadmap]].
+## Нумерация и ID
+- **Эпики** `LCOS-E#`, **фичи** `LCOS-F#` (grouped-typed, ключ проекта `LCOS`). Каждая фича объявляет свой родительский эпик во front-matter и ссылается на него.
+- Фаза 1 (`E1–E8`) документирована полностью с AC. Фаза 2 (`E9–E15`) документирована в виде заглушек (активируются по требованию). Граница — **Pilot-Gate** (см. [[glossary]], [[ADR-003]]).
+- Легаси-коды из старых планов (Э0–Э8 / S1–S2 / F3–F10 / P2) сохранены в `legacy_refs` каждого документа и сопоставлены в [[roadmap]].
 
-## Conventions
-- **Language:** English (prose and identifiers).
-- **Front-matter:** every doc opens with YAML (`id`/`type`/`title`/`status`/`sources`/…).
-- **Wikilinks by basename:** `[[sku_mapping]]`, `[[fail-closed]]`, `[[ADR-018]]`, `[[LCOS-F8-ocr-recognition]]`.
-- **Trust order (on conflict):** code + `CLAUDE.md` > `adr/` (decisions) > requirements/architecture > overview/product. When docs disagree with code, code wins and the doc is corrected.
-- **Append-only decisions:** ADRs are never rewritten; supersede with a new ADR.
+## Соглашения
+- **Язык:** русский (проза) + английские идентификаторы/код (стиль кодовой базы).
+- **Front-matter:** каждый документ открывается YAML (`id`/`type`/`title`/`status`/`sources`/…).
+- **Вики-ссылки по basename:** `[[sku_mapping]]`, `[[fail-closed]]`, `[[ADR-018]]`, `[[LCOS-F8-ocr-recognition]]`.
+- **Порядок доверия (при конфликте):** код + `CLAUDE.md` > `adr/` (решения) > requirements/architecture > overview/product. Когда документы расходятся с кодом, побеждает код, а документ исправляется.
+- **Append-only решения:** ADR никогда не переписываются; вытесняются новым ADR.
 
-## Migration record (2026-07-09)
-This vault replaces the previous flat pile of numbered/`TZ__`/audit docs. Nothing was deleted:
-- `01_ARCHITECTURE.md` + `APP_OVERVIEW.md` → merged into [[architecture]] (originals in `archive/`).
+## Запись о миграции (2026-07-09)
+Это хранилище заменяет предыдущую плоскую кучу нумерованных/`TZ__`/аудиторских документов. Ничего не было удалено:
+- `01_ARCHITECTURE.md` + `APP_OVERVIEW.md` → слиты в [[architecture]] (оригиналы в `archive/`).
 - `06_STRATEGY.md` (+ `Local_OS_About.md`) → [[product]]; `07_PHASES.md` + `plan/00` → [[roadmap]].
-- `08_PHASE1_SPEC.md` + `LCOS_Conformance…` (R1–R9) → `requirements/` + feature AC.
-- `04_DECISIONS.md` (+ `__DEC-0011`/`__DEC-0013`) → `adr/` (one file per ADR + [[index]]).
-- Process artefacts (`TZ__*`, `IMPLEMENTATION_REVIEW*`, `*_AUDIT`, `EVIDENCE__*`) → `archive/`; still-live ones (aligned stabilization TZ, Bucket-1 fix journal, VER-021 gate) → `work/`.
-- `api/esupl/` → `reference/esupl-api/`. Per-phase specs → `work/plan/`.
-- The restructure plan and generation log: `work/_RESTRUCTURE_PLAN.md`.
+- `08_PHASE1_SPEC.md` + `LCOS_Conformance…` (R1–R9) → `requirements/` + AC фич.
+- `04_DECISIONS.md` (+ `__DEC-0011`/`__DEC-0013`) → `adr/` (один файл на ADR + [[index]]).
+- Процессные артефакты (`TZ__*`, `IMPLEMENTATION_REVIEW*`, `*_AUDIT`, `EVIDENCE__*`) → `archive/`; всё ещё живые (согласованный стабилизационный ТЗ, журнал правок Bucket-1, gate VER-021) → `work/`.
+- `api/esupl/` → `reference/esupl-api/`. Поэтапные спецификации → `work/plan/`.
+- План реструктуризации и лог генерации: `work/_RESTRUCTURE_PLAN.md`.

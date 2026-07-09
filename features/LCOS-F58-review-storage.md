@@ -1,7 +1,7 @@
 ---
 id: LCOS-F58
 type: feature
-title: Review storage + ingestion
+title: Хранение отзывов + загрузка
 epic: "[[LCOS-E12-competitor-reviews]]"
 status: future
 phase: "Phase 2"
@@ -13,54 +13,54 @@ legacy_refs: [plan F8, "plan F8-B1", "plan F8-B2"]
 sources: ["plan/PHASE_F8_COMPETITORS_REVIEWS.md §1 F8-B1", "plan/PHASE_F8_COMPETITORS_REVIEWS.md §1 F8-B2", "plan/00_IMPLEMENTATION_PLAN.md §6 Q5"]
 updated: 2026-07-09
 ---
-# LCOS-F58 · Review storage + ingestion
+# LCOS-F58 · Хранение отзывов + загрузка
 **Epic:** [[LCOS-E12-competitor-reviews]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The data-model and ingestion foundation of the reviews epic. Introduces two org-scoped tables: `reviews` (`OrganizationScopedMixin`, uuid pk) holding `subject` (`self` | `competitor`), an optional `competitor_id` FK (NULL for own reviews), `source` (`google` | `manual` | `import`), an `external_id` unique within the org for deduplication, plus `author?`, `rating?`, `text`, `posted_at`, `lang?`; and `review_analyses` (1:1 FK→`reviews` CASCADE), which is written by [[LCOS-F59-review-analysis]] and deliberately kept separate so a re-analysis with a newer model never mutates the source review.
+Основа модели данных и загрузки для эпика отзывов. Вводит две таблицы со скоупом org: `reviews` (`OrganizationScopedMixin`, uuid pk), хранящая `subject` (`self` | `competitor`), опциональный FK `competitor_id` (NULL для собственных отзывов), `source` (`google` | `manual` | `import`), `external_id`, уникальный внутри org для дедупликации, плюс `author?`, `rating?`, `text`, `posted_at`, `lang?`; и `review_analyses` (1:1 FK→`reviews` CASCADE), которая записывается в [[LCOS-F59-review-analysis]] и намеренно держится отдельно, чтобы повторный анализ более новой моделью никогда не мутировал исходный отзыв.
 
-Ingestion has two paths, both landing in the same `reviews` table. The primary MVP path is manual/bulk import: `POST /api/v1/reviews/import` accepts a JSON array (own reviews or reviews copied/exported for a competitor) and deduplicates by `external_id` / text hash so re-importing the same batch creates no duplicates. The optional path is an authenticated fetch of the shop's own reviews via Google Business Profile behind a `reviews` provider Protocol; if the OAuth credential is not configured the feature falls back to manual import, and the API provider may be deferred by owner decision at phase start (recorded in the journal).
+Загрузка имеет два пути, оба приземляются в ту же таблицу `reviews`. Основной путь MVP — ручной/массовый импорт: `POST /api/v1/reviews/import` принимает JSON-массив (собственные отзывы или отзывы, скопированные/экспортированные для конкурента) и дедуплицирует по `external_id` / хэшу текста, так что повторный импорт той же партии не создаёт дубликатов. Опциональный путь — аутентифицированная выборка собственных отзывов магазина через Google Business Profile за Protocol провайдера `reviews`; если OAuth-учётные данные не настроены, фича откатывается на ручной импорт, а API-провайдер может быть отложен решением владельца в начале фазы (фиксируется в журнале).
 
-**Legal boundary (plan §6 Q5):** the MVP works only on officially available data — own reviews via Google Business Profile (API/export), competitor reviews via manual import. Automated scraping of Google Maps is explicitly out of scope.
+**Правовая граница (plan §6 Q5):** MVP работает только с официально доступными данными — собственные отзывы через Google Business Profile (API/экспорт), отзывы конкурентов через ручной импорт. Автоматический скрейпинг Google Maps явно вне объёма.
 
-## Capabilities
+## Возможности
 
-- `reviews` and `review_analyses` tables, org-scoped; analysis stored separately from the source review (re-analysis never touches the original).
-- Bulk import endpoint `POST /api/v1/reviews/import` (JSON array) with deduplication by `external_id` / text hash — idempotent re-import.
-- `self` vs `competitor` subject discrimination; competitor reviews link to the competitor directory ([[LCOS-F54-competitor-directory]]).
-- Optional Google Business Profile fetch of own reviews behind a single-implementation provider seam; disabled by default (`reviews_sync_enabled` REGISTRY, default False).
-- No Google Maps scraping; competitor data enters only by manual/bulk import.
+- Таблицы `reviews` и `review_analyses`, со скоупом org; анализ хранится отдельно от исходного отзыва (повторный анализ никогда не трогает оригинал).
+- Эндпоинт массового импорта `POST /api/v1/reviews/import` (JSON-массив) с дедупликацией по `external_id` / хэшу текста — идемпотентный повторный импорт.
+- Различение subject `self` vs `competitor`; отзывы конкурентов ссылаются на справочник конкурентов ([[LCOS-F54-competitor-directory]]).
+- Опциональная выборка собственных отзывов через Google Business Profile за швом провайдера с одной реализацией; выключена по умолчанию (`reviews_sync_enabled` REGISTRY, default False).
+- Без скрейпинга Google Maps; данные конкурентов попадают только ручным/массовым импортом.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[admin]] | Import own and competitor reviews for their subdivision; configure the Google Business connection (if enabled). |
-| [[member]] | Import reviews within their subdivision; consumes stored reviews downstream. |
-| [[superadmin]] | Same across all tenants; manages the Google Business credential and sync enable flag. |
-| [[sqladmin-operator]] | Sets the `reviews_sync_enabled` flag and provider credentials in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[admin]] | Импортирует собственные и конкурентские отзывы для своего подразделения; настраивает соединение Google Business (если включено). |
+| [[member]] | Импортирует отзывы в рамках своего подразделения; потребляет сохранённые отзывы далее по цепочке. |
+| [[superadmin]] | То же по всем тенантам; управляет учётными данными Google Business и флагом включения синхронизации. |
+| [[sqladmin-operator]] | Задаёт флаг `reviews_sync_enabled` и учётные данные провайдера в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
 
-## Involved entities
+## Задействованные сущности
 
-- Future storage tables `reviews` and `review_analyses` — introduced here; `review_analyses` is populated by [[LCOS-F59-review-analysis]] and read by [[LCOS-F60-reviews-api]].
-- [[subdivisions]] — tenant scope of every review row (org-scoped mixin); isolation is a hard requirement.
-- [[integration_credentials]] — Fernet-encrypted Google Business Profile OAuth credential (`scope=org`, new `google_business` provider value), read backend-only when the optional fetch path is enabled.
-- Competitor rows referenced by `competitor_id` live in the competitor directory of [[LCOS-E11-competitor-menu]] ([[LCOS-F54-competitor-directory]]).
+- Будущие таблицы хранения `reviews` и `review_analyses` — вводятся здесь; `review_analyses` наполняется [[LCOS-F59-review-analysis]] и читается [[LCOS-F60-reviews-api]].
+- [[subdivisions]] — тенант-скоуп каждой строки отзыва (mixin со скоупом org); изоляция — жёсткое требование.
+- [[integration_credentials]] — зашифрованные Fernet OAuth-учётные данные Google Business Profile (`scope=org`, новое значение провайдера `google_business`), читаются только на бэкенде, когда включён опциональный путь выборки.
+- Строки конкурентов, на которые ссылается `competitor_id`, живут в справочнике конкурентов [[LCOS-E11-competitor-menu]] ([[LCOS-F54-competitor-directory]]).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (org-scoped rows, isolation tested), [[provider-abstraction]] (Google fetch behind a one-implementation `reviews` provider seam), [[fail-closed]] (fetch enabled without a credential → explicit sync error, never a silent skip), [[secret-encryption]] (`enc:v2` OAuth credential), [[vpn-egress]] (any live provider egress routed and gated on the backend).
-- **Features:** feeds [[LCOS-F59-review-analysis]] (analysis of unprocessed reviews) and [[LCOS-F60-reviews-api]] (list/trends/digest/alert); scheduled fetch, when enabled, runs under the digest scheduler shared with [[LCOS-F48-weekly-digest]].
-- **Epics:** part of [[LCOS-E12-competitor-reviews]]; complements the quantitative menu/price signal of [[LCOS-E11-competitor-menu]].
-- **ADR:** [[ADR-009]] (provider seam, one implementation), [[ADR-012]] (live provider paths backend-only), [[ADR-006]] (fail-closed egress).
+- **Requirements:** [[multitenancy]] (строки со скоупом org, изоляция протестирована), [[provider-abstraction]] (выборка Google за швом провайдера `reviews` с одной реализацией), [[fail-closed]] (выборка включена без учётных данных → явная ошибка синхронизации, никогда не тихий пропуск), [[secret-encryption]] (`enc:v2` OAuth-учётные данные), [[vpn-egress]] (любой egress живого провайдера маршрутизируется и закрывается на бэкенде).
+- **Features:** питает [[LCOS-F59-review-analysis]] (анализ необработанных отзывов) и [[LCOS-F60-reviews-api]] (список/тренды/дайджест/алерт); плановая выборка, если включена, выполняется под планировщиком дайджеста, общим с [[LCOS-F48-weekly-digest]].
+- **Epics:** часть [[LCOS-E12-competitor-reviews]]; дополняет количественный сигнал меню/цен [[LCOS-E11-competitor-menu]].
+- **ADR:** [[ADR-009]] (шов провайдера, одна реализация), [[ADR-012]] (пути живого провайдера только на бэкенде), [[ADR-006]] (fail-closed egress).
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). Import idempotency, tenant-isolation and (if built) Google-fetch fail-closed criteria are drafted when the epic is activated and the Q5 legal boundary is re-confirmed with the owner.
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Идемпотентность импорта, тенант-изоляция и (если построено) fail-closed критерии выборки Google прорабатываются при активации эпика и повторном подтверждении правовой границы Q5 с владельцем.
 
 ## Sources
 
-- `plan/PHASE_F8_COMPETITORS_REVIEWS.md §1 F8-B1` (data model: `reviews`, `review_analyses`).
-- `plan/PHASE_F8_COMPETITORS_REVIEWS.md §1 F8-B2` (ingestion: `/reviews/import`, dedup, Google Business provider, `reviews_sync_enabled`).
-- `plan/00_IMPLEMENTATION_PLAN.md §6 Q5` (legal boundary — official data only, no Google Maps scraping).
+- `plan/PHASE_F8_COMPETITORS_REVIEWS.md §1 F8-B1` (модель данных: `reviews`, `review_analyses`).
+- `plan/PHASE_F8_COMPETITORS_REVIEWS.md §1 F8-B2` (загрузка: `/reviews/import`, дедуп, провайдер Google Business, `reviews_sync_enabled`).
+- `plan/00_IMPLEMENTATION_PLAN.md §6 Q5` (правовая граница — только официальные данные, без скрейпинга Google Maps).

@@ -1,7 +1,7 @@
 ---
 id: LCOS-F45
 type: feature
-title: Sales read + history backfill
+title: Чтение продаж + дозагрузка истории
 epic: "[[LCOS-E9-sales-analytics]]"
 status: future
 phase: "Phase 2"
@@ -13,51 +13,51 @@ legacy_refs: [plan F5-B1, 07 Э6]
 sources: ["plan/PHASE_F5_SALES_ANALYTICS.md §0", "plan/PHASE_F5_SALES_ANALYTICS.md §1 F5-B1", "07_PHASES.md Э6"]
 updated: 2026-07-09
 ---
-# LCOS-F45 · Sales read + history backfill
+# LCOS-F45 · Чтение продаж + дозагрузка истории
 **Epic:** [[LCOS-E9-sales-analytics]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-Read-only ingestion of sales from Esupl through the ERP provider seam. Extends `ErpProvider` (Protocol) / `EsuplErpProvider` with authenticated read methods (e.g. `list_sales(team_id, warehouse_id?, date_from, date_to, api_token) -> list[SaleRecord]`, and `list_orders` for purchase history), returning domain DTOs — no new write methods. This is the entry point of the analytics epic: it pulls "what sold" out of Esupl so the owner no longer opens the POS to see it.
+Загрузка продаж из Esupl в режиме только на чтение через шов ERP-провайдера. Расширяет `ErpProvider` (Protocol) / `EsuplErpProvider` аутентифицированными методами чтения (например, `list_sales(team_id, warehouse_id?, date_from, date_to, api_token) -> list[SaleRecord]` и `list_orders` для истории закупок), возвращающими доменные DTO — без новых методов записи. Это точка входа эпика аналитики: она извлекает «что продано» из Esupl, чтобы владельцу больше не приходилось открывать POS для этого.
 
-Phase gate first: a Week-1 Esupl API reconnaissance (against `reference/esupl-api/*` and the live team 17957 token, strictly READ-ONLY) must confirm which endpoints expose sales, at what granularity (line-item vs shift/category), pagination, rate limits and history depth. If positional sales are unavailable, scope is renegotiated with the owner before storage/digest work starts.
+Сначала фазовый гейт: разведка Esupl API на неделе 1 (по `reference/esupl-api/*` и токену живой команды 17957, строго READ-ONLY) должна подтвердить, какие эндпоинты отдают продажи, с какой гранулярностью (по позициям vs смена/категория), пагинацию, лимиты запросов и глубину истории. Если позиционные продажи недоступны, объём пересогласовывается с владельцем до начала работ по хранению/дайджесту.
 
-Backfill runs as a one-shot import to the depth discovered in the recon spike, plus an incremental manual trigger; import status surfaces on `/settings`. If POS depth is under ~3 months the kill-criterion (07 Э0) trims the feature to "from today forward".
+Дозагрузка выполняется как единоразовый импорт на глубину, выявленную в разведочном спайке, плюс инкрементальный ручной триггер; статус импорта отображается на `/settings`. Если глубина POS меньше ~3 месяцев, критерий убийства (07 Э0) сокращает фичу до «с сегодняшнего дня вперёд».
 
-## Capabilities
+## Возможности
 
-- Authenticated read of sales/orders from Esupl via the provider seam; token is mandatory — missing token is a fail-closed sync error, never a silent skip (does not reproduce DEC-06).
-- Strictly read-only against Esupl (G6): no non-GET calls anywhere in this feature.
-- One-shot history backfill to the recon-confirmed depth + incremental manual re-trigger.
-- Import/sync status visible on the frontend `/settings` page.
+- Аутентифицированное чтение продаж/заказов из Esupl через шов провайдера; токен обязателен — отсутствие токена является fail-closed ошибкой синхронизации, а не тихим пропуском (не воспроизводит DEC-06).
+- Строго только чтение относительно Esupl (G6): никаких не-GET вызовов нигде в этой фиче.
+- Единоразовая дозагрузка истории на подтверждённую разведкой глубину + инкрементальный ручной ре-триггер.
+- Статус импорта/синхронизации виден на фронтенд-странице `/settings`.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[admin]] | Trigger a manual sales sync/backfill for their subdivision; see import status. |
-| [[superadmin]] | Same across all tenants; configures the POS token that the read path requires. |
-| [[member]] | No direct control of the read path; consumes downstream analytics only. |
-| [[sqladmin-operator]] | Configures the POS credential / enable flags in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[admin]] | Запускает ручную синхронизацию/дозагрузку продаж для своего подразделения; видит статус импорта. |
+| [[superadmin]] | То же по всем тенантам; настраивает токен POS, который требуется пути чтения. |
+| [[member]] | Не управляет путём чтения напрямую; потребляет только производную аналитику. |
+| [[sqladmin-operator]] | Настраивает учётные данные POS / флаги включения в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
 
-## Involved entities
+## Задействованные сущности
 
-- [[integration_credentials]] — Fernet-encrypted POS token required by the authenticated read calls (backend-only).
-- [[ingredients]] — local catalog that sales lines are mapped onto where possible (`ingredient_id` on the future `sales_records` table, see [[LCOS-F46-sales-storage]]).
-- [[subdivisions]] — tenant scope of every read; sales are pulled per subdivision/warehouse.
-- Future storage tables (`sales_records`, `sync_state`) are introduced in [[LCOS-F46-sales-storage]] and [[LCOS-F47-scheduler]].
+- [[integration_credentials]] — зашифрованный Fernet токен POS, требуемый аутентифицированными вызовами чтения (только на бэкенде).
+- [[ingredients]] — локальный каталог, на который сопоставляются строки продаж там, где это возможно (`ingredient_id` в будущей таблице `sales_records`, см. [[LCOS-F46-sales-storage]]).
+- [[subdivisions]] — тенант-скоуп каждого чтения; продажи загружаются по подразделению/складу.
+- Будущие таблицы хранения (`sales_records`, `sync_state`) вводятся в [[LCOS-F46-sales-storage]] и [[LCOS-F47-scheduler]].
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[erp-esupl-integration]] (LCOS is read-only against Esupl), [[provider-abstraction]] (reads live behind the `ErpProvider` seam so a second POS is a drop-in), [[fail-closed]] (no token / Esupl unreachable → explicit failure, not silent skip).
-- **Features:** feeds [[LCOS-F46-sales-storage]] (persistence + aggregates) and is scheduled by [[LCOS-F47-scheduler]]; the ERP write side lives in [[LCOS-F10-invoice-status-machine]] / [[LCOS-F11-esupl-read]] (this feature adds only reads).
-- **Epics:** part of [[LCOS-E9-sales-analytics]]; closes the consumption↔purchasing loop with [[LCOS-E7-stock]] and [[LCOS-E8-purchasing]].
+- **Requirements:** [[erp-esupl-integration]] (LCOS работает с Esupl только на чтение), [[provider-abstraction]] (чтения живут за швом `ErpProvider`, так что второй POS — drop-in), [[fail-closed]] (нет токена / Esupl недоступен → явный сбой, а не тихий пропуск).
+- **Features:** питает [[LCOS-F46-sales-storage]] (персистентность + агрегаты) и планируется через [[LCOS-F47-scheduler]]; сторона записи ERP живёт в [[LCOS-F10-invoice-status-machine]] / [[LCOS-F11-esupl-read]] (эта фича добавляет только чтения).
+- **Epics:** часть [[LCOS-E9-sales-analytics]]; замыкает цикл потребление↔закупки с [[LCOS-E7-stock]] и [[LCOS-E8-purchasing]].
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). The recon report (AC-0 gate) and read-only/idempotency criteria are drafted only after the Esupl API spike and owner sign-off.
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Отчёт разведки (гейт AC-0) и критерии только-чтение/идемпотентность прорабатываются только после спайка Esupl API и одобрения владельца.
 
 ## Sources
 
-- `plan/PHASE_F5_SALES_ANALYTICS.md §0` (recon gate), `§1 F5-B1` (ERP provider read extension).
-- `07_PHASES.md Э6` (history port; `list_orders`/`list_sales`, backfill depth, idempotent re-run).
+- `plan/PHASE_F5_SALES_ANALYTICS.md §0` (гейт разведки), `§1 F5-B1` (расширение чтения ERP-провайдера).
+- `07_PHASES.md Э6` (перенос истории; `list_orders`/`list_sales`, глубина дозагрузки, идемпотентный перезапуск).

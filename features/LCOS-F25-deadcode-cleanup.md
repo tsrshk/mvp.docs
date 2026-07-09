@@ -1,7 +1,7 @@
 ---
 id: LCOS-F25
 type: feature
-title: Dead-code / seam cleanup bundle
+title: Пакет очистки мёртвого кода / швов
 epic: "[[LCOS-E5-stabilization]]"
 status: planned
 phase: "Phase 1"
@@ -13,79 +13,79 @@ legacy_refs: [plan S1-B2 S1-B3 S1-B4 S1-B5 S1-B6 S1-F1 S1-F2, 08 F1.3, backlog D
 sources: ["plan/PHASE_S1_STABILIZATION.md §S1-B2..B6 §S1-F1 §S1-F2 §AC-4..AC-7", "08_PHASE1_SPEC.md F1.3", "LCOS_Conformance_Alignment_GlobalRequirements.md 2.1/2.2", "APP_OVERVIEW.md §11", "TZ__STABILIZATION_2026-07-09__ALIGNED.md S6"]
 updated: 2026-07-09
 ---
-# LCOS-F25 · Dead-code / seam cleanup bundle
+# LCOS-F25 · Пакет очистки мёртвого кода / швов
 
 **Epic:** [[LCOS-E5-stabilization]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-The stated principles are "one implementation per seam" and "no dead code / no unplanned components." Several places violate them: a second (Gemini) OCR/AI implementation, an unused vector column, a declared-but-unused credential scope, an unauthenticated Esupl code path, stale docstrings that contradict the code, and a bundle of frontend dead modules. This feature is the cleanup bundle that removes them so the codebase matches its declared invariants (`R7`, `R9`).
+Заявленные принципы — «одна реализация на шов» и «нет мёртвого кода / нет незапланированных компонентов». Несколько мест их нарушают: вторая (Gemini) OCR/AI-реализация, неиспользуемая векторная колонка, объявленный, но неиспользуемый scope учётных данных, неаутентифицированный путь кода Esupl, устаревшие docstring'и, противоречащие коду, и пакет мёртвых frontend-модулей. Эта фича — пакет очистки, который их удаляет, чтобы кодовая база соответствовала своим заявленным инвариантам (`R7`, `R9`).
 
-Backend removals: drop the Gemini OCR provider and the `if gemini else claude` transport branch, purge `gemini` from `CredentialProvider` / `ai_provider` / `gemini_model` (enum migration + row cleanup), and simplify the double-duty `resolve_ai_provider()` to a single vendor while keeping runtime model selection (DEC-01 = A, closes VER-03). Drop the unused `invoice_lines.sku_embedding Vector(1536)` column (keep the `vector` extension) and remove `SKU_EMBEDDING_DIM` (DEC-02 = A). Remove `CredentialScope.subdivision` from the enum + partial-unique index (DEC-03). Close the unauthenticated Esupl egress: `list_suppliers`/`list_ingredients` must be unreachable without a token — raise, never a silent `[]` when `ESUPL_API_BASE` is set (DEC-06). Fix the stale `ErpProvider.write_invoice` docstring ("None → fallback to global env token") to describe fail-closed (ALIGN-03).
+Backend-удаления: убрать Gemini OCR-провайдер и ветку транспорта `if gemini else claude`, вычистить `gemini` из `CredentialProvider` / `ai_provider` / `gemini_model` (enum-миграция + очистка строк) и упростить двойной по назначению `resolve_ai_provider()` до одного вендора, сохранив рантайм-выбор модели (DEC-01 = A, закрывает VER-03). Убрать неиспользуемую колонку `invoice_lines.sku_embedding Vector(1536)` (сохранить расширение `vector`) и удалить `SKU_EMBEDDING_DIM` (DEC-02 = A). Удалить `CredentialScope.subdivision` из enum + partial-unique индекса (DEC-03). Закрыть неаутентифицированный Esupl-egress: `list_suppliers`/`list_ingredients` должны быть недостижимы без токена — бросать исключение, никогда молчаливый `[]`, когда задан `ESUPL_API_BASE` (DEC-06). Исправить устаревший docstring `ErpProvider.write_invoice` («None → fallback to global env token»), чтобы описывать fail-closed (ALIGN-03).
 
-Frontend removals (ALIGN-02): delete `shared/llm` (moving the live `stripCodeFence`/`clamp01`/`parseJsonSafe` helpers into `shared/lib`), `shared/ocr/prompt.ts` + `parse.ts`, `shared/match/prompt.ts` + `parse.ts`, and the browser-direct Esupl path (`VITE_POS_PROVIDER=esupl`, `VITE_ESUPL_API_URL`, `VITE_ESUPL_READ_ONLY` from `.env.example` and `shared/pos/config.ts`), plus stale "mock/Gemini/Claude" comments — while **not** touching the live `shared/ocr/rules.ts` waybill helpers. Stop building/sending the candidate-set to the backend `suggest-matches` path; keep `buildMatchCandidates` for the mock provider only (DEC-05 = B). Finally, resolve the orphaned `IngredientSKUFactory.save()` (TZ S6): either wire it into an explicit "create mapping from picker" (`method='manual'`) flow or delete it — with no `cache_exact`/`confirmed_by='system'` auto-create.
+Frontend-удаления (ALIGN-02): удалить `shared/llm` (перенеся живые хелперы `stripCodeFence`/`clamp01`/`parseJsonSafe` в `shared/lib`), `shared/ocr/prompt.ts` + `parse.ts`, `shared/match/prompt.ts` + `parse.ts` и browser-direct путь Esupl (`VITE_POS_PROVIDER=esupl`, `VITE_ESUPL_API_URL`, `VITE_ESUPL_READ_ONLY` из `.env.example` и `shared/pos/config.ts`), плюс устаревшие комментарии «mock/Gemini/Claude» — при этом **не** трогая живые хелперы накладных `shared/ocr/rules.ts`. Прекратить сборку/отправку candidate-set на бэкендный путь `suggest-matches`; сохранить `buildMatchCandidates` только для mock-провайдера (DEC-05 = B). Наконец, разрешить осиротевшую `IngredientSKUFactory.save()` (TZ S6): либо подключить её в явный поток «создать маппинг из picker» (`method='manual'`), либо удалить — без авто-создания `cache_exact`/`confirmed_by='system'`.
 
-## Capabilities
+## Возможности
 
-- Single OCR/AI vendor: only `claude` registered; `gemini` removed from providers, transport, enum, and stored rows; `resolve_ai_provider()` simplified (runtime `anthropic_model` selection kept).
-- `invoice_lines.sku_embedding` column dropped (extension `vector` retained); `SKU_EMBEDDING_DIM` removed.
-- `CredentialScope.subdivision` removed from the enum and the `uq_credentials_active_per_scope` partial-unique index (index recreated).
-- No unauthenticated Esupl egress path remains: `list_suppliers`/`list_ingredients` removed or guarded to be unreachable without a token.
-- `ErpProvider.write_invoice` and sibling docstrings describe fail-closed (no "env fallback").
-- Frontend dead modules deleted; live helpers relocated to `shared/lib`; `rules.ts` untouched; build stays green.
-- Backend `suggest-matches` no longer receives an FE candidate-set (backend remains the authoritative catalog source); mock keeps its candidate builder.
-- Orphaned FE `save()` factory either wired into an explicit manual-mapping flow or deleted (zero dead code), never auto-creating commit-eligible mappings.
+- Единый OCR/AI-вендор: зарегистрирован только `claude`; `gemini` удалён из провайдеров, транспорта, enum и хранимых строк; `resolve_ai_provider()` упрощён (рантайм-выбор `anthropic_model` сохранён).
+- Колонка `invoice_lines.sku_embedding` удалена (расширение `vector` сохранено); `SKU_EMBEDDING_DIM` удалён.
+- `CredentialScope.subdivision` удалён из enum и из partial-unique индекса `uq_credentials_active_per_scope` (индекс пересоздан).
+- Не остаётся неаутентифицированного пути egress к Esupl: `list_suppliers`/`list_ingredients` удалены или защищены так, что недостижимы без токена.
+- `ErpProvider.write_invoice` и родственные docstring'и описывают fail-closed (без «env fallback»).
+- Мёртвые frontend-модули удалены; живые хелперы перенесены в `shared/lib`; `rules.ts` не тронут; сборка остаётся зелёной.
+- Бэкендный `suggest-matches` больше не получает FE candidate-set (бэкенд остаётся авторитетным источником каталога); mock сохраняет свой построитель кандидатов.
+- Осиротевшая FE-фабрика `save()` либо подключена в явный поток ручного маппинга, либо удалена (ноль мёртвого кода), никогда не создавая авто-маппинги, пригодные к коммиту.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[superadmin]] | Config-plane beneficiary: `ai_provider` choices no longer include a non-existent `gemini`; the AI-provider resolver is unambiguous. |
-| [[sqladmin-operator]] | Operator-plane beneficiary: stale `gemini` credential rows and the unused subdivision scope are gone, so the admin surface reflects reality. |
-| [[member]] / [[admin]] | No user-visible change; the invoice flow behaves identically after cleanup. |
+| [[superadmin]] | Бенефициар config-плоскости: варианты `ai_provider` больше не включают несуществующий `gemini`; резолвер AI-провайдера однозначен. |
+| [[sqladmin-operator]] | Бенефициар operator-плоскости: устаревшие строки учётных данных `gemini` и неиспользуемый subdivision-scope удалены, так что админ-поверхность отражает реальность. |
+| [[member]] / [[admin]] | Нет видимых пользователю изменений; поток счетов-фактур ведёт себя идентично после очистки. |
 
-This is a maintenance feature with no new end-user capability.
+Это maintenance-фича без новой возможности для конечного пользователя.
 
-## Involved entities
+## Задействованные сущности
 
-- [[invoice_lines]] — loses the unused `sku_embedding` column (schema-only change; no data read/written from it).
-- [[integration_credentials]] — loses `gemini` rows and the `subdivision` credential scope; partial-unique index recreated.
-- [[sku_mapping]] — indirectly touched via the orphaned FE factory decision (must not gain auto-created commit-eligible rows).
+- [[invoice_lines]] — теряет неиспользуемую колонку `sku_embedding` (изменение только схемы; из неё не читается и в неё не пишется).
+- [[integration_credentials]] — теряет строки `gemini` и scope учётных данных `subdivision`; partial-unique индекс пересоздан.
+- [[sku_mapping]] — косвенно затронут через решение по осиротевшей FE-фабрике (не должен получить авто-созданные строки, пригодные к коммиту).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[provider-abstraction]] (`R7.3`: one impl per seam; `R7.5`: no new impls without a trigger), [[fail-closed]] (`R8.2`: no unauthenticated egress; docstrings match fail-closed behaviour), [[erp-esupl-integration]] (read paths must carry a token), [[global-requirements]] (`R9.3`: no dead modules/exports).
-- **Features:** the `sku_embedding` drop and the `save()` decision are tracked from [[LCOS-F22-sku-stabilization]]; the single-vendor invariant supports [[LCOS-F5-provider-seams]] and [[LCOS-F8-ocr-recognition]]; the candidate-set change touches [[LCOS-F9-line-matching]].
-- **Decisions:** [[DEC-0011]] (`sku_embedding` is a dead placeholder for future semantic matching; backlog DEC-02 open).
+- **Требования:** [[provider-abstraction]] (`R7.3`: одна реализация на шов; `R7.5`: нет новых реализаций без триггера), [[fail-closed]] (`R8.2`: нет неаутентифицированного egress; docstring'и соответствуют fail-closed поведению), [[erp-esupl-integration]] (пути чтения должны нести токен), [[global-requirements]] (`R9.3`: нет мёртвых модулей/экспортов).
+- **Фичи:** удаление `sku_embedding` и решение по `save()` отслеживаются из [[LCOS-F22-sku-stabilization]]; инвариант единого вендора поддерживает [[LCOS-F5-provider-seams]] и [[LCOS-F8-ocr-recognition]]; изменение candidate-set затрагивает [[LCOS-F9-line-matching]].
+- **Решения:** [[DEC-0011]] (`sku_embedding` — мёртвый placeholder для будущего семантического матчинга; backlog DEC-02 открыт).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. `grep -ri gemini mvp.be/app` is empty (except migrations); enums carry no `gemini`; the OCR registry contains only `claude`; `pytest` green (DEC-01 = A, closes VER-03).
-- [ ] AC-BE-2. `invoice_lines.sku_embedding` is absent from the schema (migration up + working downgrade); the `vector` extension remains; `SKU_EMBEDDING_DIM` removed; `grep sku_embedding app/` empty.
-- [ ] AC-BE-3. `CredentialScope.subdivision` removed from the enum (migration); `subdivision_id` removed from `uq_credentials_active_per_scope` (index recreated) and from now-dead signatures.
-- [ ] AC-BE-4. No code path issues an unauthenticated HTTP request to Esupl: `list_suppliers`/`list_ingredients` are removed or raise without a token (test), never a silent `[]` when `ESUPL_API_BASE` is set.
-- [ ] AC-BE-5. `ErpProvider.write_invoice` and any sibling docstrings describe fail-closed with no "env fallback" wording (ALIGN-03).
+- [ ] AC-BE-1. `grep -ri gemini mvp.be/app` пуст (кроме миграций); enum'ы не несут `gemini`; OCR-реестр содержит только `claude`; `pytest` зелёный (DEC-01 = A, закрывает VER-03).
+- [ ] AC-BE-2. `invoice_lines.sku_embedding` отсутствует в схеме (миграция up + рабочий downgrade); расширение `vector` сохранено; `SKU_EMBEDDING_DIM` удалён; `grep sku_embedding app/` пуст.
+- [ ] AC-BE-3. `CredentialScope.subdivision` удалён из enum (миграция); `subdivision_id` удалён из `uq_credentials_active_per_scope` (индекс пересоздан) и из ставших мёртвыми сигнатур.
+- [ ] AC-BE-4. Ни один путь кода не выполняет неаутентифицированный HTTP-запрос к Esupl: `list_suppliers`/`list_ingredients` удалены или бросают исключение без токена (тест), никогда молчаливый `[]`, когда задан `ESUPL_API_BASE`.
+- [ ] AC-BE-5. `ErpProvider.write_invoice` и любые родственные docstring'и описывают fail-closed без формулировки «env fallback» (ALIGN-03).
 
 ### Frontend
-- [ ] AC-FE-1. `grep -r "VITE_ESUPL\|shared/llm\|ocr/prompt\|match/prompt" mvp.fe/src` is empty; `npm run build` green; the live `stripCodeFence`/`clamp01`/`parseJsonSafe` helpers now live in `shared/lib`.
-- [ ] AC-FE-2. `shared/ocr/rules.ts` waybill helpers (`waybillSeries.isValid`/`isWaybillIdValid`/`totalRow`) remain and workbench validation still works.
-- [ ] AC-FE-3. The backend `suggest-matches` request payload carries no `candidates` (devtools); `buildMatchCandidates` remains only for the mock provider (DEC-05 = B).
-- [ ] AC-FE-4. `IngredientSKUFactory.save()` is either wired into an explicit "create mapping from picker" flow (`method='manual'`, requires a human action) or deleted; no `cache_exact`/`confirmed_by='system'` auto-create is introduced (variant C stays vetoed).
+- [ ] AC-FE-1. `grep -r "VITE_ESUPL\|shared/llm\|ocr/prompt\|match/prompt" mvp.fe/src` пуст; `npm run build` зелёный; живые хелперы `stripCodeFence`/`clamp01`/`parseJsonSafe` теперь живут в `shared/lib`.
+- [ ] AC-FE-2. Хелперы накладных `shared/ocr/rules.ts` (`waybillSeries.isValid`/`isWaybillIdValid`/`totalRow`) сохранены, и валидация в workbench по-прежнему работает.
+- [ ] AC-FE-3. Payload запроса `suggest-matches` к бэкенду не несёт `candidates` (devtools); `buildMatchCandidates` остаётся только для mock-провайдера (DEC-05 = B).
+- [ ] AC-FE-4. `IngredientSKUFactory.save()` либо подключена в явный поток «создать маппинг из picker» (`method='manual'`, требует человеческого действия), либо удалена; авто-создание `cache_exact`/`confirmed_by='system'` не вводится (вариант C остаётся под вето).
 
-### Other (docs)
-- [ ] AC-OTHER-1. ADR records for DEC-01(A), DEC-02(A), DEC-03, DEC-05(B), DEC-06 are written; backlog rows ALIGN-02/ALIGN-03 and the DEC-* above move to `done`.
+### Прочее (docs)
+- [ ] AC-OTHER-1. Записи ADR для DEC-01(A), DEC-02(A), DEC-03, DEC-05(B), DEC-06 написаны; строки backlog ALIGN-02/ALIGN-03 и DEC-* выше переведены в `done`.
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **`CredentialScope.subdivision` — delete vs keep as a Phase-2 seam:** default is delete (per "none planned"); if a per-subdivision POS token is foreseen, keep it with an explicit "Phase 2 seam, unused" comment and a PHASE_P2 entry.
-- **`sku_embedding` backlog DEC-02** is still `open`; this feature is where it closes.
-- **CSRF (DEC-04) and POS-config authority (DEC-08)** are decided elsewhere (defer / keep) and are not part of this removal bundle.
+- **`CredentialScope.subdivision` — удалить vs сохранить как шов для Phase 2:** по умолчанию удалить (по «none planned»); если предвидится per-subdivision POS-токен, сохранить его с явным комментарием «Phase 2 seam, unused» и записью PHASE_P2.
+- **Backlog DEC-02 по `sku_embedding`** всё ещё `open`; эта фича — то место, где он закрывается.
+- **CSRF (DEC-04) и авторитет POS-config (DEC-08)** решаются в другом месте (defer / keep) и не входят в этот пакет удаления.
 
-## Sources
+## Источники
 
-- `plan/PHASE_S1_STABILIZATION.md §1 S1-B2..S1-B6` (backend removals), `§2 S1-F1/S1-F2` (frontend), `§5 AC-4..AC-7`.
-- `08_PHASE1_SPEC.md F1.3` (sku_embedding drop + candidate-set B, migration references).
-- `LCOS_Conformance_Alignment_GlobalRequirements.md §2.1` (A2 dead code, A3 docstrings), `§2.2` (D-a Gemini, D-b sku_embedding, D-c subdivision scope, D-e candidate-set, D-f unauthenticated egress).
-- `APP_OVERVIEW.md §11` (`sku_embedding` unused, DEC-02 open); `TZ__STABILIZATION_2026-07-09__ALIGNED.md S6` (orphaned `IngredientSKUFactory.save()`).
-- Current state: `mvp.fe/src/shared/llm/*`, `shared/ocr/prompt.ts`+`parse.ts`, `shared/match/prompt.ts`+`parse.ts`, `shared/pos/config.ts` (`VITE_ESUPL_*`), `.env.example`, `entities/order` all still present; `mvp.be/app/providers/erp/esupl.py:80/:104` (list methods).
+- `plan/PHASE_S1_STABILIZATION.md §1 S1-B2..S1-B6` (backend-удаления), `§2 S1-F1/S1-F2` (frontend), `§5 AC-4..AC-7`.
+- `08_PHASE1_SPEC.md F1.3` (удаление sku_embedding + candidate-set B, references миграций).
+- `LCOS_Conformance_Alignment_GlobalRequirements.md §2.1` (A2 мёртвый код, A3 docstring'и), `§2.2` (D-a Gemini, D-b sku_embedding, D-c subdivision scope, D-e candidate-set, D-f неаутентифицированный egress).
+- `APP_OVERVIEW.md §11` (`sku_embedding` неиспользуемый, DEC-02 открыт); `TZ__STABILIZATION_2026-07-09__ALIGNED.md S6` (осиротевшая `IngredientSKUFactory.save()`).
+- Текущее состояние: `mvp.fe/src/shared/llm/*`, `shared/ocr/prompt.ts`+`parse.ts`, `shared/match/prompt.ts`+`parse.ts`, `shared/pos/config.ts` (`VITE_ESUPL_*`), `.env.example`, `entities/order` всё ещё присутствуют; `mvp.be/app/providers/erp/esupl.py:80/:104` (list-методы).

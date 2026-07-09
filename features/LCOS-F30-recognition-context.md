@@ -1,7 +1,7 @@
 ---
 id: LCOS-F30
 type: feature
-title: Recognition context in the prompt (invoice type + supplier hint)
+title: Контекст распознавания в промпте (тип счёта-фактуры + подсказка поставщика)
 epic: "[[LCOS-E6-ocr-quality]]"
 status: planned
 phase: "Phase 1"
@@ -13,73 +13,73 @@ legacy_refs: [plan S2 (S2-B2), "recognition-feature B4", "DEC-07"]
 sources: ["plan/PHASE_S2_OCR_CAPTURE.md §1 (S2-B2), §4 AC-2", "mvp.fe src/shared/ocr/invoiceType.ts", "mvp.fe src/shared/ocr/rules.ts", "mvp.fe src/shared/ocr/provider.ts (OcrRequestContext)", "mvp.be app/providers/ocr/prompt.py", "mvp.be app/services/invoice_service.py:121"]
 updated: 2026-07-09
 ---
-# LCOS-F30 · Recognition context in the prompt (invoice type + supplier hint)
+# LCOS-F30 · Контекст распознавания в промпте (тип счёта-фактуры + подсказка поставщика)
 **Epic:** [[LCOS-E6-ocr-quality]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-The frontend already knows two things before it uploads a photo — the chosen **invoice type** (`paper | electronic`) and, often, the **supplier name** — but neither reaches the recognition prompt. Paper and electronic waybills differ in where their identity lives: a paper ТТН carries a pre-printed blank (2-letter series + 7-digit number near the barcode), while an electronic document has no blank and identifies itself by its own document number. Feeding the model the wrong expectation is a frequent source of misread header fields (blank serial landing in `invoiceNumber`, or vice versa).
+Frontend уже знает две вещи до загрузки фото — выбранный **тип счёта-фактуры** (`paper | electronic`) и, часто, **имя поставщика** — но ни то, ни другое не доходит до промпта распознавания. Бумажные и электронные накладные различаются тем, где живёт их идентичность: бумажная ТТН несёт пред-напечатанный бланк (2-буквенная серия + 7-значный номер рядом со штрих-кодом), тогда как электронный документ не имеет бланка и идентифицирует себя своим собственным номером документа. Скармливание модели неверного ожидания — частый источник неверно прочитанных полей заголовка (серия бланка, приземляющаяся в `invoiceNumber`, или наоборот).
 
-This feature threads that context through to the backend and into the OCR prompt. The type-specific instructions and field formats already exist on the frontend as a single source of truth (`invoiceType.ts` `promptNote`, `rules.ts` field rules), and the request contract already carries `supplierName`/`invoiceType` (`OcrRequestContext`). What is missing is (a) sending them as multipart fields on `/recognize` and (b) the backend prompt builder slotting them in. The supplier name is passed as a soft hint ("expect a header from <name>"), never as a value to fabricate.
+Эта фича протягивает этот контекст на бэкенд и в OCR-промпт. Тип-специфичные инструкции и форматы полей уже существуют на frontend как единый источник истины (`invoiceType.ts` `promptNote`, правила полей `rules.ts`), а контракт запроса уже несёт `supplierName`/`invoiceType` (`OcrRequestContext`). Не хватает (а) отправки их как multipart-полей на `/recognize` и (б) вставки их построителем промпта на бэкенде. Имя поставщика передаётся как мягкая подсказка («ожидай заголовок от <name>»), никогда как значение для фабрикации.
 
-The non-negotiable anti-hallucination rule stands: the prompt must instruct "return null / empty if not sure — do not invent". Egress and provider rules are unchanged ([[provider-abstraction]], [[vpn-egress]], [[fail-closed]]).
+Неотменяемое анти-галлюцинационное правило стоит: промпт должен инструктировать «верни null / пусто, если не уверен — не выдумывай». Правила egress и провайдера без изменений ([[provider-abstraction]], [[vpn-egress]], [[fail-closed]]).
 
-## Capabilities
+## Возможности
 
-- Frontend passes `invoiceType` and `supplierName` from `OcrRequestContext` as multipart fields on `POST /invoices/recognize`.
-- Backend prompt builder injects a type-specific fragment:
-  - **paper** → look for the printed blank series (2 uppercase letters, may be Cyrillic) + 7-digit blank number near the barcode; keep these out of `invoiceNumber`.
-  - **electronic** → no blank; read the document's own number into `invoiceNumber`.
-- Supplier name is added as a soft header hint; date-format and default currency (BYN) hints included.
-- Response schema stays aligned with `InvoiceDraft`; the mandatory anti-hallucination clause ("null if unsure, never invent") is always present.
-- Prompt fragments remain the single source of truth on the frontend (`invoiceType.ts.promptNote`, `rules.ts.prompt`) and mirror the backend prompt stored in `system_settings` (editable without redeploy).
+- Frontend передаёт `invoiceType` и `supplierName` из `OcrRequestContext` как multipart-поля на `POST /invoices/recognize`.
+- Построитель промпта на бэкенде вставляет тип-специфичный фрагмент:
+  - **paper** → искать печатную серию бланка (2 заглавные буквы, могут быть кириллицей) + 7-значный номер бланка рядом со штрих-кодом; держать их вне `invoiceNumber`.
+  - **electronic** → нет бланка; читать собственный номер документа в `invoiceNumber`.
+- Имя поставщика добавляется как мягкая подсказка заголовка; включены подсказки формата даты и валюты по умолчанию (BYN).
+- Схема ответа остаётся согласованной с `InvoiceDraft`; обязательная анти-галлюцинационная клауза («null, если не уверен, никогда не выдумывай») всегда присутствует.
+- Фрагменты промпта остаются единым источником истины на frontend (`invoiceType.ts.promptNote`, `rules.ts.prompt`) и зеркалят бэкендный промпт, хранимый в `system_settings` (редактируемый без редеплоя).
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[member]] | Picks the document type (and confirms supplier) on the upload step; that context steers recognition of their invoice. |
-| [[admin]] | Same as member, within their subdivision. |
-| [[superadmin]] | Same across tenants; may edit the base OCR prompt / `ai_provider` via config API. |
-| [[sqladmin-operator]] | Not in the flow; edits the OCR prompt / `ai_provider` in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Выбирает тип документа (и подтверждает поставщика) на шаге загрузки; этот контекст направляет распознавание их счёта-фактуры. |
+| [[admin]] | То же, что и member, в пределах своего subdivision. |
+| [[superadmin]] | То же по всем тенантам; может редактировать базовый OCR-промпт / `ai_provider` через config API. |
+| [[sqladmin-operator]] | Не в потоке; редактирует OCR-промпт / `ai_provider` в SQLAdmin-плоскости (см. [[LCOS-F3-sqladmin-operator]]). |
 
-Tenant-scoped via the active JWT context ([[auth]], [[multitenancy]]).
+Тенант-скоупировано через активный JWT-контекст ([[auth]], [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[system_settings]] — the DB-stored OCR prompt into which the type/supplier fragments are slotted (`resolve_invoice_prompt`), editable without redeploy.
-- [[suppliers]] — source of the supplier-name hint (the selected/known supplier for this session).
-- [[invoices]] / [[invoice_lines]] — the draft whose header fields (`waybill_series`, `waybill_number`, `number`) this feature makes more accurate; still not persisted on `/recognize`.
+- [[system_settings]] — хранимый в БД OCR-промпт, в который вставляются фрагменты типа/поставщика (`resolve_invoice_prompt`), редактируемый без редеплоя.
+- [[suppliers]] — источник подсказки имени поставщика (выбранный/известный поставщик для этой сессии).
+- [[invoices]] / [[invoice_lines]] — черновик, чьи поля заголовка (`waybill_series`, `waybill_number`, `number`) эта фича делает точнее; по-прежнему не персистится на `/recognize`.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[provider-abstraction]] (prompt lives behind the OCR seam; one implementation), [[vpn-egress]] + [[fail-closed]] (unchanged egress rules), [[invoice-status-machine]] (better header → cleaner `prepare`/`submit`).
-- **Features:** builds on [[LCOS-F8-ocr-recognition]]; combines with [[LCOS-F29-multipage-recognize]] (context applies to the multi-page request) and feeds [[LCOS-F33-confidence-gate]] (the `rules.ts` formats it validates come from the same SSOT). Siblings [[LCOS-F31-auto-crop]], [[LCOS-F32-camera-capture]].
-- **ADR:** [[ADR-009]] (provider seam), [[ADR-006]] (fail-closed egress), [[ADR-012]] (provider live-paths backend-only).
+- **Требования:** [[provider-abstraction]] (промпт живёт за OCR-швом; одна реализация), [[vpn-egress]] + [[fail-closed]] (неизменные правила egress), [[invoice-status-machine]] (лучший заголовок → более чистый `prepare`/`submit`).
+- **Фичи:** строится на [[LCOS-F8-ocr-recognition]]; комбинируется с [[LCOS-F29-multipage-recognize]] (контекст применяется к многостраничному запросу) и питает [[LCOS-F33-confidence-gate]] (форматы `rules.ts`, которые он валидирует, приходят из того же SSOT). Родственники [[LCOS-F31-auto-crop]], [[LCOS-F32-camera-capture]].
+- **ADR:** [[ADR-009]] (шов провайдера), [[ADR-006]] (fail-closed egress), [[ADR-012]] (живые пути провайдера только на бэкенде).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. `/invoices/recognize` accepts optional multipart fields `invoice_type` (`paper|electronic`) and `supplier_name`; missing values fall back to the current generic prompt.
-- [ ] AC-BE-2. The prompt builder injects the type-specific fragment: for `paper` it instructs reading blank series/number into the waybill fields (not `invoiceNumber`); for `electronic` it instructs the document number into `invoiceNumber` and empty waybill fields.
-- [ ] AC-BE-3. Unit test asserts the built prompt contains the hint for the selected type (and the supplier-name hint when provided).
-- [ ] AC-BE-4. The anti-hallucination clause ("return null/empty if not sure; do not invent") is present in every built prompt.
-- [ ] AC-BE-5. Prompt still resolves from `system_settings` (editable without redeploy); egress/fail-closed behavior unchanged (merge-gated test intact).
+- [ ] AC-BE-1. `/invoices/recognize` принимает опциональные multipart-поля `invoice_type` (`paper|electronic`) и `supplier_name`; отсутствующие значения откатываются к текущему универсальному промпту.
+- [ ] AC-BE-2. Построитель промпта вставляет тип-специфичный фрагмент: для `paper` инструктирует читать серию/номер бланка в поля накладной (не `invoiceNumber`); для `electronic` инструктирует номер документа в `invoiceNumber` и пустые поля накладной.
+- [ ] AC-BE-3. Unit-тест утверждает, что построенный промпт содержит подсказку для выбранного типа (и подсказку имени поставщика, когда предоставлено).
+- [ ] AC-BE-4. Анти-галлюцинационная клауза («верни null/пусто, если не уверен; не выдумывай») присутствует в каждом построенном промпте.
+- [ ] AC-BE-5. Промпт по-прежнему резолвится из `system_settings` (редактируемый без редеплоя); поведение egress/fail-closed без изменений (merge-gated тест цел).
 
 ### Frontend
-- [ ] AC-FE-1. The upload step's chosen `invoiceType` and `supplierName` are put on `OcrRequestContext` and sent as multipart fields by `BackendOcrProvider`.
-- [ ] AC-FE-2. Manual check on a real paper photo: the recognized blank series/number land in `waybillSeries`/`waybillNumber`; on a real electronic doc they stay empty and the number lands in `invoiceNumber`.
-- [ ] AC-FE-3. `invoiceType.ts.promptNote` / `rules.ts.prompt` remain the single source for the type/field wording (no duplicated literals in the widget), so prompt and validation cannot drift.
-- [ ] AC-FE-4. Supplier hint is passed as context only — the header value is never pre-filled from it before recognition.
+- [ ] AC-FE-1. Выбранные на шаге загрузки `invoiceType` и `supplierName` кладутся в `OcrRequestContext` и отправляются как multipart-поля через `BackendOcrProvider`.
+- [ ] AC-FE-2. Ручная проверка на реальном бумажном фото: распознанные серия/номер бланка приземляются в `waybillSeries`/`waybillNumber`; на реальном электронном документе они остаются пустыми, а номер приземляется в `invoiceNumber`.
+- [ ] AC-FE-3. `invoiceType.ts.promptNote` / `rules.ts.prompt` остаются единственным источником для формулировок типа/поля (нет дублированных литералов в виджете), так что промпт и валидация не могут разъехаться.
+- [ ] AC-FE-4. Подсказка поставщика передаётся только как контекст — значение заголовка никогда не преднаполняется из неё до распознавания.
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **Anti-hallucination is a hard rule** — supplier/type hints must not become fabricated values; "null if unsure" wins.
-- **Prompt SSOT** — the backend `system_settings` prompt and the frontend `rules.ts`/`invoiceType.ts` fragments must be kept in sync; decide the canonical direction to avoid two sources drifting.
-- **Known-catalog hints (deferred consideration):** the epic envisions passing known SKU/supplier lists as hints; scope here is limited to type + single supplier name — broader catalog priming is a follow-up.
+- **Анти-галлюцинация — жёсткое правило** — подсказки поставщика/типа не должны становиться фабрикованными значениями; «null, если не уверен» побеждает.
+- **SSOT промпта** — бэкендный промпт `system_settings` и frontend-фрагменты `rules.ts`/`invoiceType.ts` должны держаться синхронизированными; решить каноническое направление, чтобы два источника не разъехались.
+- **Подсказки известного каталога (отложенное рассмотрение):** эпик предполагает передачу списков известных SKU/поставщиков как подсказок; scope здесь ограничен типом + одним именем поставщика — более широкое прайминг каталога — это follow-up.
 
-## Sources
+## Источники
 
-- `plan/PHASE_S2_OCR_CAPTURE.md` §1 S2-B2 (invoiceType + supplierName into prompt, paper vs electronic identifier, date/currency hint, anti-hallucination), §4 AC-2.
+- `plan/PHASE_S2_OCR_CAPTURE.md` §1 S2-B2 (invoiceType + supplierName в промпт, идентификатор paper vs electronic, подсказка даты/валюты, анти-галлюцинация), §4 AC-2.
 - `mvp.fe/src/shared/ocr/invoiceType.ts` (`INVOICE_TYPES`, `promptNote`, `identifier`), `src/shared/ocr/rules.ts` (`waybillSeries`/`waybillNumber` prompt+format), `src/shared/ocr/provider.ts` (`OcrRequestContext.supplierName/invoiceType`).
-- `mvp.be/app/providers/ocr/prompt.py` (prompt builder), `app/services/invoice_service.py:121` (`recognize`), `system_settings` OCR prompt (`resolve_invoice_prompt`, migration `1e12…`).
+- `mvp.be/app/providers/ocr/prompt.py` (построитель промпта), `app/services/invoice_service.py:121` (`recognize`), OCR-промпт `system_settings` (`resolve_invoice_prompt`, миграция `1e12…`).

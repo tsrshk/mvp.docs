@@ -1,7 +1,7 @@
 ---
 id: LCOS-F47
 type: feature
-title: Scheduler + sync job
+title: Планировщик + задание синхронизации
 epic: "[[LCOS-E9-sales-analytics]]"
 status: future
 phase: "Phase 2"
@@ -13,50 +13,50 @@ legacy_refs: [plan F5-B3, 07 Э6, plan §6 Q3]
 sources: ["plan/PHASE_F5_SALES_ANALYTICS.md §1 F5-B3", "07_PHASES.md Э6"]
 updated: 2026-07-09
 ---
-# LCOS-F47 · Scheduler + sync job
+# LCOS-F47 · Планировщик + задание синхронизации
 **Epic:** [[LCOS-E9-sales-analytics]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The background scheduling backbone for analytics — the first recurring job in the product (batch/queues are a non-goal in Phase 1, they appear here). An in-process scheduler (planned: APScheduler `AsyncIOScheduler` started in the FastAPI `lifespan`, single process for Phase 1 — to be captured in a dedicated ADR, plan §6 Q3) runs `SalesSyncService.sync(organization, subdivision)` on a configurable interval and drives digest generation.
+Фоновый костяк планирования для аналитики — первое повторяющееся задание в продукте (batch/очереди не являются целью в Phase 1, они появляются здесь). Внутрипроцессный планировщик (планируется: APScheduler `AsyncIOScheduler`, запускаемый в FastAPI `lifespan`, один процесс для Phase 1 — будет зафиксировано в отдельном ADR, plan §6 Q3) запускает `SalesSyncService.sync(organization, subdivision)` с настраиваемым интервалом и управляет генерацией дайджеста.
 
-All schedules and enable flags live in the `system_settings` registry so they change without redeploy: `sales_sync_enabled` (bool, default `False` — turned on only after the POS token is configured), `sales_sync_interval_hours` (default 6), `digest_weekday`/`digest_hour` (default Mon/9). The sync is incremental from the last successful point with a 1-day overlap window, upserts by `external_id`, and recomputes `daily_aggregates`. A `sync_runs` journal (org-scoped: `kind`, `started_at`, `finished_at`, `status`, `error?`, `records_upserted`) gives "is the sync alive" visibility in SQLAdmin.
+Все расписания и флаги включения живут в реестре `system_settings`, так что меняются без редеплоя: `sales_sync_enabled` (bool, default `False` — включается только после настройки токена POS), `sales_sync_interval_hours` (default 6), `digest_weekday`/`digest_hour` (default Mon/9). Синхронизация инкрементальна от последней успешной точки с окном перекрытия в 1 день, делает upsert по `external_id` и пересчитывает `daily_aggregates`. Журнал `sync_runs` (org-скоуп: `kind`, `started_at`, `finished_at`, `status`, `error?`, `records_upserted`) даёт видимость «жива ли синхронизация» в SQLAdmin.
 
-## Capabilities
+## Возможности
 
-- In-process scheduler in `lifespan` (APScheduler, single process; ADR pending) driving sales sync and digest jobs.
-- Schedules/flags in `system_settings` REGISTRY, editable from SQLAdmin without redeploy.
-- `SalesSyncService.sync`: incremental from last success (1-day overlap), upsert by `external_id`, recompute affected `daily_aggregates`.
-- `sync_runs` journal for run visibility (status, error text, rows upserted).
-- Fail-closed: no POS token / Esupl unreachable → `sync_run` marked `failed` with error text; app stays up; no retries more often than the schedule; next attempt on schedule.
+- Внутрипроцессный планировщик в `lifespan` (APScheduler, один процесс; ADR ожидается), управляющий заданиями синхронизации продаж и дайджеста.
+- Расписания/флаги в REGISTRY `system_settings`, редактируемые из SQLAdmin без редеплоя.
+- `SalesSyncService.sync`: инкрементально от последнего успеха (перекрытие в 1 день), upsert по `external_id`, пересчёт затронутых `daily_aggregates`.
+- Журнал `sync_runs` для видимости прогонов (статус, текст ошибки, число апсертнутых строк).
+- Fail-closed: нет токена POS / Esupl недоступен → `sync_run` помечается `failed` с текстом ошибки; приложение остаётся работать; повторы не чаще расписания; следующая попытка по расписанию.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[admin]] | Trigger "sync now" for their subdivision (`POST /api/v1/sales/sync`, requires subdivision admin). |
-| [[superadmin]] | Same across tenants; configures the POS token that gates enabling sync. |
-| [[member]] | No control; consumes synced data downstream. |
-| [[sqladmin-operator]] | Edits schedule/enable flags in `system_settings` and inspects `sync_runs` in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[admin]] | Запускает «синхронизировать сейчас» для своего подразделения (`POST /api/v1/sales/sync`, требуется admin подразделения). |
+| [[superadmin]] | То же по тенантам; настраивает токен POS, который открывает включение синхронизации. |
+| [[member]] | Нет управления; потребляет синхронизированные данные далее по цепочке. |
+| [[sqladmin-operator]] | Редактирует флаги расписания/включения в `system_settings` и инспектирует `sync_runs` в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
 
-## Involved entities
+## Задействованные сущности
 
-- [[system_settings]] — registry holding `sales_sync_enabled`, `sales_sync_interval_hours`, `digest_weekday`/`digest_hour` (resolver-read, no redeploy).
-- [[integration_credentials]] — POS token the sync requires; absent → fail-closed failed run.
-- [[organizations]] / [[subdivisions]] — the `sync_runs` journal is org-scoped; sync runs per subdivision.
-- New table `sync_runs` is defined here (Phase 2 stub, no standalone entity doc yet).
+- [[system_settings]] — реестр, содержащий `sales_sync_enabled`, `sales_sync_interval_hours`, `digest_weekday`/`digest_hour` (читаются резолвером, без редеплоя).
+- [[integration_credentials]] — токен POS, требуемый синхронизацией; отсутствует → fail-closed проваленный прогон.
+- [[organizations]] / [[subdivisions]] — журнал `sync_runs` имеет org-скоуп; синхронизация выполняется по подразделению.
+- Новая таблица `sync_runs` определяется здесь (заготовка Phase 2, отдельного документа-сущности пока нет).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[config-secrets]] (three-level config/registry read without redeploy), [[fail-closed]] (missing token / ERP down → failed run, no silent skip, no tight retry), [[provider-abstraction]] (sync calls the `ErpProvider` reads from [[LCOS-F45-sales-read]]).
-- **Features:** schedules [[LCOS-F45-sales-read]] → [[LCOS-F46-sales-storage]], and triggers [[LCOS-F48-weekly-digest]] generation.
-- **Epics:** [[LCOS-E9-sales-analytics]]. New scheduler ADR (Q3) to be added under [[index]] on activation.
+- **Requirements:** [[config-secrets]] (трёхуровневое чтение конфига/реестра без редеплоя), [[fail-closed]] (нет токена / ERP лежит → проваленный прогон, без тихого пропуска, без плотных повторов), [[provider-abstraction]] (синхронизация вызывает чтения `ErpProvider` из [[LCOS-F45-sales-read]]).
+- **Features:** планирует [[LCOS-F45-sales-read]] → [[LCOS-F46-sales-storage]] и запускает генерацию [[LCOS-F48-weekly-digest]].
+- **Epics:** [[LCOS-E9-sales-analytics]]. Новый ADR планировщика (Q3) будет добавлен под [[index]] при активации.
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). Scheduler ADR, "flags change without redeploy", and fail-closed run behavior are drafted on activation.
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). ADR планировщика, «флаги меняются без редеплоя» и fail-closed поведение прогонов прорабатываются при активации.
 
 ## Sources
 
-- `plan/PHASE_F5_SALES_ANALYTICS.md §1 F5-B3` (scheduler, registry flags, `sync_runs`, fail-closed).
-- `07_PHASES.md Э6` (`sync_state` cursor, incremental + manual trigger).
+- `plan/PHASE_F5_SALES_ANALYTICS.md §1 F5-B3` (планировщик, флаги реестра, `sync_runs`, fail-closed).
+- `07_PHASES.md Э6` (курсор `sync_state`, инкремент + ручной триггер).

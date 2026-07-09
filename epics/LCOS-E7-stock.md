@@ -1,7 +1,7 @@
 ---
 id: LCOS-E7
 type: epic
-title: Stock levels and shortage list
+title: Остатки и список дефицита
 status: planned
 phase: "Phase 1"
 features: ["[[LCOS-F34-stock-levels]]", "[[LCOS-F35-reorder-point]]", "[[LCOS-F36-stock-screen]]"]
@@ -10,45 +10,45 @@ sources: [07_PHASES.md Э3, 08_PHASE1_SPEC.md F3.x, ADR-016]
 updated: 2026-07-09
 ---
 
-# LCOS-E7 · Stock levels and shortage list
+# LCOS-E7 · Остатки и список дефицита
 
-**Status:** 📝 planned · **Phase:** Phase 1
+**Статус:** 📝 planned · **Фаза:** Phase 1
 
-## Description
+## Описание
 
-Visibility of ingredient stock levels and a list of what is about to run out — the entry into order planning. Three stock sources are fixed in [[ADR-016]]: **A** — `remains` from Esupl; **B** — receipts − consumption; **C** — manual entry (the guaranteed fallback at the start). Strategy: start on C (works without contract confirmation), enable A after the `remains` contract has been empirically confirmed in the browser.
+Видимость остатков ингредиентов и список того, что скоро закончится — вход в планирование заказов. В [[ADR-016]] зафиксированы три источника остатков: **A** — `remains` из Esupl; **B** — приход − расход; **C** — ручной ввод (гарантированный fallback на старте). Стратегия: начать на C (работает без подтверждения контракта), включить A после того, как контракт `remains` эмпирически подтверждён в браузере.
 
-Stock snapshots are stored in `stock_levels` (with `organization_id` + `subdivision_id` + `source` + `external_id` from day one — a placeholder for portability). A `reorder_point` appears on ingredients. The `/stock` screen shows the low-stock list and allows manual adjustment (which feeds source C).
+Снимки остатков хранятся в `stock_levels` (с `organization_id` + `subdivision_id` + `source` + `external_id` с первого дня — заглушка под переносимость). На ингредиентах появляется `reorder_point`. Экран `/stock` показывает список low-stock и позволяет ручную корректировку (которая питает источник C).
 
-## Goal / value
+## Цель / ценность
 
-Without stock levels, "propose an order" is guesswork. This is step 3 of the routine ladder: the system knows what is running low and prepares the input for step 4 (orders, [[LCOS-E8-purchasing]]).
+Без остатков «предложи заказ» — это гадание. Это шаг 3 лестницы рутин: система знает, что заканчивается, и готовит вход для шага 4 (заказы, [[LCOS-E8-purchasing]]).
 
-## Features
+## Фичи
 
-| ID | Name | Status | Link |
+| ID | Название | Статус | Ссылка |
 |---|---|---|---|
-| LCOS-F34 | `get_stock` + `stock_levels` snapshots + sync | 📝 planned | [[LCOS-F34-stock-levels]] |
-| LCOS-F35 | `reorder_point` on ingredients | 📝 planned | [[LCOS-F35-reorder-point]] |
-| LCOS-F36 | `/stock` screen (low list + manual adjustment) | 📝 planned | [[LCOS-F36-stock-screen]] |
+| LCOS-F34 | `get_stock` + снимки `stock_levels` + синхронизация | 📝 planned | [[LCOS-F34-stock-levels]] |
+| LCOS-F35 | `reorder_point` на ингредиентах | 📝 planned | [[LCOS-F35-reorder-point]] |
+| LCOS-F36 | Экран `/stock` (список low + ручная корректировка) | 📝 planned | [[LCOS-F36-stock-screen]] |
 
-## Key entities / requirements
+## Ключевые сущности / требования
 
-- Entities: [[stock_levels]], [[ingredients]] (`reorder_point`), [[subdivisions]].
-- Requirements: [[erp-esupl-integration]], [[provider-abstraction]], [[multitenancy]].
-- Roles: [[member]] (views/adjusts), [[admin]] (sets `reorder_point`).
+- Сущности: [[stock_levels]], [[ingredients]] (`reorder_point`), [[subdivisions]].
+- Требования: [[erp-esupl-integration]], [[provider-abstraction]], [[multitenancy]].
+- Роли: [[member]] (смотрит/корректирует), [[admin]] (задаёт `reorder_point`).
 
-## Gates
+## Гейты
 
-- **[[ADR-016]] stock source:** start on C (manual), A is enabled only after the `remains` contract is confirmed in the browser.
-- **Kill-criteria (07 Э0):** `remains` returns no data → the epic stays on C.
-- **Placeholder convention:** every new table carries `organization_id` + `source` + `external_id` from day one.
+- **[[ADR-016]] источник остатков:** начать на C (ручной), A включается только после подтверждения контракта `remains` в браузере.
+- **Kill-критерии (07 Э0):** `remains` не возвращает данных → эпик остаётся на C.
+- **Соглашение о заглушках:** каждая новая таблица несёт `organization_id` + `source` + `external_id` с первого дня.
 
 ## legacy_refs
 
-07 Э3 (stock); 08_PHASE1_SPEC F3.x; ADR-016 (stock source).
+07 Э3 (остатки); 08_PHASE1_SPEC F3.x; ADR-016 (источник остатков).
 
-## Sources
+## Источники
 
 - 07_PHASES.md Э3, 08_PHASE1_SPEC.md F3.x
 - ADR: [[ADR-016]]

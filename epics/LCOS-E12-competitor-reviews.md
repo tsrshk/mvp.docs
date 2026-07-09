@@ -1,7 +1,7 @@
 ---
 id: LCOS-E12
 type: epic
-title: Competitor reviews
+title: Отзывы о конкурентах
 status: future
 phase: "Phase 2"
 features: ["[[LCOS-F58-review-storage]]", "[[LCOS-F59-review-analysis]]", "[[LCOS-F60-reviews-api]]"]
@@ -10,41 +10,41 @@ sources: [plan/00_IMPLEMENTATION_PLAN.md F8, 06_STRATEGY.md]
 updated: 2026-07-09
 ---
 
-# LCOS-E12 · Competitor reviews
+# LCOS-E12 · Отзывы о конкурентах
 
-**Status:** 🔭 future · **Phase:** Phase 2
+**Статус:** 🔭 future · **Фаза:** Phase 2
 
-## Description
+## Описание
 
-Collecting and analyzing competitor reviews: storage + review ingestion, AI analysis (themes, sentiment, strengths/weaknesses), a reviews API + a digest section + an alert on a spike of negativity. Complements menu/prices ([[LCOS-E11-competitor-menu]]) with a qualitative market signal.
+Сбор и анализ отзывов о конкурентах: хранение + приём отзывов, AI-анализ (темы, тональность, сильные/слабые стороны), API отзывов + раздел дайджеста + алерт на всплеск негатива. Дополняет меню/цены ([[LCOS-E11-competitor-menu]]) качественным рыночным сигналом.
 
-## Goal / value
+## Цель / ценность
 
-Give the owner an understanding of what the neighbors are praised and criticized for — an input for menu and service decisions. A negative alert turns passive data into action.
+Дать владельцу понимание, за что хвалят и ругают соседей — вход для решений по меню и сервису. Алерт на негатив превращает пассивные данные в действие.
 
-## Features
+## Фичи
 
-| ID | Name | Status | Link |
+| ID | Название | Статус | Ссылка |
 |---|---|---|---|
-| LCOS-F58 | Review storage + ingestion | 🔭 future | [[LCOS-F58-review-storage]] |
-| LCOS-F59 | AI review analysis | 🔭 future | [[LCOS-F59-review-analysis]] |
-| LCOS-F60 | Reviews API + digest section + negative alert | 🔭 future | [[LCOS-F60-reviews-api]] |
+| LCOS-F58 | Хранение + приём отзывов | 🔭 future | [[LCOS-F58-review-storage]] |
+| LCOS-F59 | AI-анализ отзывов | 🔭 future | [[LCOS-F59-review-analysis]] |
+| LCOS-F60 | API отзывов + раздел дайджеста + алерт на негатив | 🔭 future | [[LCOS-F60-reviews-api]] |
 
-## Key entities / requirements
+## Ключевые сущности / требования
 
-- Entities: future review tables — stubs; linked to the competitor directory [[LCOS-E11-competitor-menu]].
-- Requirements: [[provider-abstraction]], [[vpn-egress]], [[multitenancy]].
-- Roles: [[admin]], [[member]].
+- Сущности: будущие таблицы отзывов — заглушки; связаны со справочником конкурентов [[LCOS-E11-competitor-menu]].
+- Требования: [[provider-abstraction]], [[vpn-egress]], [[multitenancy]].
+- Роли: [[admin]], [[member]].
 
-## Gates
+## Гейты
 
-- **AI analysis behind a seam:** sentiment/themes through the provider LLM seam ([[ADR-009]], [[ADR-012]]).
+- **AI-анализ за швом:** тональность/темы через провайдерский LLM-шов ([[ADR-009]], [[ADR-012]]).
 - AC: TBD (Phase 2).
 
 ## legacy_refs
 
 plan F8.
 
-## Sources
+## Источники
 
 - plan/00_IMPLEMENTATION_PLAN.md F8, 06_STRATEGY.md

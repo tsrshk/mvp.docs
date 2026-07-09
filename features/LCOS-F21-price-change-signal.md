@@ -1,7 +1,7 @@
 ---
 id: LCOS-F21
 type: feature
-title: Price-change signal in the invoice flow
+title: Сигнал изменения цены в потоке инвойсов
 epic: "[[LCOS-E4-suppliers]]"
 status: planned
 phase: "Phase 1"
@@ -13,75 +13,75 @@ legacy_refs: ["plan F3-B3", "plan F3-F2", "07 Э2"]
 sources: ["plan/PHASE_F3_SUPPLIERS.md F3-B3", "plan/PHASE_F3_SUPPLIERS.md F3-F2", "plan/PHASE_F3_SUPPLIERS.md AC-3", "mvp.be app/services/invoice_service.py"]
 updated: 2026-07-09
 ---
-# LCOS-F21 · Price-change signal in the invoice flow
+# LCOS-F21 · Сигнал изменения цены в потоке инвойсов
 
-**Epic:** [[LCOS-E4-suppliers]] · **Status:** planned · **Phase:** Phase 1
+**Эпик:** [[LCOS-E4-suppliers]] · **Статус:** planned · **Фаза:** Phase 1
 
-## Description
+## Описание
 
-A price change should be visible **immediately**, right when the invoice is posted — not discovered later by scrolling the price book. When an invoice is submitted, each resolved-SKU line's per-base-unit price is compared to the previous observed price for the same `(supplier, ingredient)` pair. If the change exceeds a configurable threshold (`price_change_alert_pct`, default 5%), the submit response carries a warning and the corresponding price point is flagged (`is_change`, computed and exposed by the prices API). The frontend surfaces those warnings through the existing warning mechanism (toast / warnings panel) in the workbench, e.g. "Milk 3.2%: 2.80 → 3.10 BYN (+10.7%)".
+Изменение цены должно быть видно **немедленно**, прямо в момент постинга инвойса — а не обнаружено позже прокруткой книги цен. Когда инвойс отправляется, цена за базовую единицу каждой строки с разрешённым SKU сравнивается с предыдущей наблюдённой ценой для той же пары `(supplier, ingredient)`. Если изменение превышает настраиваемый порог (`price_change_alert_pct`, по умолчанию 5%), ответ submit несёт предупреждение, а соответствующая точка цены помечается (`is_change`, вычисляется и отдаётся API цен). Фронтенд всплывает эти предупреждения через существующий механизм предупреждений (toast / панель предупреждений) в workbench, например «Молоко 3.2%: 2.80 → 3.10 BYN (+10.7%)».
 
-This is the invoice-flow half of the F3 price work and the sibling of [[LCOS-F20-price-history]]: F20 records the price observations, F21 reads the previous point to decide whether a change is worth surfacing. It is **not built** — it depends on F20's price history existing first (there is no "previous price" to compare against until observations are recorded).
+Это инвойс-потоковая половина работы по ценам F3 и родственная [[LCOS-F20-price-history]]: F20 записывает наблюдения цен, F21 читает предыдущую точку, чтобы решить, стоит ли всплывать изменение. Она **не построена** — она зависит от того, что история цен F20 существует первой (нет «предыдущей цены» для сравнения, пока наблюдения не записаны).
 
-The threshold is a runtime setting (`REGISTRY` / `system_settings`), editable from SQLAdmin **without a redeploy**, so the owner can tune signal sensitivity for the pilot coffeeshop.
+Порог — это runtime-настройка (`REGISTRY` / `system_settings`), редактируемая из SQLAdmin **без редеплоя**, так что владелец может настраивать чувствительность сигнала для пилотной кофейни.
 
-## Capabilities
+## Возможности
 
-- (Planned) On `InvoiceService.submit()`, compare each resolved-SKU line's per-base-unit price to the previous observed price for that `(supplier, ingredient)`.
-- (Planned) If `|Δ%| > price_change_alert_pct` (default 5%): add a warning to the submit response and mark the price point (`is_change` computable, returned by the prices API).
-- (Planned) `price_change_alert_pct` lives in the config registry (`system_settings`), editable from SQLAdmin without redeploy (resolver-backed).
-- (Planned) Frontend shows returned warnings in the existing toast / warnings panel after send, formatted as "Name: old → new CUR (±%)".
+- (Запланировано) На `InvoiceService.submit()` сравнить цену за базовую единицу каждой строки с разрешённым SKU с предыдущей наблюдённой ценой для той пары `(supplier, ingredient)`.
+- (Запланировано) Если `|Δ%| > price_change_alert_pct` (по умолчанию 5%): добавить предупреждение в ответ submit и пометить точку цены (`is_change` вычислим, возвращается API цен).
+- (Запланировано) `price_change_alert_pct` живёт в реестре конфига (`system_settings`), редактируем из SQLAdmin без редеплоя (на базе резолвера).
+- (Запланировано) Фронтенд показывает возвращённые предупреждения в существующем toast / панели предупреждений после отправки, форматированные как «Имя: старое → новое CUR (±%)».
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | Sees the price-change warning when posting an invoice for their subdivision. |
-| [[admin]] | Same, within the subdivision. |
-| [[superadmin]] | Cross-tenant access. |
-| [[sqladmin-operator]] | Not in the invoice flow; edits `price_change_alert_pct` in the SQLAdmin config plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Видит предупреждение об изменении цены при постинге инвойса для своей subdivision. |
+| [[admin]] | То же, внутри subdivision. |
+| [[superadmin]] | Межарендаторский доступ. |
+| [[sqladmin-operator]] | Не в потоке инвойсов; редактирует `price_change_alert_pct` в плоскости конфига SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
 
-Tenant scope (`organization_id`) comes from the active JWT context (see [[multitenancy]]).
+Scope арендатора (`organization_id`) приходит из активного контекста JWT (см. [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[suppliers]] — the supplier side of the compared `(supplier, ingredient)` pair (resolved for the invoice at submit).
-- [[ingredients]] — the SKU whose price is compared; needs a resolved SKU on the line.
-- [[invoices]] — submit of a `prepared`/`written` invoice triggers the comparison; the warning rides the submit response.
-- [[invoice_lines]] — the per-line prices being compared to their previous observation.
-- [[system_settings]] — holds `price_change_alert_pct` (default 5%), read via the config resolver, editable in SQLAdmin without redeploy.
+- [[suppliers]] — сторона поставщика в сравниваемой паре `(supplier, ingredient)` (разрешается для инвойса на submit).
+- [[ingredients]] — SKU, чья цена сравнивается; требует разрешённого SKU на строке.
+- [[invoices]] — submit `prepared`/`written` инвойса триггерит сравнение; предупреждение едет в ответе submit.
+- [[invoice_lines]] — per-line цены, сравниваемые со своим предыдущим наблюдением.
+- [[system_settings]] — держит `price_change_alert_pct` (по умолчанию 5%), читается через резолвер конфига, редактируем в SQLAdmin без редеплоя.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[invoice-status-machine]] (the signal is computed during `submit()` of `prepared`/`written` invoices; the warning is part of the submit response), [[multitenancy]] (comparison is within the tenant scope).
-- **Features:** [[LCOS-F20-price-history]] (records the previous price this feature compares against — hard dependency), [[LCOS-F10-invoice-status-machine]] (the submit path), [[LCOS-F13-sku-identity-resolver]] (only resolved-SKU lines are compared), [[LCOS-F3-sqladmin-operator]] (edits the threshold without redeploy).
-- **ADR:** none specific; the threshold follows the three-level config resolver pattern.
+- **Требования:** [[invoice-status-machine]] (сигнал вычисляется во время `submit()` `prepared`/`written` инвойсов; предупреждение — часть ответа submit), [[multitenancy]] (сравнение в пределах scope арендатора).
+- **Фичи:** [[LCOS-F20-price-history]] (записывает предыдущую цену, с которой эта фича сравнивает — жёсткая зависимость), [[LCOS-F10-invoice-status-machine]] (путь submit), [[LCOS-F13-sku-identity-resolver]] (сравниваются только строки с разрешённым SKU), [[LCOS-F3-sqladmin-operator]] (редактирует порог без редеплоя).
+- **ADR:** нет специфических; порог следует паттерну трёхуровневого резолвера конфига.
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. On submit of a `prepared`/`written` invoice, each resolved-SKU line's per-base-unit price is compared to the previous observed price for that `(supplier, ingredient)`.
-- [ ] AC-BE-2. A change exceeding `price_change_alert_pct` (default 5%) returns a warning in the submit response and flags the price row (`is_change`). (plan F3 AC-3)
-- [ ] AC-BE-3. `price_change_alert_pct` is read from `system_settings` via the config resolver and is editable from SQLAdmin without redeploy (resolver test + manual check). (plan F3 AC-3)
-- [ ] AC-BE-4. `is_change` is computable and returned by the supplier prices API (so the price book highlights changed points, not only the submit response).
-- [ ] AC-BE-5. The comparison is tenant-scoped (org-A history never compared against an org-B scope).
+- [ ] AC-BE-1. На submit `prepared`/`written` инвойса цена за базовую единицу каждой строки с разрешённым SKU сравнивается с предыдущей наблюдённой ценой для той пары `(supplier, ingredient)`.
+- [ ] AC-BE-2. Изменение, превышающее `price_change_alert_pct` (по умолчанию 5%), возвращает предупреждение в ответе submit и помечает строку цены (`is_change`). (plan F3 AC-3)
+- [ ] AC-BE-3. `price_change_alert_pct` читается из `system_settings` через резолвер конфига и редактируем из SQLAdmin без редеплоя (тест резолвера + ручная проверка). (plan F3 AC-3)
+- [ ] AC-BE-4. `is_change` вычислим и возвращается API цен поставщика (так что книга цен подсвечивает изменённые точки, не только ответ submit).
+- [ ] AC-BE-5. Сравнение со scope арендатора (история org-A никогда не сравнивается со scope org-B).
 
 ### Frontend
-- [ ] AC-FE-1. In the workbench / after send, if the backend returned price-change warnings they are shown in the existing toast / warnings panel. (plan F3-F2)
-- [ ] AC-FE-2. Each warning reads "Name: old → new CUR (±%)" (e.g. "Milk 3.2%: 2.80 → 3.10 BYN (+10.7%)").
-- [ ] AC-FE-3. In the supplier price table, a changed price point is highlighted (arrow/% with warn styling on increases). (plan F3-F1)
+- [ ] AC-FE-1. В workbench / после отправки, если бэкенд вернул предупреждения об изменении цены, они показываются в существующем toast / панели предупреждений. (plan F3-F2)
+- [ ] AC-FE-2. Каждое предупреждение читается «Имя: старое → новое CUR (±%)» (например «Молоко 3.2%: 2.80 → 3.10 BYN (+10.7%)»).
+- [ ] AC-FE-3. В таблице цен поставщика изменённая точка цены подсвечивается (стрелка/% с warn-стилизацией при росте). (plan F3-F1)
 
-### Other
-- [ ] AC-OTHER-1. Depends on [[LCOS-F20-price-history]]: with no recorded observations there is no previous price, so this feature cannot be verified before F20's `supplier_prices` + auto-collect exist.
+### Прочее
+- [ ] AC-OTHER-1. Зависит от [[LCOS-F20-price-history]]: без записанных наблюдений нет предыдущей цены, так что эту фичу нельзя проверить до того, как существуют `supplier_prices` + авто-сбор F20.
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **Hard dependency on F20:** the "previous price" comes from `supplier_prices`; F21 is blocked until [[LCOS-F20-price-history]] auto-collect is built.
-- **Not built yet:** F3-B3 comparison + warning and F3-F2 the invoice-flow signal are open (plan F3 status 2026-07-08).
-- **Threshold semantics:** default 5%; whether the alert is symmetric (increase and decrease) or increase-only is an open product decision — the plan example highlights increases.
+- **Жёсткая зависимость от F20:** «предыдущая цена» приходит из `supplier_prices`; F21 заблокирована, пока не построен авто-сбор [[LCOS-F20-price-history]].
+- **Ещё не построено:** F3-B3 сравнение + предупреждение и F3-F2 сигнал в потоке инвойсов открыты (plan F3 status 2026-07-08).
+- **Семантика порога:** по умолчанию 5%; симметричен ли алерт (рост и падение) или только рост — открытое продуктовое решение — пример плана подсвечивает рост.
 
-## Sources
+## Источники
 
-- `plan/PHASE_F3_SUPPLIERS.md F3-B3` (compare to previous price; `price_change_alert_pct` default 5%; warning in submit response + `is_change`), `F3-F2` (surface warnings in the existing toast/warnings mechanism), `§5 AC-3`.
-- `plan/PHASE_F3_SUPPLIERS.md` "Статус реализации (2026-07-08)" (F3-B3 / F3-F2 NOT built).
-- `mvp.be/app/services/invoice_service.py` (`submit()` — where the comparison hooks in).
+- `plan/PHASE_F3_SUPPLIERS.md F3-B3` (сравнение с предыдущей ценой; `price_change_alert_pct` по умолчанию 5%; предупреждение в ответе submit + `is_change`), `F3-F2` (всплытие предупреждений в существующем механизме toast/предупреждений), `§5 AC-3`.
+- `plan/PHASE_F3_SUPPLIERS.md` «Статус реализации (2026-07-08)» (F3-B3 / F3-F2 НЕ построены).
+- `mvp.be/app/services/invoice_service.py` (`submit()` — где подключается сравнение).

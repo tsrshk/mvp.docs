@@ -1,7 +1,7 @@
 ---
 id: LCOS-E13
 type: epic
-title: Cross-recipe menu ideas
+title: Идеи меню на пересечении рецептур
 status: future
 phase: "Phase 2"
 features: ["[[LCOS-F61-menu-idea-generation]]", "[[LCOS-F62-menu-ideas-ui]]"]
@@ -10,40 +10,40 @@ sources: [plan/00_IMPLEMENTATION_PLAN.md F9, 06_STRATEGY.md]
 updated: 2026-07-09
 ---
 
-# LCOS-E13 · Cross-recipe menu ideas
+# LCOS-E13 · Идеи меню на пересечении рецептур
 
-**Status:** 🔭 future · **Phase:** Phase 2
+**Статус:** 🔭 future · **Фаза:** Phase 2
 
-## Description
+## Описание
 
-Generating menu ideas at the intersection of the available ingredients/recipes (use what is already purchased and sitting in stock) and a UI with their statuses (proposed / in progress / accepted / rejected). The AI proposes dishes/items that reduce write-offs and use already-paid-for ingredients.
+Генерация идей меню на пересечении доступных ингредиентов/рецептур (использовать то, что уже закуплено и лежит на остатках) и UI с их статусами (proposed / in progress / accepted / rejected). AI предлагает блюда/позиции, снижающие списания и использующие уже оплаченные ингредиенты.
 
-## Goal / value
+## Цель / ценность
 
-Turn data on stock levels ([[LCOS-E7-stock]]) and consumption ([[LCOS-E9-sales-analytics]]) into concrete proposals that increase margin and cut write-offs — again "the AI does the work" rather than showing a report.
+Превратить данные об остатках ([[LCOS-E7-stock]]) и потреблении ([[LCOS-E9-sales-analytics]]) в конкретные предложения, повышающие маржу и сокращающие списания — снова «AI делает работу», а не показывает отчёт.
 
-## Features
+## Фичи
 
-| ID | Name | Status | Link |
+| ID | Название | Статус | Ссылка |
 |---|---|---|---|
-| LCOS-F61 | Menu idea generation | 🔭 future | [[LCOS-F61-menu-idea-generation]] |
-| LCOS-F62 | Menu ideas UI + statuses | 🔭 future | [[LCOS-F62-menu-ideas-ui]] |
+| LCOS-F61 | Генерация идей меню | 🔭 future | [[LCOS-F61-menu-idea-generation]] |
+| LCOS-F62 | UI идей меню + статусы | 🔭 future | [[LCOS-F62-menu-ideas-ui]] |
 
-## Key entities / requirements
+## Ключевые сущности / требования
 
-- Entities: [[ingredients]], [[stock_levels]]; future menu_ideas table — stub.
-- Requirements: [[provider-abstraction]], [[vpn-egress]], [[multitenancy]].
-- Roles: [[member]] (accepts/rejects ideas), [[admin]].
+- Сущности: [[ingredients]], [[stock_levels]]; будущая таблица menu_ideas — заглушка.
+- Требования: [[provider-abstraction]], [[vpn-egress]], [[multitenancy]].
+- Роли: [[member]] (принимает/отклоняет идеи), [[admin]].
 
-## Gates
+## Гейты
 
-- **The human confirms:** an idea is a proposal, the owner decides on adding it to the menu.
+- **Человек подтверждает:** идея — это предложение, владелец решает о её добавлении в меню.
 - AC: TBD (Phase 2).
 
 ## legacy_refs
 
 plan F9.
 
-## Sources
+## Источники
 
 - plan/00_IMPLEMENTATION_PLAN.md F9, 06_STRATEGY.md

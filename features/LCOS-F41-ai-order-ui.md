@@ -1,7 +1,7 @@
 ---
 id: LCOS-F41
 type: feature
-title: "'Propose order' UI + AI-line marking"
+title: "UI 'Предложить заказ' + пометка AI-строк"
 epic: "[[LCOS-E8-purchasing]]"
 status: planned
 phase: "Phase 1"
@@ -13,56 +13,56 @@ legacy_refs: ["08 F4.5", "07 Э4b"]
 sources: ["08_PHASE1_SPEC.md F4.5", "07_PHASES.md Э4b"]
 updated: 2026-07-09
 ---
-# LCOS-F41 · 'Propose order' UI + AI-line marking
+# LCOS-F41 · UI 'Предложить заказ' + пометка AI-строк
 **Epic:** [[LCOS-E8-purchasing]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-The frontend entry point for the planner: a "Propose order" button next to a supplier on `/orders`. Pressing it calls `POST /purchase-orders/propose?supplier_id=` ([[LCOS-F40-ai-order-proposal]]) and the result is **an ordinary draft** — the same screen and controls as a manual order ([[LCOS-F38-orders-ui]]), with no separate branch. AI-suggested lines are shown with a badge and their `reason` ("stock 1.2 kg below threshold 2 kg"). Editing an AI line flips its `origin` from `ai` to `manual`, which both removes the badge and feeds the close-out metric ([[LCOS-F44-live-closeout]]) that measures how much of the AI proposal the human kept untouched.
+Frontend-точка входа для планировщика: кнопка «Предложить заказ» рядом с поставщиком на `/orders`. Её нажатие вызывает `POST /purchase-orders/propose?supplier_id=` ([[LCOS-F40-ai-order-proposal]]), и результат — **обычный черновик** — тот же экран и элементы управления, что и у ручного заказа ([[LCOS-F38-orders-ui]]), без отдельной ветки. AI-предложенные строки показываются с бейджем и их `reason` («остаток 1.2 кг ниже порога 2 кг»). Редактирование AI-строки переворачивает её `origin` с `ai` на `manual`, что и убирает бейдж, и питает close-out метрику ([[LCOS-F44-live-closeout]]), измеряющую, сколько AI-предложения человек оставил нетронутым.
 
-When the proposal is empty ("everything's fine"), the UI says so and links to `/stock` ([[LCOS-F36-stock-screen]]) rather than opening an empty draft. The whole value of this feature is that the human reviews and confirms — the AI prepares, the person decides — reusing confirmation and the copyable message ([[LCOS-F39-order-message]]) without any AI-specific code path.
+Когда предложение пустое («всё в порядке»), UI так и говорит и ссылается на `/stock` ([[LCOS-F36-stock-screen]]), а не открывает пустой черновик. Вся ценность этой фичи в том, что человек ревьюит и подтверждает — AI готовит, человек решает — переиспользуя подтверждение и копируемое сообщение ([[LCOS-F39-order-message]]) без какого-либо AI-специфичного пути кода.
 
-## Capabilities
+## Возможности
 
-- "Propose order" button per supplier on `/orders`.
-- Result rendered as a normal editable draft (reuses [[LCOS-F38-orders-ui]] with no branching).
-- AI lines shown with a badge + `reason`; editing an AI line sets `origin='manual'` and drops the badge.
-- Empty proposal → "everything's fine" message + link to `/stock`.
-- Confirm / copy path is the shared [[LCOS-F39-order-message]] flow (no AI-specific send code).
+- Кнопка «Предложить заказ» на поставщика на `/orders`.
+- Результат рендерится как обычный редактируемый черновик (переиспользует [[LCOS-F38-orders-ui]] без ветвления).
+- AI-строки показаны с бейджем + `reason`; редактирование AI-строки устанавливает `origin='manual'` и убирает бейдж.
+- Пустое предложение → сообщение «всё в порядке» + ссылка на `/stock`.
+- Путь confirm / copy — это общий поток [[LCOS-F39-order-message]] (нет AI-специфичного кода отправки).
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[member]] | Request a proposal, review AI lines + reasons, edit, confirm and copy. |
-| [[admin]] | Same, within their subdivision. |
-| [[superadmin]] | Cross-tenant access. |
-| [[sqladmin-operator]] | Not involved. |
+| [[member]] | Запросить предложение, отревьюить AI-строки + причины, редактировать, подтвердить и скопировать. |
+| [[admin]] | То же, в пределах своего subdivision. |
+| [[superadmin]] | Межтенантный доступ. |
+| [[sqladmin-operator]] | Не участвует. |
 
-Scope from the active JWT context (see [[multitenancy]]).
+Scope из активного JWT-контекста (см. [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[purchase_orders]] / [[purchase_order_lines]] — the proposed draft; `origin` (`ai` → `manual` on edit) drives badge display and the close-out metric.
-- [[suppliers]] — the supplier the "Propose order" button belongs to.
-- [[ingredients]] — line subjects surfaced with reasons.
+- [[purchase_orders]] / [[purchase_order_lines]] — предложенный черновик; `origin` (`ai` → `manual` при редактировании) управляет отображением бейджа и close-out метрикой.
+- [[suppliers]] — поставщик, которому принадлежит кнопка «Предложить заказ».
+- [[ingredients]] — предметы строк, всплываемые с причинами.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (proposal + draft scoped to the caller's org).
-- **Features:** calls [[LCOS-F40-ai-order-proposal]] (`/propose`); renders through [[LCOS-F38-orders-ui]]; confirms via [[LCOS-F39-order-message]]; the "empty" state links to [[LCOS-F36-stock-screen]] ([[LCOS-E7-stock]]); `origin` marking is consumed by [[LCOS-F44-live-closeout]].
+- **Требования:** [[multitenancy]] (предложение + черновик скоупированы org вызывающего).
+- **Фичи:** вызывает [[LCOS-F40-ai-order-proposal]] (`/propose`); рендерится через [[LCOS-F38-orders-ui]]; подтверждается через [[LCOS-F39-order-message]]; состояние «пусто» ссылается на [[LCOS-F36-stock-screen]] ([[LCOS-E7-stock]]); пометка `origin` потребляется [[LCOS-F44-live-closeout]].
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Frontend
-- [ ] AC-FE-1. A draft from a proposal is edited and confirmed exactly like a manual one (reuses [[LCOS-F38-orders-ui]]/[[LCOS-F39-order-message]] with no branching).
-- [ ] AC-FE-2. Badges and reasons are visible on AI lines; editing a line removes the badge and sets `origin='manual'`.
-- [ ] AC-FE-3. "Propose order" button appears per supplier on `/orders`.
-- [ ] AC-FE-4. Empty proposal shows "everything's fine" + a link to `/stock`, without opening an empty draft.
+- [ ] AC-FE-1. Черновик из предложения редактируется и подтверждается ровно как ручной (переиспользует [[LCOS-F38-orders-ui]]/[[LCOS-F39-order-message]] без ветвления).
+- [ ] AC-FE-2. Бейджи и причины видны на AI-строках; редактирование строки убирает бейдж и устанавливает `origin='manual'`.
+- [ ] AC-FE-3. Кнопка «Предложить заказ» появляется на поставщика на `/orders`.
+- [ ] AC-FE-4. Пустое предложение показывает «всё в порядке» + ссылку на `/stock`, не открывая пустой черновик.
 
-## Open questions / gates
-- **Kill-check (owner, whole Э4b):** before a real order, "Propose order" should yield a draft of what's running out with reasonable quantities (edits ≤30% of lines), 2–3 weeks running; edits >70% for three cycles → revert to a checklist.
+## Открытые вопросы / гейты
+- **Kill-проверка (владелец, весь Э4b):** перед реальным заказом «Предложить заказ» должно давать черновик того, что заканчивается, с разумными количествами (правки ≤30% строк), в течение 2–3 недель; правки >70% три цикла → вернуться к чеклисту.
 
-## Sources
-- `08_PHASE1_SPEC.md F4.5` (button, badges + reasons, edit → `origin='manual'`, empty-state link to `/stock`, reuse-without-branching AC).
-- `07_PHASES.md Э4b` ("кнопка «Предложить заказ», пометка AI-строк").
+## Источники
+- `08_PHASE1_SPEC.md F4.5` (кнопка, бейджи + причины, редактирование → `origin='manual'`, ссылка состояния «пусто» на `/stock`, AC переиспользования-без-ветвления).
+- `07_PHASES.md Э4b` («кнопка «Предложить заказ», пометка AI-строк»).

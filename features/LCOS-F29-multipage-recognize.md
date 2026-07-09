@@ -1,7 +1,7 @@
 ---
 id: LCOS-F29
 type: feature
-title: Multi-page recognize (photo pages → one InvoiceDraft)
+title: Многостраничное распознавание (страницы фото → один InvoiceDraft)
 epic: "[[LCOS-E6-ocr-quality]]"
 status: planned
 phase: "Phase 1"
@@ -13,79 +13,79 @@ legacy_refs: [plan S2 (S2-B1, S2-B3, S2-F1), "DEC-07 variant A"]
 sources: ["plan/PHASE_S2_OCR_CAPTURE.md §1 (S2-B1/B3), §2 (S2-F1), §4 AC-1", "mvp.be app/providers/ocr/base.py", "mvp.be app/api/v1/routes/invoices.py:33", "mvp.be app/services/invoice_service.py:121", "mvp.fe src/shared/ocr/providers/backend.ts:42", "mvp.fe src/entities/invoice/model/sessionSlice.ts:22"]
 updated: 2026-07-09
 ---
-# LCOS-F29 · Multi-page recognize (photo pages → one InvoiceDraft)
+# LCOS-F29 · Многостраничное распознавание (страницы фото → один InvoiceDraft)
 **Epic:** [[LCOS-E6-ocr-quality]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-Real waybills routinely run to two or three pages. Today the recognize path processes exactly one page: the backend `POST /invoices/recognize` accepts a single `file`, and the frontend `BackendOcrProvider` sends only `pages[0]` — extra held pages are silently dropped (see [[LCOS-F8-ocr-recognition]]). The interim safeguard that at least warns the user about lost pages lives in [[LCOS-F26-multipage-fix]] (epic [[LCOS-E5-stabilization]]); this feature is the full fix.
+Реальные накладные регулярно занимают две-три страницы. Сегодня путь распознавания обрабатывает ровно одну страницу: бэкенд `POST /invoices/recognize` принимает единственный `file`, а frontend `BackendOcrProvider` отправляет только `pages[0]` — лишние удержанные страницы молча отбрасываются (см. [[LCOS-F8-ocr-recognition]]). Временный предохранитель, который хотя бы предупреждает пользователя о потерянных страницах, живёт в [[LCOS-F26-multipage-fix]] (эпик [[LCOS-E5-stabilization]]); эта фича — полное исправление.
 
-The goal is that a multi-page invoice is recognized as **one** `InvoiceDraft`: all product lines from every page are merged in page order, and the totals come from the last page. DEC-07 variant A was chosen: extend the recognize contract to accept up to 3 pages and send them to the vision model in a **single multimodal request**, rather than making N independent calls and stitching results (which would double-count total rows and lose cross-page context).
+Цель — чтобы многостраничный счёт-фактура распознавался как **один** `InvoiceDraft`: все товарные строки со всех страниц объединяются в порядке страниц, а итоги берутся с последней страницы. Выбран вариант DEC-07 A: расширить контракт recognize, чтобы принимать до 3 страниц, и отправлять их в vision-модель в **одном мультимодальном запросе**, а не делать N независимых вызовов и сшивать результаты (что удвоило бы строки итогов и потеряло межстраничный контекст).
 
-The endpoint keeps its existing invariants — it neither writes to the ERP nor persists anything; egress to the LLM still runs through the VPN sidecar when the runtime toggle is on ([[vpn-egress]], [[fail-closed]]). This is a one-time, deliberate change to the `OcrProvider` seam signature ([[provider-abstraction]], [[ADR-009]]).
+Endpoint сохраняет свои существующие инварианты — он ни пишет в ERP, ни персистит что-либо; egress к LLM по-прежнему идёт через VPN-сайдкар, когда рантайм-переключатель включён ([[vpn-egress]], [[fail-closed]]). Это одноразовое, намеренное изменение сигнатуры шва `OcrProvider` ([[provider-abstraction]], [[ADR-009]]).
 
-## Capabilities
+## Возможности
 
-- `POST /invoices/recognize` accepts **up to 3 files** (multipart repeated `file`, or a `files[]` field) instead of a single image; each part is MIME-validated against `_ALLOWED_MIME` (`image/jpeg|png|webp`).
-- The `OcrProvider.extract_invoice` seam is widened to take an ordered list of pages: `extract_invoice(pages: list[OcrImage], ...) -> InvoiceDraft`.
-- The Claude provider sends all pages, in order, in one multimodal request and returns a single `InvoiceDraft` — lines concatenated across pages with contiguous `line_no`, header/total taken from the last page.
-- Request-size guardrails: pages are already client-normalized to ≤1568px long edge; a request that still exceeds the cap is rejected with `413` in the error envelope.
-- Optional `pages_processed` count in the response so the frontend can confirm "recognized N pages" (S2-B3).
-- Frontend sends **all** held pages (up to `MAX_INVOICE_PAGES = 3`), removing the single-page limitation and the S1 lost-pages warning.
+- `POST /invoices/recognize` принимает **до 3 файлов** (multipart повторяющийся `file` или поле `files[]`) вместо единственного изображения; каждая часть MIME-валидируется против `_ALLOWED_MIME` (`image/jpeg|png|webp`).
+- Шов `OcrProvider.extract_invoice` расширяется, чтобы принимать упорядоченный список страниц: `extract_invoice(pages: list[OcrImage], ...) -> InvoiceDraft`.
+- Claude-провайдер отправляет все страницы, по порядку, в одном мультимодальном запросе и возвращает единый `InvoiceDraft` — строки конкатенированы по страницам с непрерывным `line_no`, заголовок/итог берётся с последней страницы.
+- Ограничители размера запроса: страницы уже клиент-нормализованы до ≤1568px по длинному краю; запрос, всё ещё превышающий лимит, отклоняется с `413` в конверте ошибки.
+- Опциональный счётчик `pages_processed` в ответе, чтобы frontend мог подтвердить «распознано N страниц» (S2-B3).
+- Frontend отправляет **все** удержанные страницы (до `MAX_INVOICE_PAGES = 3`), убирая одностраничное ограничение и предупреждение S1 о потерянных страницах.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[member]] | Attach up to 3 pages of one invoice and receive a single merged draft within their subdivision. |
-| [[admin]] | Same as member, within their subdivision. |
-| [[superadmin]] | Same across all tenants; may also edit the OCR prompt / `ai_provider` via config API. |
-| [[sqladmin-operator]] | Not in the flow; switches `ai_provider` / OCR prompt in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Прикрепить до 3 страниц одного счёта-фактуры и получить единый объединённый черновик в пределах своего subdivision. |
+| [[admin]] | То же, что и member, в пределах своего subdivision. |
+| [[superadmin]] | То же по всем тенантам; также может редактировать OCR-промпт / `ai_provider` через config API. |
+| [[sqladmin-operator]] | Не в потоке; переключает `ai_provider` / OCR-промпт в SQLAdmin-плоскости (см. [[LCOS-F3-sqladmin-operator]]). |
 
-The endpoint is tenant-scoped: `organization_id` / `subdivision_id` come from the active JWT context ([[auth]], [[multitenancy]]).
+Endpoint тенант-скоупирован: `organization_id` / `subdivision_id` берутся из активного JWT-контекста ([[auth]], [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[invoices]] — the flow target; still **not** created on `/recognize`, but `ocr_provider`/`ocr_raw` provenance persists later on submit.
-- [[invoice_lines]] — draft lines (`InvoiceLineDraft`) now aggregated across pages into one line set.
-- [[system_settings]] — `ai_provider` (runtime OCR implementation choice) and the DB-stored OCR prompt.
+- [[invoices]] — цель потока; по-прежнему **не** создаётся на `/recognize`, но провенанс `ocr_provider`/`ocr_raw` персистится позже на submit.
+- [[invoice_lines]] — черновые строки (`InvoiceLineDraft`) теперь агрегируются по страницам в один набор строк.
+- [[system_settings]] — `ai_provider` (рантайм-выбор реализации OCR) и хранимый в БД OCR-промпт.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[provider-abstraction]] (single deliberate change to the `OcrProvider` Protocol), [[fail-closed]] + [[vpn-egress]] (LLM egress via VPN sidecar when `ai_vpn_enabled`; VPN down → refuse, no direct egress), [[invoice-status-machine]] (draft feeds `prepare`/`submit`).
-- **Features:** upstream [[LCOS-F8-ocr-recognition]] (single-page recognize this extends), interim safeguard [[LCOS-F26-multipage-fix]] (superseded once this ships), downstream [[LCOS-F9-line-matching]] (matches the merged lines). Sibling capture-quality features: [[LCOS-F30-recognition-context]], [[LCOS-F31-auto-crop]], [[LCOS-F32-camera-capture]], [[LCOS-F33-confidence-gate]].
-- **ADR:** [[ADR-009]] (provider seam, one implementation), [[ADR-006]] (fail-closed egress), [[ADR-012]] (provider live-paths backend-only).
+- **Требования:** [[provider-abstraction]] (единичное намеренное изменение Protocol `OcrProvider`), [[fail-closed]] + [[vpn-egress]] (egress к LLM через VPN-сайдкар при `ai_vpn_enabled`; VPN упал → отказ, никакого прямого egress), [[invoice-status-machine]] (черновик питает `prepare`/`submit`).
+- **Фичи:** апстрим [[LCOS-F8-ocr-recognition]] (одностраничное recognize, которое это расширяет), временный предохранитель [[LCOS-F26-multipage-fix]] (замещается по выходу), даунстрим [[LCOS-F9-line-matching]] (матчит объединённые строки). Родственные фичи качества захвата: [[LCOS-F30-recognition-context]], [[LCOS-F31-auto-crop]], [[LCOS-F32-camera-capture]], [[LCOS-F33-confidence-gate]].
+- **ADR:** [[ADR-009]] (шов провайдера, одна реализация), [[ADR-006]] (fail-closed egress), [[ADR-012]] (живые пути провайдера только на бэкенде).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. `POST /invoices/recognize` accepts up to 3 image parts (repeated `file` or `files[]`); a 2- and a 3-page invoice each recognize into ONE `InvoiceDraft` whose `lines` contain rows from all pages.
-- [ ] AC-BE-2. Each part is MIME-validated against `{image/jpeg,image/png,image/webp}` → offending part yields `415`; an empty part → `400`; more than 3 parts → rejected with a clear error.
-- [ ] AC-BE-3. `OcrProvider.extract_invoice` signature is changed once to accept an ordered `list[OcrImage]`; the Claude provider issues a single multimodal request with pages in order; total/header taken from the last page (unit test with a respx/mock provider and 2 fabricated pages).
-- [ ] AC-BE-4. The endpoint still neither persists (`invoices`/`invoice_lines`) nor writes to the ERP; `ocr_provider` provenance is still stamped on the draft.
-- [ ] AC-BE-5. Oversized combined request (beyond the size cap) → `413` in the error envelope, not a 500/timeout.
-- [ ] AC-BE-6. Fail-closed egress preserved: with `ai_vpn_enabled=ON` and VPN unreachable, the multi-page call is refused with a clear error and no direct egress (non-negotiable, merge-gated test).
-- [ ] AC-BE-7. (Optional S2-B3) Response carries `pages_processed = N`.
+- [ ] AC-BE-1. `POST /invoices/recognize` принимает до 3 частей-изображений (повторяющийся `file` или `files[]`); 2- и 3-страничный счёт-фактура каждый распознаётся в ОДИН `InvoiceDraft`, чьи `lines` содержат строки со всех страниц.
+- [ ] AC-BE-2. Каждая часть MIME-валидируется против `{image/jpeg,image/png,image/webp}` → нарушающая часть даёт `415`; пустая часть → `400`; более 3 частей → отклонено с понятной ошибкой.
+- [ ] AC-BE-3. Сигнатура `OcrProvider.extract_invoice` меняется единожды, чтобы принимать упорядоченный `list[OcrImage]`; Claude-провайдер делает один мультимодальный запрос со страницами по порядку; итог/заголовок берётся с последней страницы (unit-тест с respx/mock-провайдером и 2 фабрикованными страницами).
+- [ ] AC-BE-4. Endpoint по-прежнему ни персистит (`invoices`/`invoice_lines`), ни пишет в ERP; провенанс `ocr_provider` по-прежнему проставляется на черновике.
+- [ ] AC-BE-5. Слишком большой объединённый запрос (сверх лимита размера) → `413` в конверте ошибки, а не 500/timeout.
+- [ ] AC-BE-6. Fail-closed egress сохранён: при `ai_vpn_enabled=ON` и недостижимом VPN многостраничный вызов отклоняется с понятной ошибкой и без прямого egress (неотменяемый, merge-gated тест).
+- [ ] AC-BE-7. (Опционально S2-B3) Ответ несёт `pages_processed = N`.
 
 ### Frontend
-- [ ] AC-FE-1. `BackendOcrProvider.extractInvoice` sends ALL held pages (up to `MAX_INVOICE_PAGES = 3`), not `pages[0]`; the multipart body carries one `file` part per page in capture order.
-- [ ] AC-FE-2. The S1 "extra pages ignored" warning is removed; the returned merged draft shows lines from every page in the workbench.
-- [ ] AC-FE-3. If the backend returns `pages_processed`, the UI confirms "recognized N pages"; a mismatch with the number sent surfaces a non-blocking notice.
-- [ ] AC-FE-4. `415`/`400`/`413`/recognition failure render a clear message without crashing the form; the abort signal cancels an in-flight multi-page request on navigation.
+- [ ] AC-FE-1. `BackendOcrProvider.extractInvoice` отправляет ВСЕ удержанные страницы (до `MAX_INVOICE_PAGES = 3`), а не `pages[0]`; multipart-тело несёт по одной части `file` на страницу в порядке захвата.
+- [ ] AC-FE-2. Предупреждение S1 «лишние страницы проигнорированы» убрано; возвращённый объединённый черновик показывает строки с каждой страницы в workbench.
+- [ ] AC-FE-3. Если бэкенд возвращает `pages_processed`, UI подтверждает «распознано N страниц»; несовпадение с числом отправленных всплывает неблокирующим уведомлением.
+- [ ] AC-FE-4. `415`/`400`/`413`/сбой распознавания рендерят понятное сообщение без падения формы; abort-сигнал отменяет незавершённый многостраничный запрос при навигации.
 
-### Other (data/QA)
-- [ ] AC-OTHER-1. Manual check on a real multi-page waybill: no page's lines are lost; DoD G10 (pytest + ruff + build green, tenant/fail-closed tests intact, architecture doc bumped for the `OcrProvider` signature change).
+### Прочее (data/QA)
+- [ ] AC-OTHER-1. Ручная проверка на реальной многостраничной накладной: ни одна страница со строками не потеряна; DoD G10 (pytest + ruff + build зелёные, тесты tenant/fail-closed целы, документ архитектуры обновлён под изменение сигнатуры `OcrProvider`).
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **Seam change is deliberate and one-time** — widening `extract_invoice` to a page list must not fork the Protocol; the mock/demo provider must implement the new signature too.
-- **Line ordering across pages** — `line_no` must stay contiguous and page-ordered so downstream matching ([[LCOS-F9-line-matching]]) is stable.
-- **Total-row de-dup** — only the last page's totals count; per-page "Итого" rows must be dropped (shared with [[LCOS-F33-confidence-gate]] / `totalRow` rule).
-- Supersedes the interim [[LCOS-F26-multipage-fix]] safeguard once merged.
+- **Изменение шва намеренное и одноразовое** — расширение `extract_invoice` до списка страниц не должно форкать Protocol; mock/demo-провайдер тоже должен реализовать новую сигнатуру.
+- **Порядок строк по страницам** — `line_no` должен оставаться непрерывным и упорядоченным по страницам, чтобы даунстрим-матчинг ([[LCOS-F9-line-matching]]) был стабилен.
+- **Де-дуп строки итога** — учитываются только итоги последней страницы; постраничные строки «Итого» должны отбрасываться (общее с [[LCOS-F33-confidence-gate]] / правилом `totalRow`).
+- Замещает временный предохранитель [[LCOS-F26-multipage-fix]] по слиянию.
 
-## Sources
+## Источники
 
-- `plan/PHASE_S2_OCR_CAPTURE.md` §1 S2-B1 (multipart up to 3, seam change, single multimodal request, 413), S2-B3 (`pages_processed`), §2 S2-F1 (send all pages, drop S1 warning), §4 AC-1.
+- `plan/PHASE_S2_OCR_CAPTURE.md` §1 S2-B1 (multipart до 3, изменение шва, один мультимодальный запрос, 413), S2-B3 (`pages_processed`), §2 S2-F1 (отправка всех страниц, удаление предупреждения S1), §4 AC-1.
 - `mvp.be/app/api/v1/routes/invoices.py:33` (`recognize_invoice`, `_ALLOWED_MIME`), `app/services/invoice_service.py:121` (`recognize`).
-- `mvp.be/app/providers/ocr/base.py` (`OcrProvider` Protocol, `extract_invoice`).
-- `mvp.fe/src/shared/ocr/providers/backend.ts:42` (`pages[0]` single-page limit), `src/shared/ocr/types.ts` (`OcrPage`), `src/entities/invoice/model/sessionSlice.ts:22` (`MAX_INVOICE_PAGES = 3`).
+- `mvp.be/app/providers/ocr/base.py` (Protocol `OcrProvider`, `extract_invoice`).
+- `mvp.fe/src/shared/ocr/providers/backend.ts:42` (одностраничный лимит `pages[0]`), `src/shared/ocr/types.ts` (`OcrPage`), `src/entities/invoice/model/sessionSlice.ts:22` (`MAX_INVOICE_PAGES = 3`).

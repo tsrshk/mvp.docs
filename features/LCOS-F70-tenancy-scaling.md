@@ -1,7 +1,7 @@
 ---
 id: LCOS-F70
 type: feature
-title: Multitenancy scaling
+title: Масштабирование мультитенантности
 epic: "[[LCOS-E15-saas]]"
 status: future
 phase: "Phase 2"
@@ -13,52 +13,52 @@ legacy_refs: [plan P2-E, "S1-B4"]
 sources: ["plan/PHASE_P2_SAAS_OUTLINE.md §2 P2-E", "plan/PHASE_P2_SAAS_OUTLINE.md §1", "Local_OS_About.md Phase 2"]
 updated: 2026-07-09
 ---
-# LCOS-F70 · Multitenancy scaling
+# LCOS-F70 · Масштабирование мультитенантности
 
 **Epic:** [[LCOS-E15-saas]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-A revision pass to make the multi-tenant platform behave well under many concurrent tenants rather than the single-tenant Phase-1 workload. The foundations (org → subdivision → membership isolation, per-org credentials) already exist ([[LCOS-F1-multitenancy]], [[ADR-008]]); this feature adds the per-tenant fairness, quotas and auditability that only matter at scale.
+Ревизионный проход, чтобы мультитенантная платформа хорошо вела себя под многими одновременными тенантами, а не под single-tenant нагрузкой Phase 1. Основы (изоляция org → подразделение → membership, пер-org учётные данные) уже существуют ([[LCOS-F1-multitenancy]], [[ADR-008]]); эта фича добавляет пер-тенантную честность, квоты и аудируемость, которые важны только на масштабе.
 
-Work items: per-tenant scheduler queues / jitter (so one tenant's sync jobs don't starve others — extends the analytics scheduler [[LCOS-F47-scheduler]]), per-org LLM budget limits, image-storage quotas, an action audit log (built only if customers require it), and reviving `CredentialScope.subdivision` if per-location POS tokens become necessary (the S1-B4 note). Each item is demand-driven and revisited when real multi-tenant load appears.
+Рабочие элементы: пер-тенантные очереди/jitter планировщика (чтобы задания синхронизации одного тенанта не голодали другие — расширяет планировщик аналитики [[LCOS-F47-scheduler]]), пер-org лимиты бюджета LLM, квоты хранения изображений, аудит-лог действий (строится только если клиенты потребуют) и оживление `CredentialScope.subdivision`, если станут необходимы пер-локационные POS-токены (заметка S1-B4). Каждый элемент управляется спросом и пересматривается, когда появляется реальная multi-tenant нагрузка.
 
-## Capabilities
+## Возможности
 
-- Per-tenant scheduler queues / jitter to fairly distribute background sync work.
-- Per-org LLM budget limits and image-storage quotas.
-- Action audit log (conditional — only if customers demand it).
-- Optional revival of `CredentialScope.subdivision` for per-location POS tokens (S1-B4).
+- Пер-тенантные очереди/jitter планировщика для честного распределения фоновой работы синхронизации.
+- Пер-org лимиты бюджета LLM и квоты хранения изображений.
+- Аудит-лог действий (условно — только если клиенты потребуют).
+- Опциональное оживление `CredentialScope.subdivision` для пер-локационных POS-токенов (S1-B4).
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[superadmin]] | Sets per-org budgets/quotas, reviews the audit log and scheduler fairness across tenants. |
-| [[sqladmin-operator]] | Tunes quotas/limits and inspects audit records in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
-| [[admin]] | Sees their tenant's usage against quota; no cross-tenant visibility. |
-| [[member]] | No direct control; subject to their tenant's limits. |
+| [[superadmin]] | Задаёт пер-org бюджеты/квоты, просматривает аудит-лог и честность планировщика по тенантам. |
+| [[sqladmin-operator]] | Настраивает квоты/лимиты и инспектирует записи аудита в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
+| [[admin]] | Видит использование своего тенанта против квоты; без кросс-тенантной видимости. |
+| [[member]] | Нет прямого управления; подчиняется лимитам своего тенанта. |
 
-## Involved entities
+## Задействованные сущности
 
-- [[organizations]] — the scope for LLM budgets, storage quotas and audit entries.
-- [[subdivisions]] — scope for per-location credential scope if revived (S1-B4).
-- [[integration_credentials]] — where `CredentialScope.subdivision` would re-apply.
-- [[system_settings]] — where per-org limits/quotas are configured.
+- [[organizations]] — скоуп для бюджетов LLM, квот хранения и записей аудита.
+- [[subdivisions]] — скоуп для пер-локационного скоупа учётных данных при оживлении (S1-B4).
+- [[integration_credentials]] — где `CredentialScope.subdivision` снова применялся бы.
+- [[system_settings]] — где настраиваются пер-org лимиты/квоты.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (hardens isolation + fairness at scale), [[provider-abstraction]] (budget limits wrap the AI/ERP provider calls), [[config-secrets]] (quotas/limits stored as tenant config), [[fail-closed]] (exceeding a budget/quota fails explicitly, never silently degrades).
-- **Features:** extends the scheduler from [[LCOS-F47-scheduler]] with per-tenant queues; builds on [[LCOS-F1-multitenancy]] and [[LCOS-F4-config-secrets]].
-- **Epics:** part of [[LCOS-E15-saas]]; demand-driven, applied as real multi-tenant load materializes after [[LCOS-F68-billing]].
-- **ADR:** [[ADR-008]] (multi-tenant-ready foundations being scaled).
+- **Requirements:** [[multitenancy]] (упрочняет изоляцию + честность на масштабе), [[provider-abstraction]] (лимиты бюджета оборачивают вызовы AI/ERP-провайдера), [[config-secrets]] (квоты/лимиты хранятся как конфиг тенанта), [[fail-closed]] (превышение бюджета/квоты падает явно, никогда тихо не деградирует).
+- **Features:** расширяет планировщик из [[LCOS-F47-scheduler]] пер-тенантными очередями; строится на [[LCOS-F1-multitenancy]] и [[LCOS-F4-config-secrets]].
+- **Epics:** часть [[LCOS-E15-saas]]; управляемый спросом, применяется по мере материализации реальной multi-tenant нагрузки после [[LCOS-F68-billing]].
+- **ADR:** [[ADR-008]] (масштабируемые multi-tenant-ready основы).
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). Decomposed into a dedicated `PHASE_P2_E` file; individual items (audit log, subdivision-scoped credentials) are conditional on customer demand.
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Раскладываются в выделенный файл `PHASE_P2_E`; отдельные элементы (аудит-лог, учётные данные со скоупом подразделения) условны на спросе клиентов.
 
 ## Sources
 
-- `plan/PHASE_P2_SAAS_OUTLINE.md §2 P2-E` (per-tenant scheduler queues/jitter, per-org LLM budgets, storage quotas, audit log, `CredentialScope.subdivision` revival / S1-B4).
-- `plan/PHASE_P2_SAAS_OUTLINE.md §1` (existing isolation + per-org token foundations).
-- `Local_OS_About.md` Phase 2 (multi-tenant scaling for the market).
+- `plan/PHASE_P2_SAAS_OUTLINE.md §2 P2-E` (пер-тенантные очереди/jitter планировщика, пер-org бюджеты LLM, квоты хранения, аудит-лог, оживление `CredentialScope.subdivision` / S1-B4).
+- `plan/PHASE_P2_SAAS_OUTLINE.md §1` (существующие основы изоляции + пер-org токенов).
+- `Local_OS_About.md` Phase 2 (multi-tenant масштабирование для рынка).

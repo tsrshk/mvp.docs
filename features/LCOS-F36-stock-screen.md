@@ -1,7 +1,7 @@
 ---
 id: LCOS-F36
 type: feature
-title: /stock screen (low list + manual adjust)
+title: Экран /stock (список low + ручная корректировка)
 epic: "[[LCOS-E7-stock]]"
 status: planned
 phase: "Phase 1"
@@ -13,76 +13,76 @@ legacy_refs: [07 Э3, "08 F3.3"]
 sources: ["07_PHASES.md Э3", "08_PHASE1_SPEC.md F3.3", "mvp.fe src/shared/pos/provider.ts", "mvp.fe src/app/App.tsx", "mvp.fe src/app/AppLayout.tsx"]
 updated: 2026-07-09
 ---
-# LCOS-F36 · /stock screen (low list + manual adjust)
+# LCOS-F36 · Экран /stock (список low + ручная корректировка)
 
 **Epic:** [[LCOS-E7-stock]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-The human-facing surface of the stock epic: a `/stock` screen that shows current ingredient levels, makes snapshot freshness obvious, presents a ready-made "Low" shopping-list at the top, and lets the user fix reality inline from a phone at the shelf. It is designed for the pre-purchase walk-through — open `/stock`, tap "Refresh", read the "Low" block against the shelf — and is the guaranteed-working manual path from [[ADR-016]] (variant C).
+Обращённая к человеку поверхность эпика остатков: экран `/stock`, который показывает текущие уровни ингредиентов, делает свежесть снапшота очевидной, представляет готовый список покупок «Low» наверху и позволяет пользователю поправить реальность inline с телефона у полки. Он спроектирован для предзакупочного обхода — открыть `/stock`, тапнуть «Обновить», прочитать блок «Low» напротив полки — и это гарантированно работающий ручной путь из [[ADR-016]] (вариант C).
 
-The screen consumes [[LCOS-F34-stock-levels]] (`GET /stock`, `POST /stock/sync`) through a new `PosProvider.listStock()`/`syncStock()` seam and edits thresholds via [[LCOS-F35-reorder-point]]. Inline quantity corrections write a new snapshot with `source='manual'`; the conflict rule between a manual correction and a later Esupl sync is "latest `as_of` wins" (`max(as_of)`), so a manual fix survives until the next real refresh supersedes it in time.
+Экран потребляет [[LCOS-F34-stock-levels]] (`GET /stock`, `POST /stock/sync`) через новый шов `PosProvider.listStock()`/`syncStock()` и редактирует пороги через [[LCOS-F35-reorder-point]]. Inline-коррекции количества пишут новый снапшот с `source='manual'`; правило конфликта между ручной коррекцией и последующей Esupl-синхронизацией — «последний `as_of` побеждает» (`max(as_of)`), так что ручная поправка выживает, пока следующее реальное обновление не заместит её по времени.
 
-This is a mobile-first screen: the owner acceptance is that a refresh from a phone takes ≤1 minute from tap to result, and that the "Low" block matches the shelf well enough that only isolated discrepancies need an inline fix. A >50% mismatch is the kill-check that sends the epic back to [[ADR-016]].
+Это mobile-first экран: приёмка владельцем — что обновление с телефона занимает ≤1 минуты от тапа до результата, и что блок «Low» совпадает с полкой достаточно хорошо, чтобы только изолированные расхождения требовали inline-поправки. Несовпадение >50% — kill-проверка, которая отправляет эпик обратно к [[ADR-016]].
 
-## Capabilities
+## Возможности
 
-- `/stock` route plus a "Stock" navigation entry (`App.tsx`, `AppLayout.tsx`).
-- Table per ingredient: name, quantity, unit, `reorder_point`, and snapshot freshness (visibly flagged when older than 24 h).
-- "Low" block pinned at the top: everything with `is_low`, sorted by quantity/threshold — a ready shopping-list.
-- "Refresh stock" button → `POST /stock/sync` with a spinner and a result toast ("updated M, unmatched K").
-- Inline quantity correction (writes a `source='manual'` snapshot) and inline threshold set from the same row; conflict rule `max(as_of)` wins.
-- Data access via the `PosProvider.listStock()` / `syncStock()` seam (`backend` + `mock` implementations); mobile layout for shelf-side use.
+- Маршрут `/stock` плюс навигационная запись «Stock» (`App.tsx`, `AppLayout.tsx`).
+- Таблица по ингредиентам: имя, количество, единица, `reorder_point` и свежесть снапшота (видимо помечена, когда старше 24 ч).
+- Блок «Low», закреплённый наверху: всё с `is_low`, отсортировано по количеству/порогу — готовый список покупок.
+- Кнопка «Обновить остатки» → `POST /stock/sync` со спиннером и тостом результата («обновлено M, несматчено K»).
+- Inline-коррекция количества (пишет снапшот `source='manual'`) и inline-установка порога из той же строки; правило конфликта — побеждает `max(as_of)`.
+- Доступ к данным через шов `PosProvider.listStock()` / `syncStock()` (реализации `backend` + `mock`); мобильный layout для использования у полки.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[member]] | View stock, refresh, correct quantities inline within their subdivision. |
-| [[admin]] | Same, plus curating `reorder_point` thresholds from the screen. |
-| [[superadmin]] | Same across all tenants. |
-| [[sqladmin-operator]] | Not involved. |
+| [[member]] | Просмотреть остатки, обновить, корректировать количества inline в пределах своего subdivision. |
+| [[admin]] | То же, плюс курирование порогов `reorder_point` с экрана. |
+| [[superadmin]] | То же по всем тенантам. |
+| [[sqladmin-operator]] | Не участвует. |
 
-Scope (`organization_id` / `subdivision_id`) comes from the active JWT context (see [[auth]], [[multitenancy]]).
+Scope (`organization_id` / `subdivision_id`) берётся из активного JWT-контекста (см. [[auth]], [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[stock_levels]] — read for the table (latest snapshot per ingredient) and written by inline corrections (`source='manual'`) and by the refresh (`source='esupl'`).
-- [[ingredients]] — supplies name/unit and the `reorder_point` shown and edited on each row (via [[LCOS-F35-reorder-point]]).
+- [[stock_levels]] — читается для таблицы (последний снапшот на ингредиент) и записывается inline-коррекциями (`source='manual'`) и обновлением (`source='esupl'`).
+- [[ingredients]] — поставляет имя/единицу и `reorder_point`, показываемый и редактируемый в каждой строке (через [[LCOS-F35-reorder-point]]).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[provider-abstraction]] (all stock data flows through the `PosProvider` seam — `backend`/`mock`), [[multitenancy]] (reads and manual snapshots scoped by tenant).
-- **Features:** consumes [[LCOS-F34-stock-levels]] (`GET /stock`, `POST /stock/sync`, the `listStock` seam) and [[LCOS-F35-reorder-point]] (threshold edit + `is_low` derivation). The "Low" list is the direct input to [[LCOS-E8-purchasing]] ([[LCOS-F38-orders-ui]], [[LCOS-F40-ai-order-proposal]]).
-- **ADR:** [[ADR-016]] (manual adjust = variant C, the always-working path; owner acceptance and >50% kill-check live here).
+- **Требования:** [[provider-abstraction]] (все данные остатков текут через шов `PosProvider` — `backend`/`mock`), [[multitenancy]] (чтения и ручные снапшоты скоупированы по тенанту).
+- **Фичи:** потребляет [[LCOS-F34-stock-levels]] (`GET /stock`, `POST /stock/sync`, шов `listStock`) и [[LCOS-F35-reorder-point]] (редактирование порога + вывод `is_low`). Список «Low» — прямой вход в [[LCOS-E8-purchasing]] ([[LCOS-F38-orders-ui]], [[LCOS-F40-ai-order-proposal]]).
+- **ADR:** [[ADR-016]] (ручная корректировка = вариант C, всегда работающий путь; приёмка владельцем и kill-проверка >50% живут здесь).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. Inline quantity correction posts a snapshot with `source='manual'` (reuses the `stock_levels` write path from [[LCOS-F34-stock-levels]]); no new table.
-- [ ] AC-BE-2. A manual snapshot and a later Esupl snapshot for the same ingredient resolve by `max(as_of)` on read (`GET /stock` returns the latest).
-- [ ] AC-BE-3. Threshold set from the screen goes through `PATCH /ingredients/{id}` ([[LCOS-F35-reorder-point]]); the "Low" block re-derives from the updated `is_low`.
+- [ ] AC-BE-1. Inline-коррекция количества постит снапшот с `source='manual'` (переиспользует путь записи `stock_levels` из [[LCOS-F34-stock-levels]]); новой таблицы нет.
+- [ ] AC-BE-2. Ручной снапшот и последующий Esupl-снапшот для того же ингредиента разрешаются по `max(as_of)` на чтении (`GET /stock` возвращает последний).
+- [ ] AC-BE-3. Установка порога с экрана идёт через `PATCH /ingredients/{id}` ([[LCOS-F35-reorder-point]]); блок «Low» перевыводится из обновлённого `is_low`.
 
 ### Frontend
-- [ ] AC-FE-1. `/stock` route + "Stock" nav entry exist; the screen reads via a new `PosProvider.listStock()` seam method with `backend` and `mock` implementations (`shared/pos/factory.ts`).
-- [ ] AC-FE-2. Table shows name, quantity, unit, `reorder_point`, and snapshot freshness — with an unmistakable marker when the snapshot is older than 24 h.
-- [ ] AC-FE-3. The "Low" block sits at the top, is populated from `is_low`, sorted by quantity/threshold, and correctly fills/empties as thresholds change.
-- [ ] AC-FE-4. "Refresh stock" calls `POST /stock/sync` (via `syncStock()`), shows a spinner, and reports the summary ("updated M, unmatched K").
-- [ ] AC-FE-5. Inline quantity correction is visible immediately and survives the next sync (`max(as_of)`).
-- [ ] AC-FE-6. The screen is usable on a phone (shelf-side layout); a refresh from tap to result completes in ≤1 minute.
+- [ ] AC-FE-1. Маршрут `/stock` + навигационная запись «Stock» существуют; экран читает через новый метод шва `PosProvider.listStock()` с реализациями `backend` и `mock` (`shared/pos/factory.ts`).
+- [ ] AC-FE-2. Таблица показывает имя, количество, единицу, `reorder_point` и свежесть снапшота — с безошибочным маркером, когда снапшот старше 24 ч.
+- [ ] AC-FE-3. Блок «Low» находится наверху, наполнен из `is_low`, отсортирован по количеству/порогу и корректно наполняется/опустошается при изменении порогов.
+- [ ] AC-FE-4. «Обновить остатки» вызывает `POST /stock/sync` (через `syncStock()`), показывает спиннер и репортит сводку («обновлено M, несматчено K»).
+- [ ] AC-FE-5. Inline-коррекция количества видна немедленно и переживает следующую синхронизацию (`max(as_of)`).
+- [ ] AC-FE-6. Экран пригоден для использования на телефоне (layout у полки); обновление от тапа до результата завершается за ≤1 минуту.
 
-### Other
-- [ ] AC-OTHER-1 (owner acceptance, whole Э3). Before a purchase: open `/stock`, refresh, walk the "Low" block at the shelf — the list matches reality, isolated discrepancies cured inline. **Kill-check:** >50% of positions mismatched and not curable inline → stop, return to [[ADR-016]].
+### Прочее
+- [ ] AC-OTHER-1 (приёмка владельцем, весь Э3). Перед закупкой: открыть `/stock`, обновить, обойти блок «Low» у полки — список совпадает с реальностью, изолированные расхождения вылечены inline. **Kill-проверка:** >50% позиций несовпадают и не лечатся inline → стоп, вернуться к [[ADR-016]].
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **Owner acceptance is deferred** until the Esupl token is saved in settings (variant A live). Until then the screen runs on manual entry (C), which is fully functional.
-- Freshness threshold (24 h) is a first cut; may be tuned after real shelf use.
-- The `mock` provider must return demo snapshots so the screen is developable without a live token.
+- **Приёмка владельцем отложена** до сохранения Esupl-токена в настройках (вариант A вживую). До тех пор экран работает на ручном вводе (C), который полностью функционален.
+- Порог свежести (24 ч) — первый черновой вариант; может быть настроен после реального использования у полки.
+- `mock`-провайдер должен возвращать demo-снапшоты, чтобы экран был разрабатываемым без живого токена.
 
-## Sources
+## Источники
 
-- `07_PHASES.md Э3` (`/stock` page: freshness, "Low" block, manual correction `source=manual`).
-- `08_PHASE1_SPEC.md F3.3` (route/nav, table, "Low" block, refresh button, inline adjust, `listStock` seam, mobile — REQ-1..6, AC-1..3, owner acceptance + kill-check).
-- `mvp.fe/src/shared/pos/provider.ts` (seam alongside `listSuppliers`/`sendInvoice`), `shared/pos/providers/{backend,mock}.ts`, `shared/pos/factory.ts`.
-- `mvp.fe/src/app/App.tsx`, `src/app/AppLayout.tsx` (route + navigation).
+- `07_PHASES.md Э3` (страница `/stock`: свежесть, блок «Low», ручная коррекция `source=manual`).
+- `08_PHASE1_SPEC.md F3.3` (маршрут/навигация, таблица, блок «Low», кнопка обновления, inline-корректировка, шов `listStock`, mobile — REQ-1..6, AC-1..3, приёмка владельцем + kill-проверка).
+- `mvp.fe/src/shared/pos/provider.ts` (шов рядом с `listSuppliers`/`sendInvoice`), `shared/pos/providers/{backend,mock}.ts`, `shared/pos/factory.ts`.
+- `mvp.fe/src/app/App.tsx`, `src/app/AppLayout.tsx` (маршрут + навигация).

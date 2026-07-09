@@ -1,7 +1,7 @@
 ---
 id: LCOS-F7
 type: feature
-title: Frontend platform (FSD / RTK / PWA)
+title: Frontend-платформа (FSD / RTK / PWA)
 epic: "[[LCOS-E1-platform]]"
 status: built
 phase: "Phase 1"
@@ -13,79 +13,79 @@ legacy_refs: [plan/00 G8, LCOS_Conformance R9, APP_OVERVIEW §16 §17]
 sources: ["APP_OVERVIEW.md (Frontend internals, integration modules, cross-cutting)", "01_ARCHITECTURE.md (Frontend architecture internals, shared modules)", "LCOS_Conformance_Alignment_GlobalRequirements.md R9 G8", "mvp.fe src/main.tsx", "mvp.fe src/app/store/index.ts", "mvp.fe src/app/observers/configSync.ts", "mvp.fe src/shared/api/baseApi.ts", "mvp.fe src/shared/api/backendRequest.ts", "mvp.fe vite.config.ts"]
 updated: 2026-07-09
 ---
-# LCOS-F7 · Frontend platform (FSD / RTK / PWA)
-**Epic:** [[LCOS-E1-platform]] · **Status:** built · **Phase:** Phase 1
+# LCOS-F7 · Frontend-платформа (FSD / RTK / PWA)
+**Эпик:** [[LCOS-E1-platform]] · **Статус:** built · **Фаза:** Phase 1
 
-## Description
+## Описание
 
-The frontend foundation the product screens are built on: a **mobile-first React PWA** organized by strict **Feature-Sliced Design** (pages → widgets → features → entities → shared), state in **Redux Toolkit + RTK Query**, an **RxJS observer layer** that reconciles settings/scope/provider config, HttpOnly-cookie transport, and Vite + `vite-plugin-pwa`. It carries **no domain features by itself** — it is the wiring that makes every product feature safe, offline-demoable, and tenant-scoped.
+Фундамент фронтенда, на котором строятся продуктовые экраны: **mobile-first React PWA**, организованный по строгому **Feature-Sliced Design** (pages → widgets → features → entities → shared), состояние в **Redux Toolkit + RTK Query**, слой **наблюдателей RxJS**, который согласует конфигурацию настроек/scope/провайдера, транспорт на HttpOnly-cookie и Vite + `vite-plugin-pwa`. Он сам по себе **не несёт доменных фич** — это обвязка, которая делает каждую продуктовую фичу безопасной, демонстрируемой офлайн и ограниченной по арендатору.
 
-Three cross-cutting invariants define it. **No secrets in the browser:** auth is HttpOnly cookies only (`backendRequest` sends `credentials:'include'`, refreshes once on 401), and `VITE_*` env vars are non-secret endpoint/provider switches — there is no API key or ERP token in JS ([[ADR-012]]). **One reactive config spine:** `startConfigSync(store)` runs before first render and mirrors the settings overlay, the active tenant scope (from the `/auth/me` cache), and provider config into RxJS BehaviorSubjects (`ocrConfig$`, `posConfig$`, `activeScope$`) so at-call-time non-React code (the `queryFn`s, storage helpers) can resolve them; a POS-config change triggers `resetApiState()` to refetch from the newly selected provider. **The provider pattern collapsed to `backend|mock`:** `shared/ocr`, `shared/match`, `shared/pos` each expose an interface + `backend`/`mock` impls + config + factory; the whole "browser-direct LLM/ERP" era is dead (vestigial `shared/llm`, `ocr/prompt+parse`, `match/prompt+parse`), and one `mockData` toggle flips everything to offline demo.
+Его определяют три сквозных инварианта. **Нет секретов в браузере:** auth — только HttpOnly-cookie (`backendRequest` отправляет `credentials:'include'`, делает refresh один раз при 401), а env-переменные `VITE_*` — несекретные переключатели endpoint/провайдера — в JS нет ни API-ключа, ни ERP-токена ([[ADR-012]]). **Один реактивный хребет конфига:** `startConfigSync(store)` выполняется перед первым рендером и зеркалит наложение настроек, активный scope арендатора (из кэша `/auth/me`) и конфиг провайдера в RxJS BehaviorSubject-ы (`ocrConfig$`, `posConfig$`, `activeScope$`), чтобы во время вызова не-React-код (`queryFn`-ы, хелперы хранилища) мог их разрешить; изменение POS-конфига триггерит `resetApiState()` для перезапроса от вновь выбранного провайдера. **Паттерн провайдера сжат до `backend|mock`:** `shared/ocr`, `shared/match`, `shared/pos` каждый предоставляет интерфейс + реализации `backend`/`mock` + конфиг + фабрику; вся эпоха «browser-direct LLM/ERP» мертва (рудиментарные `shared/llm`, `ocr/prompt+parse`, `match/prompt+parse`), и один тумблер `mockData` переключает всё в офлайн-демо.
 
-Tenancy is projected here: per-browser stores (learned mappings, sent-invoice ledger) are keyed by `orgScopeToken()`, and login/logout/switch invalidate the tenant caches (see [[LCOS-F1-multitenancy]]).
+Арендность проецируется здесь: хранилища на уровне браузера (выученные маппинги, реестр отправленных инвойсов) ключуются по `orgScopeToken()`, а login/logout/switch инвалидируют кэши арендатора (см. [[LCOS-F1-multitenancy]]).
 
-## Capabilities
+## Возможности
 
-- Strict FSD layering with `@/* → src/*` alias; import rules enforced by **convention + review** (no ESLint/dependency-cruiser in-repo).
-- Bootstrap (`main.tsx`): `startConfigSync(store)` → `<StrictMode><Provider><App/>`; `App.tsx` mounts `RouterProvider` + global `<Toaster/>`; `AuthGuard` gates non-public routes via `useMeQuery()`.
-- Store: one `baseApi` (`fakeBaseQuery`, `tagTypes`) + `invoiceSession` + `settings`; a `fileSync` listener keeps non-serializable `File` binaries out of Redux (out-of-store `fileHolder`, index-aligned to session metadata).
-- RTK Query with `injectEndpoints` + `queryFn` wrappers (`backendQueryFn`/`aiQueryFn`/`posQueryFn`); each endpoint calls `backendRequest` (real HTTP) or a factory-resolved provider.
-- Transport `backendRequest`: `fetch` with `credentials:'include'`, refresh-once-on-401-then-replay, `BackendError(message,status,code)`, base URL from `VITE_BACKEND_API_URL`. The only auth "interceptor".
-- RxJS config-sync: settings overlay → localStorage; `ocrConfig$`/`posConfig$`/`activeScope$` BehaviorSubjects; POS-config change → `resetApiState()`; cross-tab via `storage` events under the `localos.` prefix.
-- Two-axis provider model, both `backend|mock`: OCR/AI axis (`ocrConfig$`, also governs matching) and POS/ERP axis (`posConfig$`); driven by a single `mockData` demo toggle.
-- PWA: `VitePWA(autoUpdate)`, precached app shell, `navigateFallback:'/index.html'`, `manualChunks.vendor`, route-split pages via `React.lazy`; SW disabled in dev.
-- No secrets in the browser: HttpOnly cookies for auth; `VITE_*` non-secret only; per-browser stores tenant-scoped by `orgScopeToken()`.
+- Строгое слоение FSD с алиасом `@/* → src/*`; правила импорта обеспечиваются **соглашением + ревью** (нет ESLint/dependency-cruiser в репозитории).
+- Bootstrap (`main.tsx`): `startConfigSync(store)` → `<StrictMode><Provider><App/>`; `App.tsx` монтирует `RouterProvider` + глобальный `<Toaster/>`; `AuthGuard` защищает непубличные маршруты через `useMeQuery()`.
+- Store: один `baseApi` (`fakeBaseQuery`, `tagTypes`) + `invoiceSession` + `settings`; слушатель `fileSync` держит несериализуемые бинарники `File` вне Redux (вне-store `fileHolder`, выровнен по индексам с метаданными сессии).
+- RTK Query с `injectEndpoints` + обёртками `queryFn` (`backendQueryFn`/`aiQueryFn`/`posQueryFn`); каждый endpoint вызывает `backendRequest` (реальный HTTP) или провайдера, разрешённого фабрикой.
+- Транспорт `backendRequest`: `fetch` с `credentials:'include'`, refresh один раз при 401 затем повтор, `BackendError(message,status,code)`, базовый URL из `VITE_BACKEND_API_URL`. Единственный auth-«перехватчик».
+- RxJS config-sync: наложение настроек → localStorage; BehaviorSubject-ы `ocrConfig$`/`posConfig$`/`activeScope$`; изменение POS-конфига → `resetApiState()`; межвкладочно через события `storage` под префиксом `localos.`.
+- Двухосевая модель провайдера, обе `backend|mock`: ось OCR/AI (`ocrConfig$`, также управляет матчингом) и ось POS/ERP (`posConfig$`); управляется единым демо-тумблером `mockData`.
+- PWA: `VitePWA(autoUpdate)`, прекэшированная оболочка приложения, `navigateFallback:'/index.html'`, `manualChunks.vendor`, страницы, разбитые по маршрутам через `React.lazy`; SW отключён в dev.
+- Нет секретов в браузере: HttpOnly-cookie для auth; `VITE_*` только несекретные; хранилища на уровне браузера ограничены по арендатору через `orgScopeToken()`.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | Uses the PWA on a phone; sees only their subdivisions (scope from `/auth/me`); mobile-first flows. |
-| [[admin]] | Same shell + admin-scoped actions inside their subdivisions; `ContextSwitcher` across memberships. |
-| [[superadmin]] | Same shell with the full org/subdivision tree in the switcher (from `/auth/me`). |
-| [[sqladmin-operator]] | Not a consumer of this PWA — operates the separate SQLAdmin panel ([[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Использует PWA на телефоне; видит только свои subdivision (scope из `/auth/me`); mobile-first потоки. |
+| [[admin]] | Та же оболочка + действия со scope admin внутри своих subdivision; `ContextSwitcher` по membership. |
+| [[superadmin]] | Та же оболочка с полным деревом org/subdivision в переключателе (из `/auth/me`). |
+| [[sqladmin-operator]] | Не потребитель этого PWA — работает с отдельной панелью SQLAdmin ([[LCOS-F3-sqladmin-operator]]). |
 
-## Involved entities
+## Задействованные сущности
 
-- [[users]] — projected via `/auth/me` (identity, superadmin flag) driving the sidebar and guard.
-- [[organizations]] / [[subdivisions]] — the active scope (`activeScope$`, `orgScopeToken()`) projected from the `/auth/me` cache; per-browser stores keyed by it.
+- [[users]] — проецируется через `/auth/me` (идентичность, флаг superadmin), питая сайдбар и guard.
+- [[organizations]] / [[subdivisions]] — активный scope (`activeScope$`, `orgScopeToken()`), спроецированный из кэша `/auth/me`; хранилища на уровне браузера ключуются по нему.
 
-(The FE holds no authoritative data — the backend is authoritative for all tenant/entity state; these are projections.)
+(FE не держит авторитетных данных — бэкенд авторитетен для всего состояния арендатора/сущностей; это проекции.)
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[auth]] (HttpOnly-cookie transport, refresh-once), [[multitenancy]] (scope projection, `orgScopeToken()` keying, cache invalidation), [[provider-abstraction]] (FE `backend|mock` provider pattern mirroring the backend seams), [[global-requirements]] (R9 / plan G8).
-- **Features:** consumes [[LCOS-F2-app-auth]] (`/auth/me`, refresh) and [[LCOS-F1-multitenancy]] (scope); hosts the product surfaces of [[LCOS-F8-ocr-recognition]], [[LCOS-F9-line-matching]], [[LCOS-F10-invoice-status-machine]]; the FE provider pattern mirrors [[LCOS-F5-provider-seams]].
-- **ADR:** [[ADR-012]] (no browser secrets; provider live-paths `backend`/`mock` only).
+- **Требования:** [[auth]] (транспорт на HttpOnly-cookie, refresh один раз), [[multitenancy]] (проекция scope, ключевание по `orgScopeToken()`, инвалидация кэша), [[provider-abstraction]] (паттерн провайдера FE `backend|mock`, зеркалящий швы бэкенда), [[global-requirements]] (R9 / plan G8).
+- **Фичи:** потребляет [[LCOS-F2-app-auth]] (`/auth/me`, refresh) и [[LCOS-F1-multitenancy]] (scope); хостит продуктовые поверхности [[LCOS-F8-ocr-recognition]], [[LCOS-F9-line-matching]], [[LCOS-F10-invoice-status-machine]]; паттерн провайдера FE зеркалит [[LCOS-F5-provider-seams]].
+- **ADR:** [[ADR-012]] (нет секретов в браузере; живые пути провайдеров только `backend`/`mock`).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Frontend
-- [ ] AC-FE-1. FSD layering holds (pages → widgets → features → entities → shared); the only sanctioned upward reference is a type-only `import type` of store types (erased at compile).
-- [ ] AC-FE-2. `startConfigSync(store)` runs before first render and populates `ocrConfig$`, `posConfig$`, `activeScope$`; a settings change is resolvable at call time in non-React code.
-- [ ] AC-FE-3. A POS-config change dispatches `baseApi.util.resetApiState()` so data refetches from the newly selected provider.
-- [ ] AC-FE-4. All endpoints use `injectEndpoints` + a `queryFn` wrapper; the base query is a stub (`fakeBaseQuery`).
-- [ ] AC-FE-5. `backendRequest` sends `credentials:'include'`, refreshes once on 401 (except `/auth/refresh`,`/auth/login`) then replays, and throws `BackendError` on non-ok.
-- [ ] AC-FE-6. No secret exists in the browser: no `VITE_*` API key/ERP token; auth is HttpOnly cookies only.
-- [ ] AC-FE-7. Each integration module (`ocr`/`match`/`pos`) exposes `backend` + `mock` impls; the `mockData` toggle flips the whole app to offline demo.
-- [ ] AC-FE-8. Per-browser stores are keyed by `orgScopeToken()`; login/logout/switch invalidate `['Me','Invoice','Supplier','Ingredient']`.
-- [ ] AC-FE-9. PWA builds green (`tsc -b && vite build`); app shell precached, pages route-split, SW disabled in dev.
+- [ ] AC-FE-1. Слоение FSD соблюдается (pages → widgets → features → entities → shared); единственная санкционированная ссылка вверх — это `import type` типов store (стирается при компиляции).
+- [ ] AC-FE-2. `startConfigSync(store)` выполняется перед первым рендером и заполняет `ocrConfig$`, `posConfig$`, `activeScope$`; изменение настройки разрешимо во время вызова в не-React-коде.
+- [ ] AC-FE-3. Изменение POS-конфига диспатчит `baseApi.util.resetApiState()`, чтобы данные перезапрашивались от вновь выбранного провайдера.
+- [ ] AC-FE-4. Все endpoint-ы используют `injectEndpoints` + обёртку `queryFn`; базовый query — заглушка (`fakeBaseQuery`).
+- [ ] AC-FE-5. `backendRequest` отправляет `credentials:'include'`, делает refresh один раз при 401 (кроме `/auth/refresh`,`/auth/login`) затем повтор и бросает `BackendError` при non-ok.
+- [ ] AC-FE-6. В браузере не существует секрета: нет `VITE_*` API-ключа/ERP-токена; auth — только HttpOnly-cookie.
+- [ ] AC-FE-7. Каждый модуль интеграции (`ocr`/`match`/`pos`) предоставляет реализации `backend` + `mock`; тумблер `mockData` переключает всё приложение в офлайн-демо.
+- [ ] AC-FE-8. Хранилища на уровне браузера ключуются по `orgScopeToken()`; login/logout/switch инвалидируют `['Me','Invoice','Supplier','Ingredient']`.
+- [ ] AC-FE-9. PWA собирается зелёно (`tsc -b && vite build`); оболочка приложения прекэширована, страницы разбиты по маршрутам, SW отключён в dev.
 
-### Other (cleanup / infra)
-- [ ] AC-OTHER-1. Dead browser-direct code carries no live consumer — `shared/llm` transport, `ocr/prompt.ts`+`parse.ts`, `match/prompt.ts`+`parse.ts`, and the legacy `VITE_POS_PROVIDER=esupl` path are vestigial (live `rules.ts` helpers preserved). Removal tracked in [[LCOS-F25-deadcode-cleanup]].
+### Прочее (очистка / инфра)
+- [ ] AC-OTHER-1. Мёртвый browser-direct-код не несёт живых потребителей — транспорт `shared/llm`, `ocr/prompt.ts`+`parse.ts`, `match/prompt.ts`+`parse.ts` и legacy-путь `VITE_POS_PROVIDER=esupl` рудиментарны (живые хелперы `rules.ts` сохранены). Удаление отслеживается в [[LCOS-F25-deadcode-cleanup]].
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **A2 (open):** dead browser-direct modules still ship (with stale "mock/Gemini/Claude" comments) — Conformance A2 mandates deletion, keeping the live `rules.ts` helpers; tracked as [[LCOS-F25-deadcode-cleanup]].
-- FSD import rules are review-only (no linter); a steiger/dependency-cruiser step is deferred (Conformance DEFER).
-- **D-g:** `BackendOcrProvider` sends only `pages[0]` — multi-page invoices silently lose pages 2–3; interim fix [[LCOS-F26-multipage-fix]], full support [[LCOS-F29-multipage-recognize]].
-- No FE test/lint step in CI observed; "build green" = `tsc + vite build` (Conformance V/DEFER).
+- **A2 (открыто):** мёртвые browser-direct-модули всё ещё поставляются (с устаревшими комментариями «mock/Gemini/Claude») — Conformance A2 предписывает удаление с сохранением живых хелперов `rules.ts`; отслеживается как [[LCOS-F25-deadcode-cleanup]].
+- Правила импорта FSD — только ревью (нет линтера); шаг steiger/dependency-cruiser отложен (Conformance DEFER).
+- **D-g:** `BackendOcrProvider` отправляет только `pages[0]` — многостраничные инвойсы молча теряют страницы 2–3; промежуточный фикс [[LCOS-F26-multipage-fix]], полная поддержка [[LCOS-F29-multipage-recognize]].
+- В CI не наблюдалось шага теста/линта FE; «build green» = `tsc + vite build` (Conformance V/DEFER).
 
-## Sources
+## Источники
 
-- `APP_OVERVIEW.md` — Frontend architecture internals, integration modules (`shared/ocr|match|pos|llm|api`), cross-cutting (multi-tenancy projection).
-- `01_ARCHITECTURE.md` — "Frontend architecture internals", "Frontend integration modules", "Cross-cutting concerns".
+- `APP_OVERVIEW.md` — Frontend architecture internals, integration modules (`shared/ocr|match|pos|llm|api`), cross-cutting (проекция мультиарендности).
+- `01_ARCHITECTURE.md` — «Frontend architecture internals», «Frontend integration modules», «Cross-cutting concerns».
 - `LCOS_Conformance_Alignment_GlobalRequirements.md` R9 + plan G8 + Part 2 A2/D-e/D-g.
-- `mvp.fe/src/main.tsx` (`startConfigSync` before render), `src/app/store/index.ts` (store + `fileSync`), `src/app/observers/configSync.ts` (RxJS spine).
-- `mvp.fe/src/shared/api/baseApi.ts` (`fakeBaseQuery`, tagTypes), `src/shared/api/backendRequest.ts` (transport, refresh-once), `src/shared/api/queryFn.ts` (wrappers).
+- `mvp.fe/src/main.tsx` (`startConfigSync` перед рендером), `src/app/store/index.ts` (store + `fileSync`), `src/app/observers/configSync.ts` (хребет RxJS).
+- `mvp.fe/src/shared/api/baseApi.ts` (`fakeBaseQuery`, tagTypes), `src/shared/api/backendRequest.ts` (транспорт, refresh один раз), `src/shared/api/queryFn.ts` (обёртки).
 - `mvp.fe/vite.config.ts` (VitePWA, manualChunks).

@@ -1,7 +1,7 @@
 ---
 id: LCOS-F46
 type: feature
-title: Sales storage + daily aggregates
+title: Хранение продаж + суточные агрегаты
 epic: "[[LCOS-E9-sales-analytics]]"
 status: future
 phase: "Phase 2"
@@ -13,49 +13,49 @@ legacy_refs: [plan F5-B2, 07 Э6]
 sources: ["plan/PHASE_F5_SALES_ANALYTICS.md §1 F5-B2", "07_PHASES.md Э6"]
 updated: 2026-07-09
 ---
-# LCOS-F46 · Sales storage + daily aggregates
+# LCOS-F46 · Хранение продаж + суточные агрегаты
 **Epic:** [[LCOS-E9-sales-analytics]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-Persistence layer for the sales read by [[LCOS-F45-sales-read]]. Introduces two subdivision-scoped tables: `sales_records` (raw sale lines mirrored from Esupl) and `daily_aggregates` (per-day rollups materialized by the sync). The `external_id` uniqueness constraint is what makes re-syncing the same window idempotent — no duplicate rows — which is the core correctness property of the whole epic.
+Слой персистентности для продаж, читаемых в [[LCOS-F45-sales-read]]. Вводит две таблицы со скоупом подразделения: `sales_records` (сырые строки продаж, зеркалируемые из Esupl) и `daily_aggregates` (посуточные свёртки, материализуемые синхронизацией). Ограничение уникальности `external_id` — именно то, что делает повторную синхронизацию того же окна идемпотентной — без дублирующих строк — что является ключевым свойством корректности всего эпика.
 
-`sales_records` maps onto the local catalog where possible (nullable `ingredient_id` FK) so downstream features can reason in local-ingredient terms; where no mapping exists, the Esupl `name`/`category` are kept verbatim. `daily_aggregates` is recomputed for the affected days on every sync so revenue and top-positions always reflect the latest upsert.
+`sales_records` сопоставляется с локальным каталогом там, где это возможно (nullable FK `ingredient_id`), чтобы производные фичи могли рассуждать в терминах локальных ингредиентов; где сопоставления нет, `name`/`category` из Esupl сохраняются дословно. `daily_aggregates` пересчитывается для затронутых дней при каждой синхронизации, так что выручка и топ-позиции всегда отражают последний upsert.
 
-## Capabilities
+## Возможности
 
-- `sales_records` (`SubdivisionScopedMixin`, int pk): `external_id` (unique within org), `sold_at` (tz-aware), `sku_external_id?`, `ingredient_id?` (FK, nullable), `name`, `category?`, `qty` `Numeric(14,3)`, `revenue` `Numeric(14,2)`, `cost?` `Numeric(14,2)`, `currency`. Unique `(organization_id, external_id)`.
-- `daily_aggregates` (`SubdivisionScopedMixin`): `date`, `revenue`, `receipts_count?`, `top_positions JSONB?`; unique `(subdivision_id, date)`; recomputed for affected days by the sync.
-- Idempotent upsert keyed on `external_id`; re-running the same window creates no duplicates.
-- Deterministic aggregate math (Decimal) — unit-testable, no LLM involved.
+- `sales_records` (`SubdivisionScopedMixin`, int pk): `external_id` (уникален внутри org), `sold_at` (tz-aware), `sku_external_id?`, `ingredient_id?` (FK, nullable), `name`, `category?`, `qty` `Numeric(14,3)`, `revenue` `Numeric(14,2)`, `cost?` `Numeric(14,2)`, `currency`. Уникально `(organization_id, external_id)`.
+- `daily_aggregates` (`SubdivisionScopedMixin`): `date`, `revenue`, `receipts_count?`, `top_positions JSONB?`; уникально `(subdivision_id, date)`; пересчитывается для затронутых дней синхронизацией.
+- Идемпотентный upsert по ключу `external_id`; повторный прогон того же окна не создаёт дубликатов.
+- Детерминированная математика агрегатов (Decimal) — покрываемая юнит-тестами, без участия LLM.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[admin]] | Owns the data for their subdivision (populated by sync); no manual row editing. |
-| [[superadmin]] | Cross-tenant visibility of stored sales/aggregates. |
-| [[member]] | Reads only through downstream analytics (digest, reorder suggestion). |
-| [[sqladmin-operator]] | Inspects tables in the SQLAdmin plane for operational visibility. |
+| [[admin]] | Владеет данными своего подразделения (наполняются синхронизацией); ручное редактирование строк отсутствует. |
+| [[superadmin]] | Кросс-тенантная видимость сохранённых продаж/агрегатов. |
+| [[member]] | Читает только через производную аналитику (дайджест, предложение точки дозаказа). |
+| [[sqladmin-operator]] | Инспектирует таблицы в плоскости SQLAdmin для операционной видимости. |
 
-## Involved entities
+## Задействованные сущности
 
-- [[organizations]] — org scope for the `external_id` idempotency key (`unique (organization_id, external_id)`).
-- [[subdivisions]] — subdivision scope (`SubdivisionScopedMixin`) and the aggregate key `(subdivision_id, date)`.
-- [[ingredients]] — nullable `ingredient_id` FK on `sales_records` mapping a sale line to the local catalog where possible.
-- New tables `sales_records` and `daily_aggregates` are defined here; they have no standalone entity docs yet (Phase 2 stubs).
+- [[organizations]] — org-скоуп для ключа идемпотентности `external_id` (`unique (organization_id, external_id)`).
+- [[subdivisions]] — скоуп подразделения (`SubdivisionScopedMixin`) и ключ агрегата `(subdivision_id, date)`.
+- [[ingredients]] — nullable FK `ingredient_id` в `sales_records`, сопоставляющий строку продажи с локальным каталогом там, где возможно.
+- Новые таблицы `sales_records` и `daily_aggregates` определяются здесь; отдельных документов-сущностей у них пока нет (заготовки Phase 2).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (both tables are tenant-scoped; isolation must be test-covered), [[erp-esupl-integration]] (rows originate from read-only Esupl data).
-- **Features:** populated by [[LCOS-F45-sales-read]], written by the [[LCOS-F47-scheduler]] sync job, consumed by [[LCOS-F48-weekly-digest]] and [[LCOS-F49-reorder-suggestion]].
+- **Requirements:** [[multitenancy]] (обе таблицы тенант-скоупные; изоляция должна быть покрыта тестами), [[erp-esupl-integration]] (строки происходят из данных Esupl, читаемых только на чтение).
+- **Features:** наполняется из [[LCOS-F45-sales-read]], записывается заданием синхронизации [[LCOS-F47-scheduler]], потребляется [[LCOS-F48-weekly-digest]] и [[LCOS-F49-reorder-suggestion]].
 - **Epics:** [[LCOS-E9-sales-analytics]].
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). Idempotency (unique `external_id`), correct Decimal aggregate recompute, and tenant-isolation tests are drafted on activation.
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Идемпотентность (уникальный `external_id`), корректный Decimal-пересчёт агрегатов и тесты тенант-изоляции прорабатываются при активации.
 
 ## Sources
 
-- `plan/PHASE_F5_SALES_ANALYTICS.md §1 F5-B2` (sales storage schema, aggregates, idempotency).
-- `07_PHASES.md Э6` (`sales_history`, idempotent re-run, sums reconcile with Esupl).
+- `plan/PHASE_F5_SALES_ANALYTICS.md §1 F5-B2` (схема хранения продаж, агрегаты, идемпотентность).
+- `07_PHASES.md Э6` (`sales_history`, идемпотентный перезапуск, суммы сходятся с Esupl).

@@ -1,10 +1,10 @@
 ---
 id: role-supplier-future
 type: role
-title: supplier (future role — schema seam only, ADR-017)
+title: supplier (будущая роль — только шов в схеме, ADR-017)
 status: future
-plane: app-plane (planned) — behavior NOT built
-identity: Role.supplier (enum seam value) + suppliers.portal_user_id → users.id (nullable, seam)
+plane: app-plane (planned) — поведение НЕ построено
+identity: Role.supplier (шов-значение enum) + suppliers.portal_user_id → users.id (nullable, шов)
 sources:
   - 04_DECISIONS.md ADR-017 (Supplier self-service: door left open)
   - 08_PHASE1_SPEC.md F2.3, 07_PHASES.md Э2
@@ -13,38 +13,38 @@ updated: 2026-07-09
 ---
 # supplier-future
 
-**Plane:** app-plane (in the future) · **Status:** 🔭 future — **schema seam only, no behavior** · **Basis:** [[ADR-017]].
+**Plane:** app-plane (в будущем) · **Status:** 🔭 future — **только шов в схеме, без поведения** · **Основание:** [[ADR-017]].
 
-## Who this is (in the future)
-An external supplier who fills in their own settings — delivery schedule, minimum order amount, price list. In Phase 1 such a subject **does not exist at runtime**: the portal is not being built, so as not to scatter the solo developer's focus ("one routine at a time"). Only a **door** is laid in — cheap now, an expensive schema migration later.
+## Кто это (в будущем)
+Внешний поставщик, который сам заполняет свои настройки — график поставок, минимальную сумму заказа, прайс-лист. В Phase 1 такой субъект **не существует в runtime**: портал не строится, чтобы не распылять фокус соло-разработчика («одна рутина за раз»). Заложена только **дверь** — дёшево сейчас, дорогая миграция схемы потом.
 
-## What exactly is laid in (seam), and what is NOT
-**Laid in (schema-only):**
-- The `supplier` value in enum `Role` (migration `ALTER TYPE role ADD VALUE 'supplier'` — a seam).
-- Nullable FK `suppliers.portal_user_id → users.id` on the [[suppliers]] card.
-- A dedicated supplier settings table (`supplier_settings` per the ADR) — the very one the supplier themselves later edits; the terms live separately from `suppliers`, which remains a mirror of Esupl.
+## Что именно заложено (шов), а что НЕТ
+**Заложено (только схема):**
+- Значение `supplier` в enum `Role` (миграция `ALTER TYPE role ADD VALUE 'supplier'` — шов).
+- Nullable FK `suppliers.portal_user_id → users.id` в карточке [[suppliers]].
+- Отдельная таблица настроек поставщика (`supplier_settings` по ADR) — та самая, которую сам поставщик позже редактирует; условия живут отдельно от `suppliers`, остающейся зеркалом Esupl.
 
-**NOT built (deferred):**
-- No routes, no UI, no branches in auth under `supplier`.
-- A global supplier user, invite tokens, an access scope of "only your own settings".
+**НЕ построено (отложено):**
+- Нет маршрутов, нет UI, нет веток в auth под `supplier`.
+- Глобальный пользователь-поставщик, invite-токены, scope доступа «только свои настройки».
 
-> Correctness (doc↔code): in the current `Role` enum there is effectively **a single value `admin`** (see [[admin]]); the `supplier` value is a planned seam from ADR-017, not an active role. The front-matter `identity` describes the target schema, not what already gates access. If the enum value has not yet been added in the code — this remains a backlog migration, behavior does not change.
+> Корректность (doc↔code): в текущем enum `Role` фактически **единственное значение `admin`** (см. [[admin]]); значение `supplier` — плановый шов из ADR-017, а не активная роль. Front-matter `identity` описывает целевую схему, а не то, что уже гейтит доступ. Если значение enum ещё не добавлено в коде — это остаётся backlog-миграцией, поведение не меняется.
 
-## Authentication plane (target)
-When the portal is built — app-plane: a separate class of application user (a global supplier user), login via the application auth, scope "only your own settings". This is NOT [[sqladmin-operator]] and not a full tenant [[admin]]/[[member]]. For now — none of this is active.
+## Плоскость аутентификации (целевая)
+Когда портал будет построен — app-plane: отдельный класс пользователя приложения (глобальный пользователь-поставщик), вход через auth приложения, scope «только свои настройки». Это НЕ [[sqladmin-operator]] и не полноценный тенант [[admin]]/[[member]]. Пока — ничего из этого не активно.
 
-## Capabilities
-None. In Phase 1 the role grants nothing and is assigned to no one. This section exists to record the seam and its boundaries, not current rights.
+## Возможности
+Нет. В Phase 1 роль ничего не предоставляет и никому не назначается. Этот раздел существует, чтобы зафиксировать шов и его границы, а не текущие права.
 
-## Features granting/using the role
-- [[LCOS-F19-supplier-self-service]] — the seam itself (enum value + `portal_user_id` + ADR record), epic [[LCOS-E4-suppliers]].
-- The target behavior belongs to Phase 2 — self-service onboarding ([[LCOS-E15-saas]] / F67), where the supplier portal may be built out.
+## Features, предоставляющие/использующие роль
+- [[LCOS-F19-supplier-self-service]] — сам шов (значение enum + `portal_user_id` + запись ADR), эпик [[LCOS-E4-suppliers]].
+- Целевое поведение относится к Phase 2 — self-service onboarding ([[LCOS-E15-saas]] / F67), где портал поставщика может быть достроен.
 
-## Relations / requirements
+## Связи / требования
 [[ADR-017]] · [[suppliers]] · [[supplier-criteria-registry]] · [[users]] · [[admin]] · [[member]]
 
-## Sources
-- `04_DECISIONS.md` §ADR-017 (lines 135–140) — "door left open, portal not built"; deferred: a global supplier user, invite tokens, the scope "only your own settings".
-- `08_PHASE1_SPEC.md` F2.3 (supplier self-service seam), `07_PHASES.md` Э2 (lines 53–57, 138).
-- `09_PHASE1_TASKS.md` F2.3 (T-2.3.1 enum/FK migration, T-2.3.2 ADR).
-- `APP_OVERVIEW.md` §Phase 1 Non-goals (supplier portal — schema seam only, ADR-017).
+## Источники
+- `04_DECISIONS.md` §ADR-017 (строки 135–140) — "door left open, portal not built"; отложено: глобальный пользователь-поставщик, invite-токены, scope «только свои настройки».
+- `08_PHASE1_SPEC.md` F2.3 (шов supplier self-service), `07_PHASES.md` Э2 (строки 53–57, 138).
+- `09_PHASE1_TASKS.md` F2.3 (T-2.3.1 миграция enum/FK, T-2.3.2 ADR).
+- `APP_OVERVIEW.md` §Phase 1 Non-goals (портал поставщика — только шов в схеме, ADR-017).

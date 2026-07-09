@@ -1,7 +1,7 @@
 ---
 id: purchase_order_lines
 type: entity
-title: purchase_order_lines — order draft lines (planned)
+title: purchase_order_lines — строки черновика заказа (planned)
 status: planned
 scope: subdivision
 table: purchase_order_lines
@@ -11,27 +11,27 @@ requirements: ["[[multitenancy]]"]
 sources: ["08_PHASE1_SPEC.md F4.1/F4.4 (archived)"]
 updated: 2026-07-09
 ---
-# purchase_order_lines — order draft lines (planned)
+# purchase_order_lines — строки черновика заказа (planned)
 
-> **Status: planned** (epic [[LCOS-E8-purchasing]]). Specified by [[LCOS-F37-purchase-orders]].
+> **Status: planned** (эпик [[LCOS-E8-purchasing]]). Специфицировано в [[LCOS-F37-purchase-orders]].
 
-## Purpose
-Line items of a [[purchase_orders]] draft. Each line records its `origin` (manual / ai / prefill) which feeds the "AI edited" close-out metric ([[LCOS-F44-live-closeout]]); editing an AI line flips `origin` to manual.
+## Назначение
+Позиции черновика [[purchase_orders]]. Каждая строка фиксирует свой `origin` (manual / ai / prefill), который питает метрику close-out «AI edited» ([[LCOS-F44-live-closeout]]); редактирование AI-строки переводит `origin` в manual.
 
-## Scope
-Subdivision-scoped (see [[multitenancy]]).
+## Область (scope)
+Область — subdivision (см. [[multitenancy]]).
 
-## Key fields (planned)
-| Field | Notes |
+## Ключевые поля (planned)
+| Поле | Примечания |
 |---|---|
 | purchase_order_id | → [[purchase_orders]] (CASCADE) |
 | ingredient_id | → [[ingredients]] |
-| quantity / packing | rounded to whole [[packings]] by the planner |
+| quantity / packing | округлено планировщиком до целых [[packings]] |
 | origin | `manual` \| `ai` \| `prefill` |
-| reason | why the planner proposed this line (AI origin) |
+| reason | почему планировщик предложил эту строку (AI origin) |
 
-## Used by
+## Используется
 [[LCOS-F37-purchase-orders]], [[LCOS-F38-orders-ui]], [[LCOS-F40-ai-order-proposal]], [[LCOS-F41-ai-order-ui]], [[LCOS-F44-live-closeout]].
 
-## Sources
+## Источники
 `08_PHASE1_SPEC.md` F4.1/F4.4 (archived).

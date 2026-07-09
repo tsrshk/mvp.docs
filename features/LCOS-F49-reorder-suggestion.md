@@ -1,7 +1,7 @@
 ---
 id: LCOS-F49
 type: feature
-title: reorder_point suggestion from consumption
+title: Предложение reorder_point из потребления
 epic: "[[LCOS-E9-sales-analytics]]"
 status: future
 phase: "Phase 2"
@@ -13,48 +13,48 @@ legacy_refs: [plan F5, 07 Э6]
 sources: ["07_PHASES.md Э6", "plan/PHASE_F5_SALES_ANALYTICS.md §1", "08_PHASE1_SPEC.md F3.x"]
 updated: 2026-07-09
 ---
-# LCOS-F49 · reorder_point suggestion from consumption
+# LCOS-F49 · Предложение reorder_point из потребления
 **Epic:** [[LCOS-E9-sales-analytics]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The give-back from analytics to Phase 1: use the imported sales history to suggest each ingredient's `reorder_point` from actual consumption, instead of the manual thresholds set in [[LCOS-E7-stock]]. Phase 1 keeps thresholds manual on purpose ("one routine at a time", 07 §7 Q7); this feature closes the consumption↔purchasing loop by proposing better numbers once real depletion rates are known.
+Отдача аналитики обратно в Phase 1: использовать импортированную историю продаж, чтобы предлагать для каждого ингредиента `reorder_point` из фактического потребления вместо ручных порогов, задаваемых в [[LCOS-E7-stock]]. Phase 1 намеренно оставляет пороги ручными («одна рутина за раз», 07 §7 Q7); эта фича замыкает цикл потребление↔закупки, предлагая лучшие числа, как только известны реальные темпы расхода.
 
-It is explicitly a suggestion, not a forecast — the system does not build demand prediction (07 Э6, 07 §7 Q7). Suggested values surface on the `/stock` screen ([[LCOS-F36-stock-screen]]) next to the current `reorder_point` on the ingredient, and the owner accepts or ignores each one. The stated done-when for the parent stage is that at least 10 thresholds are accepted from suggestions.
+Это явно предложение, а не прогноз — система не строит предсказание спроса (07 Э6, 07 §7 Q7). Предложенные значения появляются на экране `/stock` ([[LCOS-F36-stock-screen]]) рядом с текущим `reorder_point` у ингредиента, и владелец принимает или игнорирует каждое. Заявленное done-when для родительского этапа — что принято не менее 10 порогов из предложений.
 
-## Capabilities
+## Возможности
 
-- Derive per-ingredient consumption rate from stored sales (`sales_records` mapped to `ingredient_id`, see [[LCOS-F46-sales-storage]]).
-- Compute a suggested `reorder_point` per ingredient (deterministic, Decimal) — no demand forecasting.
-- Surface suggestions on `/stock` beside the current threshold, with accept/ignore per ingredient.
+- Вывод темпа потребления по ингредиенту из сохранённых продаж (`sales_records`, сопоставленные с `ingredient_id`, см. [[LCOS-F46-sales-storage]]).
+- Вычисление предложенного `reorder_point` по ингредиенту (детерминированно, Decimal) — без прогнозирования спроса.
+- Отображение предложений на `/stock` рядом с текущим порогом, с принятием/игнором по каждому ингредиенту.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | See suggested reorder points on `/stock` within their subdivision. |
-| [[admin]] | Accept a suggestion (writes `reorder_point` on the ingredient) or ignore it. |
-| [[superadmin]] | Same across tenants. |
-| [[sqladmin-operator]] | Not involved in this flow. |
+| [[member]] | Видит предложенные точки дозаказа на `/stock` в рамках своего подразделения. |
+| [[admin]] | Принимает предложение (записывает `reorder_point` в ингредиент) или игнорирует его. |
+| [[superadmin]] | То же по тенантам. |
+| [[sqladmin-operator]] | Не участвует в этом потоке. |
 
-## Involved entities
+## Задействованные сущности
 
-- [[ingredients]] — carries the `reorder_point` field (from [[LCOS-F35-reorder-point]]) that a suggestion writes when accepted.
-- [[subdivisions]] — scope; consumption is computed per subdivision.
-- Consumption is read from the `sales_records` / `daily_aggregates` tables introduced in [[LCOS-F46-sales-storage]].
+- [[ingredients]] — несёт поле `reorder_point` (из [[LCOS-F35-reorder-point]]), которое записывает предложение при принятии.
+- [[subdivisions]] — скоуп; потребление вычисляется по подразделению.
+- Потребление читается из таблиц `sales_records` / `daily_aggregates`, введённых в [[LCOS-F46-sales-storage]].
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[erp-esupl-integration]] (consumption derives from read-only Esupl sales), [[multitenancy]] (per-subdivision suggestions).
-- **Features:** consumes [[LCOS-F46-sales-storage]] (needs backfilled history from [[LCOS-F45-sales-read]]); writes onto [[LCOS-F35-reorder-point]] and renders in [[LCOS-F36-stock-screen]]; feeds better drafts into [[LCOS-E8-purchasing]] ([[LCOS-F40-ai-order-proposal]]).
-- **Epics:** [[LCOS-E9-sales-analytics]] → gives back to [[LCOS-E7-stock]] and [[LCOS-E8-purchasing]].
+- **Requirements:** [[erp-esupl-integration]] (потребление выводится из продаж Esupl, читаемых только на чтение), [[multitenancy]] (предложения по подразделению).
+- **Features:** потребляет [[LCOS-F46-sales-storage]] (нужна дозагруженная история из [[LCOS-F45-sales-read]]); пишет в [[LCOS-F35-reorder-point]] и рендерится в [[LCOS-F36-stock-screen]]; питает лучшие черновики в [[LCOS-E8-purchasing]] ([[LCOS-F40-ai-order-proposal]]).
+- **Epics:** [[LCOS-E9-sales-analytics]] → отдаёт обратно в [[LCOS-E7-stock]] и [[LCOS-E8-purchasing]].
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). Suggestion math, accept/ignore UX, and the "≥10 thresholds accepted" done-when are drafted on activation.
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Математика предложения, UX принятия/игнора и done-when «≥10 порогов принято» прорабатываются при активации.
 
 ## Sources
 
-- `07_PHASES.md Э6` ("suggest `reorder_point` from actual consumption" on `/stock`; ≥10 thresholds accepted; suggestion not forecast).
-- `plan/PHASE_F5_SALES_ANALYTICS.md §1` (sales history feeding thresholds).
-- `08_PHASE1_SPEC.md F3.x` (`reorder_point` on ingredients, `/stock` screen it hooks into).
+- `07_PHASES.md Э6` («предлагать `reorder_point` из фактического потребления» на `/stock`; ≥10 порогов принято; предложение, а не прогноз).
+- `plan/PHASE_F5_SALES_ANALYTICS.md §1` (история продаж, питающая пороги).
+- `08_PHASE1_SPEC.md F3.x` (`reorder_point` на ингредиентах, экран `/stock`, к которому это подключается).

@@ -1,7 +1,7 @@
 ---
 id: ingredient_cache
 type: entity
-title: ingredient_cache — POS ingredient cache (non-authoritative, rebuildable)
+title: ingredient_cache — кэш ингредиентов POS (неавторитетный, перестраиваемый)
 status: built
 scope: scoped
 table: ingredient_cache
@@ -11,45 +11,45 @@ requirements: ["[[sku-identity-resolver]]"]
 sources: [mvp.be/app/db/models.py:432-461, 01_ARCHITECTURE.md#data-model]
 updated: 2026-07-09
 ---
-# ingredient_cache · POS ingredient cache
+# ingredient_cache · кэш ингредиентов POS
 
-**Scope:** scope-aware (`scope_type` + `scope_id`: org or subdivision) · **Status:** built
+**Scope:** scope-aware (`scope_type` + `scope_id`: org или subdivision) · **Status:** built
 
-## Purpose
-A cache of POS ingredient data. **Non-authoritative** and **rebuildable** without data loss
-(draft-only, [[LCOS-F16-ingredient-cache]]). The scope key is the pair (`scope_type`, `scope_id`), not a
-direct FK to [[organizations]]/[[subdivisions]] (the scope-aware learning-loop design). The
-identity resolver ([[sku-identity-resolver]], [[LCOS-F13-sku-identity-resolver]]) reads the cache for match hints,
-but the durable identity is held by [[sku_mapping]]/[[invoice_lines]] via `pos_ingredient_id`,
-so rebuilding the cache does not orphan the mappings.
+## Назначение
+Кэш данных об ингредиентах POS. **Неавторитетный** и **перестраиваемый** без потери данных
+(draft-only, [[LCOS-F16-ingredient-cache]]). Ключ области — пара (`scope_type`, `scope_id`), а не
+прямой FK на [[organizations]]/[[subdivisions]] (дизайн scope-aware learning-loop). Identity
+resolver ([[sku-identity-resolver]], [[LCOS-F13-sku-identity-resolver]]) читает кэш ради подсказок для матчинга,
+но долговечная идентичность держится в [[sku_mapping]]/[[invoice_lines]] через `pos_ingredient_id`,
+так что перестройка кэша не делает мэппинги сиротами.
 
-## Key fields
-| Field | Type | Null | Notes |
+## Ключевые поля
+| Поле | Тип | Null | Примечания |
 |---|---|---|---|
 | `id` | uuid PK | no | `uuid4` |
-| `scope_type` | varchar(32) | no | `org` / `subdivision` (as a string, not an enum) |
-| `scope_id` | uuid | no | indexed; id of the organization or subdivision |
-| `pos_ingredient_id` | varchar(256) | no | durable POS id |
-| `name` | varchar(512) | yes | name from POS |
-| `unit` | varchar(32) | yes | unit |
-| `category` | varchar(256) | yes | POS category |
-| `pos_version` | varchar(128) | yes | version of the record in POS |
-| `content_hash` | varchar(128) | yes | content hash (change detection on sync) |
+| `scope_type` | varchar(32) | no | `org` / `subdivision` (как строка, не enum) |
+| `scope_id` | uuid | no | индексируется; id организации или subdivision |
+| `pos_ingredient_id` | varchar(256) | no | долговечный id POS |
+| `name` | varchar(512) | yes | название из POS |
+| `unit` | varchar(32) | yes | единица |
+| `category` | varchar(256) | yes | категория POS |
+| `pos_version` | varchar(128) | yes | версия записи в POS |
+| `content_hash` | varchar(128) | yes | хэш содержимого (детекция изменений при синхронизации) |
 | `is_active` | boolean | no | default true |
-| `synced_at` | timestamptz | yes | moment of the last synchronization |
+| `synced_at` | timestamptz | yes | момент последней синхронизации |
 | `created_at` / `updated_at` | timestamptz | no | `TimestampMixin` |
 
-## Relations, FK, uniqueness
-- **No FK** to organizations/subdivisions — the scope is set by the pair (`scope_type`,
-  `scope_id`) for flexibility and rebuild.
-- **Uniqueness:** `uq_ingredient_cache_scope_pos_id` UNIQUE(`scope_type`, `scope_id`,
+## Отношения, FK, уникальность
+- **Нет FK** на organizations/subdivisions — область задаётся парой (`scope_type`,
+  `scope_id`) ради гибкости и перестройки.
+- **Уникальность:** `uq_ingredient_cache_scope_pos_id` UNIQUE(`scope_type`, `scope_id`,
   `pos_ingredient_id`).
-- **Index:** `scope_id` indexed.
+- **Индекс:** `scope_id` индексируется.
 
-## Used by features
-[[LCOS-F16-ingredient-cache]] (ingredient cache, draft-only), [[LCOS-F13-sku-identity-resolver]] (resolver: source of candidates
-for matching lines).
+## Используется фичами
+[[LCOS-F16-ingredient-cache]] (кэш ингредиентов, draft-only), [[LCOS-F13-sku-identity-resolver]] (resolver: источник кандидатов
+для матчинга строк).
 
-## Sources
-- `mvp.be/app/db/models.py:432-461` (`IngredientCache` model)
+## Источники
+- `mvp.be/app/db/models.py:432-461` (модель `IngredientCache`)
 - [[sku-identity-resolver]], [[architecture]] — data-model

@@ -1,7 +1,7 @@
 ---
 id: REQ-ERP-ESUPL
 type: requirement
-title: ERP Esupl integration (read-only + gated write)
+title: Интеграция с ERP Esupl (read-only + gated write)
 status: built
 scope: cross-cutting
 roles: [member, admin, superadmin]
@@ -13,51 +13,51 @@ sources: [01_ARCHITECTURE.md "Esupl ERP", APP_OVERVIEW.md §9, reference/esupl-a
 updated: 2026-07-09
 ---
 
-# REQ-ERP-ESUPL · Esupl integration
+# REQ-ERP-ESUPL · Интеграция с Esupl
 
-**Type:** cross-cutting SSOT · **Status:** built. LCOS is the **write point for invoices** on top of Esupl, **read-only** to the rest of Esupl's data ([[ADR-001]]). The only ERP in Phase 1 ([[ADR-004]]).
+**Type:** cross-cutting SSOT · **Status:** built. LCOS — **точка записи накладных** поверх Esupl, **read-only** к остальным данным Esupl ([[ADR-001]]). Единственный ERP в Phase 1 ([[ADR-004]]).
 
-## Normative statement
+## Нормативное положение
 
-- **N1. Binding:** `organization ↔ exactly one Esupl team` (`organizations.esupl_team_id`); `subdivision ↔ Esupl warehouse` (`subdivisions.esupl_warehouse_id`). Both are **non-secret** ID columns; the only Esupl secret is the Bearer token in [[integration_credentials]] (scope=org, provider=esupl). See [[secret-encryption]] R6.5.
-- **N2. `EsuplErpProvider` — the only ERP implementation** ([[provider-abstraction]] N5), `requires_vpn=False` (Esupl is reachable directly).
-- **N3. Real read endpoints** (tenant Bearer token on every read; `get_esupl_access(session, org_id) → (team_id, token)` — the SSOT of access, 4 places):
-  - suppliers: `GET /teams/{id}/following?is_virtual=1`
-  - catalog: `GET /teams/{id}/products` (server-side search `product_name` LIKE)
-  - a single item: `GET /teams/{id}/products?id=` (commit validation — see [[sku-identity-resolver]])
-  - invoices: `GET /teams/{id}/orders`
-- **N4. Write `write_invoice` behind the toggle `ERP_WRITE_ENABLED` (default OFF):**
-  - OFF: logs a warning and returns a synthetic `esupl-prepared-<number>` **without egress** — not a silent fake, but a short-circuit before the network.
-  - ON: `POST /teams/{id}/outgoing-invoices` with the per-org Bearer, serialization `json.loads(payload.model_dump_json())` (handles Decimal/datetime correctly), `raise_for_status()`, extraction of `id` (or `data.id`). **The same code path in both modes** — the toggle makes the write real without rewriting.
-- **N5. Fail-closed on the token:** no active POS token → the provider goes out **unauthenticated** → Esupl **401**, with no env fallback. See [[fail-closed]] N3.
-- **N6. Human-in-the-loop:** no write to the POS without human confirmation ([[ADR-002]]); sending an invoice = confirming the matches (moat, [[sku-identity-resolver]]).
-- **N7. Payload:** `EsuplOutgoingInvoice` is built in `prepare()` from Esupl numeric FKs (`esupl_item_id`, `esupl_unit_id`, `esupl_packing_id`, `team_id`, `warehouse_id`) + tax_rate; saved into `invoices.esupl_payload` at status `prepared` (see [[invoice-status-machine]]).
-- **N8. Supplier in the payload:** `_resolve_supplier` — priority `tax_id`, then a **blended trigram 0.65 + token-Jaccard 0.35, min 0.4** by name (NOT "Jaccard≥0.5" — an outdated wording in old docs/the prepare docstring; the code is authoritative). `external_id` is coerced to int.
+- **N1. Привязка:** `organization ↔ ровно одна команда Esupl` (`organizations.esupl_team_id`); `subdivision ↔ склад Esupl` (`subdivisions.esupl_warehouse_id`). Оба — **несекретные** ID-колонки; единственный секрет Esupl — Bearer-токен в [[integration_credentials]] (scope=org, provider=esupl). См. [[secret-encryption]] R6.5.
+- **N2. `EsuplErpProvider` — единственная реализация ERP** ([[provider-abstraction]] N5), `requires_vpn=False` (Esupl доступен напрямую).
+- **N3. Реальные read-эндпоинты** (tenant Bearer-токен на каждом чтении; `get_esupl_access(session, org_id) → (team_id, token)` — SSOT доступа, 4 места):
+  - поставщики: `GET /teams/{id}/following?is_virtual=1`
+  - каталог: `GET /teams/{id}/products` (серверный поиск `product_name` LIKE)
+  - одна позиция: `GET /teams/{id}/products?id=` (валидация на commit — см. [[sku-identity-resolver]])
+  - накладные: `GET /teams/{id}/orders`
+- **N4. Запись `write_invoice` за toggle `ERP_WRITE_ENABLED` (по умолчанию OFF):**
+  - OFF: логирует warning и возвращает синтетический `esupl-prepared-<number>` **без egress** — не тихая подделка, а short-circuit до сети.
+  - ON: `POST /teams/{id}/outgoing-invoices` с per-org Bearer, сериализация `json.loads(payload.model_dump_json())` (корректно обрабатывает Decimal/datetime), `raise_for_status()`, извлечение `id` (или `data.id`). **Один и тот же путь кода в обоих режимах** — toggle делает запись реальной без переписывания.
+- **N5. Fail-closed по токену:** нет активного POS-токена → провайдер идёт **без аутентификации** → Esupl **401**, без env fallback. См. [[fail-closed]] N3.
+- **N6. Human-in-the-loop:** без записи в POS нет без подтверждения человеком ([[ADR-002]]); отправка накладной = подтверждение сопоставлений (moat, [[sku-identity-resolver]]).
+- **N7. Payload:** `EsuplOutgoingInvoice` собирается в `prepare()` из числовых FK Esupl (`esupl_item_id`, `esupl_unit_id`, `esupl_packing_id`, `team_id`, `warehouse_id`) + tax_rate; сохраняется в `invoices.esupl_payload` при статусе `prepared` (см. [[invoice-status-machine]]).
+- **N8. Поставщик в payload:** `_resolve_supplier` — приоритет `tax_id`, затем **смешанный trigram 0.65 + token-Jaccard 0.35, min 0.4** по имени (НЕ "Jaccard≥0.5" — устаревшая формулировка в старых доках/docstring `prepare`; авторитетен код). `external_id` приводится к int.
 
-## Rationale
+## Обоснование
 
-Esupl is the POS Customer Zero; LCOS does not duplicate accounting but writes invoices into it. Read-only + gated write means: the system can be run against the live token without risking data corruption while `ERP_WRITE_ENABLED=OFF`, and the write can be enabled with a single toggle. One code path in both modes rules out "worked in dry-run, broke in prod". `get_esupl_access` as the SSOT of access keeps the four token-read places from drifting apart.
+Esupl — POS Customer Zero; LCOS не дублирует учёт, но записывает в него накладные. Read-only + gated write означает: систему можно гонять на живом токене без риска повреждения данных, пока `ERP_WRITE_ENABLED=OFF`, а запись можно включить одним toggle. Один путь кода в обоих режимах исключает «работало в dry-run, сломалось в prod». `get_esupl_access` как SSOT доступа удерживает четыре места чтения токена от расхождения.
 
-## Failure modes
+## Режимы отказа
 
-- **No token** → 401 (fail-closed), not a silent skip of the write.
-- **`list_suppliers`/`list_ingredients` without a token** (historically off-critical-path: suppliers from seed, catalog from local `ingredients`) — currently call `_auth_headers()` without a token; debt D-f: remove/close behind a guard so no path of unauthenticated egress remains.
-- **VER-021 (durability) — OPEN GATE:** the stability of `pos_ingredient_id` on edit/delete-recreate in Esupl is not empirically confirmed; the probe requires a WRITE to sandbox team 17957 → **owner-run**, merge gated. The discrepancy between the endpoints `/products?id=` (commit validation) vs `/ingredients/{id}` (probe) is documented; confirm the read-only filters.
-- **ERP write failed** → not a 500 to the client: `submit` catches it and writes `status=failed` + `validation_errors`.
+- **Нет токена** → 401 (fail-closed), не тихий пропуск записи.
+- **`list_suppliers`/`list_ingredients` без токена** (исторически вне критического пути: поставщики из seed, каталог из локальных `ingredients`) — сейчас вызывают `_auth_headers()` без токена; долг D-f: удалить/закрыть за guard, чтобы не осталось пути неаутентифицированного egress.
+- **VER-021 (durability) — OPEN GATE:** стабильность `pos_ingredient_id` при edit/delete-recreate в Esupl эмпирически не подтверждена; проба требует WRITE в sandbox team 17957 → **owner-run**, merge gated. Расхождение между эндпоинтами `/products?id=` (валидация на commit) vs `/ingredients/{id}` (проба) задокументировано; подтвердить read-only фильтры.
+- **Запись в ERP не удалась** → не 500 клиенту: `submit` перехватывает и пишет `status=failed` + `validation_errors`.
 
-## Relations
+## Связи
 
-- ADR: [[ADR-004]] (Esupl as the primary ERP), [[ADR-001]] (write point, not the POS), [[ADR-002]] (human-in-the-loop), [[ADR-006]] (fail-closed).
-- Requirements: [[invoice-status-machine]], [[sku-identity-resolver]], [[secret-encryption]], [[provider-abstraction]], [[fail-closed]], [[global-requirements]] R6.2/R8.3.
-- Entities: [[organizations]], [[subdivisions]], [[ingredients]], [[integration_credentials]], [[invoices]].
-- Reference: `reference/esupl-api/` (mirror of the contracts).
+- ADR: [[ADR-004]] (Esupl как основной ERP), [[ADR-001]] (точка записи, не POS), [[ADR-002]] (human-in-the-loop), [[ADR-006]] (fail-closed).
+- Требования: [[invoice-status-machine]], [[sku-identity-resolver]], [[secret-encryption]], [[provider-abstraction]], [[fail-closed]], [[global-requirements]] R6.2/R8.3.
+- Сущности: [[organizations]], [[subdivisions]], [[ingredients]], [[integration_credentials]], [[invoices]].
+- Reference: `reference/esupl-api/` (зеркало контрактов).
 
-## Referenced by
+## На это ссылаются
 
 `LCOS-F10` (Invoice status machine + Esupl payload + gated write), `LCOS-F11` (Esupl read integration), `LCOS-F12` (warehouse-target), `LCOS-F28` (Э0 Esupl API contracts), `LCOS-F69` (second ERP connector).
 
-## Sources
+## Источники
 
 - 01_ARCHITECTURE.md → "Esupl ERP: read-only vs write, ERP_WRITE_ENABLED gating", "prepare()→payload".
 - APP_OVERVIEW.md §9; LCOS_Conformance R6.2, R8.3, ADR-016 (remains/sales — proposed).
-- Code: `app/providers/erp/esupl.py`, `app/services/invoice_service.py`; `VER-021_ESUPL_DURABILITY_TEST.md`.
+- Код: `app/providers/erp/esupl.py`, `app/services/invoice_service.py`; `VER-021_ESUPL_DURABILITY_TEST.md`.

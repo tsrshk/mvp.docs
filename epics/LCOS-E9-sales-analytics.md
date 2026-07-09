@@ -1,7 +1,7 @@
 ---
 id: LCOS-E9
 type: epic
-title: Sales analytics and digest
+title: Аналитика продаж и дайджест
 status: future
 phase: "Phase 2"
 features: ["[[LCOS-F45-sales-read]]", "[[LCOS-F46-sales-storage]]", "[[LCOS-F47-scheduler]]", "[[LCOS-F48-weekly-digest]]", "[[LCOS-F49-reorder-suggestion]]"]
@@ -10,44 +10,44 @@ sources: [07_PHASES.md Э6, plan/00_IMPLEMENTATION_PLAN.md F5, 06_STRATEGY.md]
 updated: 2026-07-09
 ---
 
-# LCOS-E9 · Sales analytics and digest
+# LCOS-E9 · Аналитика продаж и дайджест
 
-**Status:** 🔭 future · **Phase:** Phase 2 (after Pilot-Gate)
+**Статус:** 🔭 future · **Фаза:** Phase 2 (после Pilot-Gate)
 
-## Description
+## Описание
 
-The first growth epic after passing the Pilot-Gate: reading sales from Esupl, storing them with daily aggregates, a scheduler for sync jobs, a weekly digest, and a `reorder_point` suggestion derived from actual consumption. This is the transition from "I do the data-entry work" to "I suggest based on data" — still within the AI-manager logic, not a dashboard: the digest arrives on its own and ends with an action.
+Первый эпик роста после прохождения Pilot-Gate: чтение продаж из Esupl, их хранение с дневными агрегатами, планировщик sync-задач, еженедельный дайджест и подсказка `reorder_point`, выведенная из фактического потребления. Это переход от «я делаю работу по вводу данных» к «я подсказываю на основе данных» — всё ещё в логике AI-управляющего, не дашборд: дайджест приходит сам и заканчивается действием.
 
-## Goal / value
+## Цель / ценность
 
-Close the consumption ↔ purchasing loop: the system sees what sells and how fast, and uses that to refine reorder points ([[LCOS-E7-stock]], [[LCOS-E8-purchasing]]). The digest is the product's regular contact with the owner that sustains the routine.
+Замкнуть цикл потребление ↔ закупки: система видит, что и как быстро продаётся, и использует это для уточнения точек дозаказа ([[LCOS-E7-stock]], [[LCOS-E8-purchasing]]). Дайджест — регулярный контакт продукта с владельцем, поддерживающий рутину.
 
-## Features
+## Фичи
 
-| ID | Name | Status | Link |
+| ID | Название | Статус | Ссылка |
 |---|---|---|---|
-| LCOS-F45 | Sales read + history backfill | 🔭 future | [[LCOS-F45-sales-read]] |
-| LCOS-F46 | Sales storage + daily aggregates | 🔭 future | [[LCOS-F46-sales-storage]] |
-| LCOS-F47 | Scheduler + sync job | 🔭 future | [[LCOS-F47-scheduler]] |
-| LCOS-F48 | Weekly digest | 🔭 future | [[LCOS-F48-weekly-digest]] |
-| LCOS-F49 | `reorder_point` suggestion from consumption | 🔭 future | [[LCOS-F49-reorder-suggestion]] |
+| LCOS-F45 | Чтение продаж + backfill истории | 🔭 future | [[LCOS-F45-sales-read]] |
+| LCOS-F46 | Хранение продаж + дневные агрегаты | 🔭 future | [[LCOS-F46-sales-storage]] |
+| LCOS-F47 | Планировщик + sync-задача | 🔭 future | [[LCOS-F47-scheduler]] |
+| LCOS-F48 | Еженедельный дайджест | 🔭 future | [[LCOS-F48-weekly-digest]] |
+| LCOS-F49 | Подсказка `reorder_point` из потребления | 🔭 future | [[LCOS-F49-reorder-suggestion]] |
 
-## Key entities / requirements
+## Ключевые сущности / требования
 
-- Entities: [[ingredients]], [[stock_levels]], [[subdivisions]] (future sales/aggregate tables — stubs).
-- Requirements: [[erp-esupl-integration]], [[provider-abstraction]], [[multitenancy]].
-- Roles: [[member]], [[admin]].
+- Сущности: [[ingredients]], [[stock_levels]], [[subdivisions]] (будущие таблицы продаж/агрегатов — заглушки).
+- Требования: [[erp-esupl-integration]], [[provider-abstraction]], [[multitenancy]].
+- Роли: [[member]], [[admin]].
 
-## Gates
+## Гейты
 
-- **Kill-criteria (07 Э0):** sales depth < 3 months → backfill is trimmed to "from today forward".
-- **Phase 1 non-goal:** scheduler/queues (Celery) — appears here, in Phase 2.
-- AC: TBD (Phase 2) — detailed criteria are not developed until the checkpoint.
+- **Kill-критерии (07 Э0):** глубина продаж < 3 месяцев → backfill урезается до «от сегодня вперёд».
+- **Не-цель Phase 1:** планировщик/очереди (Celery) — появляются здесь, в Phase 2.
+- AC: TBD (Phase 2) — детальные критерии не прорабатываются до чекпоинта.
 
 ## legacy_refs
 
 plan F5; 07 Э6.
 
-## Sources
+## Источники
 
 - 07_PHASES.md Э6, plan/00_IMPLEMENTATION_PLAN.md F5, 06_STRATEGY.md

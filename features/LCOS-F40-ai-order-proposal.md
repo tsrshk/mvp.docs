@@ -1,7 +1,7 @@
 ---
 id: LCOS-F40
 type: feature
-title: AI order proposal (order_planning_service)
+title: AI-предложение заказа (order_planning_service)
 epic: "[[LCOS-E8-purchasing]]"
 status: planned
 phase: "Phase 1"
@@ -13,67 +13,67 @@ legacy_refs: ["08 F4.4", "07 Э4b"]
 sources: ["08_PHASE1_SPEC.md F4.4", "07_PHASES.md Э4b", "mvp.be app/services/order_planning_service.py", "mvp.be app/services/invoice_service.py", "mvp.be app/db/models.py (packings.factor/is_default, uq_packings_default_per_ingredient)"]
 updated: 2026-07-09
 ---
-# LCOS-F40 · AI order proposal (order_planning_service)
+# LCOS-F40 · AI-предложение заказа (order_planning_service)
 **Epic:** [[LCOS-E8-purchasing]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-`order_planning_service` turns stock knowledge and supplier terms into a proposed draft order for one supplier. Despite the "AI" label in the ladder, the calculation is **deterministic and rule-based — not an LLM**. Given a `supplier_id`, it reads the latest `stock_levels` snapshots, `ingredients.reorder_point` ([[LCOS-F35-reorder-point]]), the supplier's delivery terms (`delivery_days` → days until next delivery, `lead_time_days`), and last prices/volumes from that supplier's `invoice_lines`.
+`order_planning_service` превращает знание об остатках и условия поставщика в предложенный черновик заказа для одного поставщика. Несмотря на ярлык «AI» в лестнице, расчёт **детерминистичен и основан на правилах — не LLM**. Получив `supplier_id`, он читает последние снапшоты `stock_levels`, `ingredients.reorder_point` ([[LCOS-F35-reorder-point]]), условия доставки поставщика (`delivery_days` → дни до следующей доставки, `lead_time_days`) и последние цены/объёмы из `invoice_lines` этого поставщика.
 
-The **primary path (mandatory, covered by AC-1)**: propose positions whose stock is `≤ reorder_point`; quantity is rounded **up to whole default packs** (`packings.is_default`, `factor`); price is the last known one. Each proposed line carries a `reason` ("stock 1.2 kg below threshold 2 kg"). An **optional consumption path (may be skipped in Phase 1, no AC)** — "stock won't last until the next delivery" — uses average daily consumption as a **proxy from receipts** (Phase 1 has no sales): sum of `quantity` from the supplier's `invoice_lines` over a fixed window (e.g. 30 days) ÷ window days; with `<2` receipts in the window this path is unavailable and it falls back to `≤ reorder_point`. Direct consumption arrives in Э6 (sales history, [[LCOS-E9-sales-analytics]]).
+**Основной путь (обязательный, покрыт AC-1)**: предложить позиции, чей остаток `≤ reorder_point`; количество округляется **вверх до целых упаковок по умолчанию** (`packings.is_default`, `factor`); цена — последняя известная. Каждая предложенная строка несёт `reason` («остаток 1.2 кг ниже порога 2 кг»). **Опциональный путь потребления (может быть пропущен в Phase 1, без AC)** — «остатка не хватит до следующей доставки» — использует среднее дневное потребление как **прокси из приёмок** (в Phase 1 нет продаж): сумма `quantity` из `invoice_lines` поставщика за фиксированное окно (например, 30 дней) ÷ дни окна; при `<2` приёмках в окне этот путь недоступен и откатывается к `≤ reorder_point`. Прямое потребление приходит в Э6 (история продаж, [[LCOS-E9-sales-analytics]]).
 
-The result is exposed as a proposal endpoint that creates a `draft` order with `origin='ai'` lines + reasons — an ordinary draft the human then edits and confirms through the existing flow ([[LCOS-F41-ai-order-ui]], [[LCOS-F38-orders-ui]], [[LCOS-F39-order-message]]).
+Результат экспонируется как endpoint предложения, который создаёт `draft`-заказ со строками `origin='ai'` + причинами — обычный черновик, который человек затем редактирует и подтверждает через существующий поток ([[LCOS-F41-ai-order-ui]], [[LCOS-F38-orders-ui]], [[LCOS-F39-order-message]]).
 
-## Capabilities
+## Возможности
 
-- `app/services/order_planning_service.py` — deterministic planner keyed by `supplier_id`.
-- Primary rule: stock `≤ reorder_point` → propose; quantity rounded up to whole default packs (`packings.factor`, `is_default`); price = last known.
-- Per-line `reason` string explaining why the position was proposed.
-- Optional consumption proxy (from receipts) with a fixed window and a `<2`-receipts fallback to the threshold rule.
-- `POST /purchase-orders/propose?supplier_id=` → `draft` with `origin='ai'` lines + reasons.
-- Empty proposal is a valid response; no snapshot fresher than 7 days → `409` "refresh stock".
-- Scoped to the supplier's positions within the caller's org.
+- `app/services/order_planning_service.py` — детерминистичный планировщик, ключуемый по `supplier_id`.
+- Основное правило: остаток `≤ reorder_point` → предложить; количество округлено вверх до целых упаковок по умолчанию (`packings.factor`, `is_default`); цена = последняя известная.
+- Per-line строка `reason`, объясняющая, почему позиция предложена.
+- Опциональный прокси потребления (из приёмок) с фиксированным окном и фоллбэком `<2`-приёмок к правилу порога.
+- `POST /purchase-orders/propose?supplier_id=` → `draft` со строками `origin='ai'` + причины.
+- Пустое предложение — валидный ответ; нет снапшота свежее 7 дней → `409` «обновите остатки».
+- Скоупировано позициями поставщика в пределах org вызывающего.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[member]] | Request a proposal for a supplier; the returned draft is theirs to edit/confirm. |
-| [[admin]] | Same, within their subdivision. |
-| [[superadmin]] | Cross-tenant access. |
-| [[sqladmin-operator]] | Not involved. |
+| [[member]] | Запросить предложение для поставщика; возвращённый черновик — их для редактирования/подтверждения. |
+| [[admin]] | То же, в пределах своего subdivision. |
+| [[superadmin]] | Межтенантный доступ. |
+| [[sqladmin-operator]] | Не участвует. |
 
-Scope (`organization_id` / `subdivision_id`) from active JWT context; proposals only ever cover the caller's org and the chosen supplier (see [[multitenancy]]).
+Scope (`organization_id` / `subdivision_id`) из активного JWT-контекста; предложения всегда покрывают только org вызывающего и выбранного поставщика (см. [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[stock_levels]] — latest snapshots per ingredient are the planner's primary input (see [[LCOS-F34-stock-levels]]).
-- [[ingredients]] — `reorder_point` is the threshold that triggers a proposed line ([[LCOS-F35-reorder-point]]).
-- [[packings]] — `is_default` + `factor` drive rounding up to whole packs (`uq_packings_default_per_ingredient` guarantees one default per SKU).
-- [[suppliers]] — delivery terms (`delivery_days`, `lead_time_days`) frame the "next delivery" horizon.
-- [[invoice_lines]] — last prices/volumes, and the receipts proxy for the optional consumption path.
-- [[purchase_orders]] / [[purchase_order_lines]] — the produced draft and its `origin='ai'` lines with reasons.
+- [[stock_levels]] — последние снапшоты на ингредиент — основной вход планировщика (см. [[LCOS-F34-stock-levels]]).
+- [[ingredients]] — `reorder_point` — порог, триггерящий предложенную строку ([[LCOS-F35-reorder-point]]).
+- [[packings]] — `is_default` + `factor` управляют округлением вверх до целых упаковок (`uq_packings_default_per_ingredient` гарантирует одну упаковку по умолчанию на SKU).
+- [[suppliers]] — условия доставки (`delivery_days`, `lead_time_days`) обрамляют горизонт «следующей доставки».
+- [[invoice_lines]] — последние цены/объёмы и прокси приёмок для опционального пути потребления.
+- [[purchase_orders]] / [[purchase_order_lines]] — произведённый черновик и его строки `origin='ai'` с причинами.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (org/supplier scope), [[erp-esupl-integration]] (planner reads local data only; proposing an order never touches Esupl).
-- **ADR:** [[ADR-016]] (stock source with manual-entry fallback C — the planner tolerates the absence of a live ERP feed by relying on the latest snapshot).
-- **Features:** depends on stock ([[LCOS-F34-stock-levels]]) and thresholds ([[LCOS-F35-reorder-point]]) from [[LCOS-E7-stock]], and supplier terms from [[LCOS-F17-supplier-cards]]. Writes drafts through [[LCOS-F37-purchase-orders]]; surfaced by [[LCOS-F41-ai-order-ui]]; the `origin` marking feeds the close-out metric [[LCOS-F44-live-closeout]].
+- **Требования:** [[multitenancy]] (scope org/поставщика), [[erp-esupl-integration]] (планировщик читает только локальные данные; предложение заказа никогда не трогает Esupl).
+- **ADR:** [[ADR-016]] (источник остатков с фоллбэком ручного ввода C — планировщик терпит отсутствие живого ERP-фида, полагаясь на последний снапшот).
+- **Фичи:** зависит от остатков ([[LCOS-F34-stock-levels]]) и порогов ([[LCOS-F35-reorder-point]]) из [[LCOS-E7-stock]] и условий поставщика из [[LCOS-F17-supplier-cards]]. Пишет черновики через [[LCOS-F37-purchase-orders]]; всплывается [[LCOS-F41-ai-order-ui]]; пометка `origin` питает close-out метрику [[LCOS-F44-live-closeout]].
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. Unit tests: stock below threshold → proposed; above → not; pack rounding (`1.2 → 2` default packs); `NULL` reorder_point → never proposed; no snapshot fresher than 7 days → `409`.
-- [ ] AC-BE-2. Only the chosen supplier's positions, only within the caller's org (test).
-- [ ] AC-BE-3. Calculation is deterministic (rules, not LLM); every line carries a human-readable `reason`.
-- [ ] AC-BE-4. `POST /purchase-orders/propose?supplier_id=` returns a `draft` with `origin='ai'` lines; an empty proposal is a valid `200` response.
+- [ ] AC-BE-1. Unit-тесты: остаток ниже порога → предложено; выше → нет; округление упаковок (`1.2 → 2` упаковки по умолчанию); `NULL` reorder_point → никогда не предложено; нет снапшота свежее 7 дней → `409`.
+- [ ] AC-BE-2. Только позиции выбранного поставщика, только в пределах org вызывающего (тест).
+- [ ] AC-BE-3. Расчёт детерминистичен (правила, не LLM); каждая строка несёт человекочитаемый `reason`.
+- [ ] AC-BE-4. `POST /purchase-orders/propose?supplier_id=` возвращает `draft` со строками `origin='ai'`; пустое предложение — валидный ответ `200`.
 
-## Open questions / gates
-- Consumption path is **optional** in Phase 1 (proxy by receipts); direct consumption depends on [[LCOS-E9-sales-analytics]].
-- **Kill-check (owner, whole Э4b):** if the human edits >70% of proposed lines for three cycles → revert to a plain "what's running out" checklist and revisit the consumption model.
+## Открытые вопросы / гейты
+- Путь потребления **опционален** в Phase 1 (прокси по приёмкам); прямое потребление зависит от [[LCOS-E9-sales-analytics]].
+- **Kill-проверка (владелец, весь Э4b):** если человек редактирует >70% предложенных строк три цикла → вернуться к простому чеклисту «что заканчивается» и пересмотреть модель потребления.
 
-## Sources
-- `08_PHASE1_SPEC.md F4.4` (inputs, primary + optional-proxy rules, propose endpoint, `409` on stale stock, AC).
-- `07_PHASES.md Э4b` (planner inputs; no demand forecast — manual thresholds; AI-line marking).
-- `mvp.be/app/db/models.py` — `packings.factor`, `is_default`, `uq_packings_default_per_ingredient` (one default pack per SKU already enforced).
-- `mvp.be/app/services/invoice_service.py` — reference service composing several repositories (pattern for `order_planning_service.py`).
+## Источники
+- `08_PHASE1_SPEC.md F4.4` (входы, основные + опционально-прокси правила, endpoint propose, `409` при устаревших остатках, AC).
+- `07_PHASES.md Э4b` (входы планировщика; нет прогноза спроса — ручные пороги; пометка AI-строк).
+- `mvp.be/app/db/models.py` — `packings.factor`, `is_default`, `uq_packings_default_per_ingredient` (одна упаковка по умолчанию на SKU уже обеспечена).
+- `mvp.be/app/services/invoice_service.py` — референс-сервис, композирующий несколько репозиториев (паттерн для `order_planning_service.py`).

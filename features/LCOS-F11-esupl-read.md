@@ -1,7 +1,7 @@
 ---
 id: LCOS-F11
 type: feature
-title: Esupl read integration
+title: Read-интеграция с Esupl
 epic: "[[LCOS-E2-invoice-intake]]"
 status: built
 phase: "Phase 1"
@@ -13,79 +13,79 @@ legacy_refs: [07 Э0, "08 F0.3", plan F1]
 sources: ["APP_OVERVIEW.md §9", "08_PHASE1_SPEC.md F0.3", "mvp.be app/providers/erp/esupl.py:80", "mvp.be app/providers/erp/esupl.py:230", "mvp.be app/api/v1/routes/invoices.py:72"]
 updated: 2026-07-09
 ---
-# LCOS-F11 · Esupl read integration
-**Epic:** [[LCOS-E2-invoice-intake]] · **Status:** built · **Phase:** Phase 1
+# LCOS-F11 · Read-интеграция с Esupl
+**Эпик:** [[LCOS-E2-invoice-intake]] · **Статус:** built · **Фаза:** Phase 1
 
-## Description
+## Описание
 
-LCOS is a write-point for receipts but **read-only** for everything else in Esupl. F11 is the read surface of the single ERP provider (`EsuplErpProvider`): the team-scoped GET calls that pull suppliers, catalog positions, single ingredients (for commit validation) and posted invoices, plus the `GET /invoices` route that maps Esupl orders into the frontend's shape. It is the data backbone that [[LCOS-F9-line-matching]] matches against and that [[LCOS-F10-invoice-status-machine]] validates against (APP_OVERVIEW §9).
+LCOS — точка записи для чеков, но **только для чтения** для всего остального в Esupl. F11 — read-поверхность единственного ERP-провайдера (`EsuplErpProvider`): team-scoped GET-вызовы, которые тянут поставщиков, каталожные позиции, отдельные ингредиенты (для валидации коммита) и запостенные инвойсы, плюс маршрут `GET /invoices`, который отображает заказы Esupl в форму фронтенда. Это опорная линия данных, против которой матчит [[LCOS-F9-line-matching]] и против которой валидирует [[LCOS-F10-invoice-status-machine]] (APP_OVERVIEW §9).
 
-Every read is team-scoped and requires the **tenant's** Bearer token, resolved by the caller (per-org, from [[integration_credentials]]). There is no global/env token fallback: without a token Esupl answers 401 — [[fail-closed]] by design (`_auth_headers` returns no `Authorization` header, so the request goes out unauthenticated and Esupl rejects it). All GETs funnel through one egress helper (`_get`): it builds the URL from `esupl_api_base`, lets `httpx` url-encode params, applies the VPN guard (`requires_vpn=False` — Esupl is reachable directly today, a static seam that can flip to VPN-only), and does `raise_for_status()` so HTTP/network errors propagate rather than being swallowed. Responses are unwrapped tolerantly (bare list or `{"data": […]}`), because the API doc mirror does not give response bodies and real shapes are confirmed in the browser.
+Каждое чтение team-scoped и требует Bearer-токен **арендатора**, разрешаемый вызывающим (per-org, из [[integration_credentials]]). Нет глобального/env-фолбэка токена: без токена Esupl отвечает 401 — [[fail-closed]] по замыслу (`_auth_headers` не возвращает заголовок `Authorization`, так что запрос уходит неаутентифицированным и Esupl его отклоняет). Все GET-ы проходят через один egress-хелпер (`_get`): он строит URL из `esupl_api_base`, позволяет `httpx` url-кодировать параметры, применяет VPN-guard (`requires_vpn=False` — Esupl сегодня достижим напрямую, статический шов, который может переключиться на VPN-only) и делает `raise_for_status()`, так что HTTP/сетевые ошибки распространяются, а не глотаются. Ответы разворачиваются толерантно (голый список или `{"data": […]}`), потому что зеркало API-доки не даёт тел ответов, а реальные формы подтверждаются в браузере.
 
-The four reads map to real endpoints: suppliers = `GET /teams/{id}/following?is_virtual=1` (teams our team follows are our suppliers), catalog = `GET /teams/{id}/products` (server-side `product_name` LIKE search), single position = `GET /teams/{id}/products?id=` (strict exact-id match, no `items[0]` fallback — used on the fail-closed commit path so a POS outage cannot be mislabeled "not found"), and invoices = `GET /teams/{id}/orders`. The `GET /invoices` route reads orders and normalizes each into `PosOrderOut`, deriving `is_submitted` from `status == 8` and `is_paid` from `payment_status == 2`, and tolerating orders with no `team_to` (supplier id sentinel `0`, so one supplier-less order can't 500 the whole list).
+Четыре чтения отображаются на реальные endpoints: поставщики = `GET /teams/{id}/following?is_virtual=1` (команды, за которыми следит наша команда — это наши поставщики), каталог = `GET /teams/{id}/products` (серверный поиск `product_name` LIKE), отдельная позиция = `GET /teams/{id}/products?id=` (строгое совпадение точного id, без фолбэка `items[0]` — используется на fail-closed пути коммита, чтобы сбой POS не мог быть ошибочно помечен «не найдено»), и инвойсы = `GET /teams/{id}/orders`. Маршрут `GET /invoices` читает заказы и нормализует каждый в `PosOrderOut`, выводя `is_submitted` из `status == 8` и `is_paid` из `payment_status == 2`, и толерируя заказы без `team_to` (sentinel id поставщика `0`, так что один заказ без поставщика не может обрушить 500 весь список).
 
-## Capabilities
+## Возможности
 
-- `list_suppliers(team_id, token)` — `GET /teams/{id}/following?is_virtual=1` → `SupplierRef` (external_id, name, tax_id/unp); no base URL configured → empty list + warning.
-- `list_ingredients(team_id, token, query)` — `GET /teams/{id}/products` with `fields=id,name,unit`; optional `query` → server-side `product_name` LIKE (`operator[product_name]=like`).
-- `get_ingredient(team_id, pos_ingredient_id, token)` — `GET /teams/{id}/products?id=`; **strict** exact-id match, else `None` (never `items[0]`); network/5xx/VPN errors propagate (used by commit validation).
-- `validate_ingredient_on_commit(...)` — exists + unit-match check returning `{valid, ingredient, error}`; empty-unit tolerant (block only when both units set and differ, case/space-normalized); timeout/OSError → fail-closed invalid.
-- `list_invoices(team_id, token, per_page, page)` — `GET /teams/{id}/orders` with `include=team_to`, pagination via `per_page`/`page`.
-- `GET /api/v1/invoices` route — maps Esupl orders → `PosOrderOut`: `is_submitted = status==8`, `is_paid = payment_status==2`, tolerant `team_to`/date/total handling; org with no `esupl_team_id` → empty list.
-- Single access SSOT `get_esupl_access(session, org_id) → (team_id, token)` used by the four read call-sites (supplier list/sync, catalog, invoices, commit validation).
+- `list_suppliers(team_id, token)` — `GET /teams/{id}/following?is_virtual=1` → `SupplierRef` (external_id, name, tax_id/unp); базовый URL не настроен → пустой список + предупреждение.
+- `list_ingredients(team_id, token, query)` — `GET /teams/{id}/products` с `fields=id,name,unit`; опциональный `query` → серверный `product_name` LIKE (`operator[product_name]=like`).
+- `get_ingredient(team_id, pos_ingredient_id, token)` — `GET /teams/{id}/products?id=`; **строгое** совпадение точного id, иначе `None` (никогда `items[0]`); сетевые/5xx/VPN-ошибки распространяются (используется валидацией коммита).
+- `validate_ingredient_on_commit(...)` — проверка существования + совпадения единиц, возвращающая `{valid, ingredient, error}`; толерантна к пустой единице (блокирует только когда обе единицы установлены и различаются, нормализовано по регистру/пробелам); timeout/OSError → fail-closed invalid.
+- `list_invoices(team_id, token, per_page, page)` — `GET /teams/{id}/orders` с `include=team_to`, пагинация через `per_page`/`page`.
+- Маршрут `GET /api/v1/invoices` — отображает заказы Esupl → `PosOrderOut`: `is_submitted = status==8`, `is_paid = payment_status==2`, толерантная обработка `team_to`/даты/итога; организация без `esupl_team_id` → пустой список.
+- Единый SSOT доступа `get_esupl_access(session, org_id) → (team_id, token)`, используемый четырьмя точками вызова чтения (список/синхронизация поставщиков, каталог, инвойсы, валидация коммита).
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | See the tenant's supplier list, catalog and posted invoices pulled from Esupl within their subdivision. |
-| [[admin]] | Same as member; triggers supplier/catalog sync for the subdivision. |
-| [[superadmin]] | All tenants; manages the per-org Esupl token that authorizes reads. |
-| [[sqladmin-operator]] | Not in the flow; stores/rotates the Esupl token in `integration_credentials` via the SQLAdmin plane ([[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Видит список поставщиков арендатора, каталог и запостенные инвойсы, вытянутые из Esupl, внутри своей subdivision. |
+| [[admin]] | То же, что member; триггерит синхронизацию поставщиков/каталога для subdivision. |
+| [[superadmin]] | Все арендаторы; управляет per-org токеном Esupl, который авторизует чтения. |
+| [[sqladmin-operator]] | Не в потоке; хранит/ротирует токен Esupl в `integration_credentials` через плоскость SQLAdmin ([[LCOS-F3-sqladmin-operator]]). |
 
-Reads are tenant-scoped: `team_id` derives from `Organization.esupl_team_id` for the active org context (see [[auth]], [[multitenancy]]).
+Чтения со scope арендатора: `team_id` выводится из `Organization.esupl_team_id` для активного контекста организации (см. [[auth]], [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[suppliers]] — mirror of Esupl `following`; `list_suppliers` feeds the supplier directory ([[LCOS-F17-supplier-cards]]).
-- [[ingredients]] — the catalog mirror; `list_ingredients`/`get_ingredient` back matching and commit validation.
-- [[invoices]] — `list_invoices` + `GET /invoices` present posted Esupl orders (`PosOrderOut`).
-- [[integration_credentials]] — per-org Esupl Bearer token (Fernet); resolved by the caller, never env.
-- [[organizations]] — `esupl_team_id` (org ↔ exactly one Esupl team, [[ADR-004]]).
-- [[subdivisions]] — `esupl_warehouse_id` (subdivision ↔ warehouse, [[ADR-008]]), used with the warehouse family of reads.
+- [[suppliers]] — зеркало Esupl `following`; `list_suppliers` питает справочник поставщиков ([[LCOS-F17-supplier-cards]]).
+- [[ingredients]] — зеркало каталога; `list_ingredients`/`get_ingredient` обеспечивают матчинг и валидацию коммита.
+- [[invoices]] — `list_invoices` + `GET /invoices` представляют запостенные заказы Esupl (`PosOrderOut`).
+- [[integration_credentials]] — per-org Bearer-токен Esupl (Fernet); разрешается вызывающим, никогда env.
+- [[organizations]] — `esupl_team_id` (org ↔ ровно одна команда Esupl, [[ADR-004]]).
+- [[subdivisions]] — `esupl_warehouse_id` (subdivision ↔ склад, [[ADR-008]]), используется с семейством чтений по складу.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[erp-esupl-integration]] (the endpoint contract + read-only stance), [[fail-closed]] (no-token → 401, POS-unavailable propagates as a truthful block), [[provider-abstraction]] (single `esupl` implementation behind the ERP `Protocol` — [[ADR-009]]), [[vpn-egress]] (`requires_vpn` seam + `guard_vpn`).
-- **Features:** feeds [[LCOS-F9-line-matching]] (catalog) and [[LCOS-F10-invoice-status-machine]] (commit validation + write); supplier sync consumer is [[LCOS-F17-supplier-cards]]; warehouse reads are extended by [[LCOS-F12-warehouse-target]]; the path-fix that made these reads real is legacy 08 F0.3 → [[LCOS-F28-esupl-contracts]].
-- **ADR / decisions:** [[ADR-004]] (org ↔ team), [[ADR-008]] (subdivision ↔ warehouse), [[ADR-006]] (fail-closed egress), [[ADR-009]] (one ERP implementation).
+- **Требования:** [[erp-esupl-integration]] (контракт endpoints + позиция только-чтения), [[fail-closed]] (нет-токена → 401, POS недоступен распространяется как честный блок), [[provider-abstraction]] (единственная реализация `esupl` за ERP-`Protocol` — [[ADR-009]]), [[vpn-egress]] (шов `requires_vpn` + `guard_vpn`).
+- **Фичи:** питает [[LCOS-F9-line-matching]] (каталог) и [[LCOS-F10-invoice-status-machine]] (валидация коммита + запись); потребитель синхронизации поставщиков — [[LCOS-F17-supplier-cards]]; чтения по складу расширяются [[LCOS-F12-warehouse-target]]; фикс путей, сделавший эти чтения реальными — legacy 08 F0.3 → [[LCOS-F28-esupl-contracts]].
+- **ADR / решения:** [[ADR-004]] (org ↔ команда), [[ADR-008]] (subdivision ↔ склад), [[ADR-006]] (fail-closed egress), [[ADR-009]] (одна ERP-реализация).
 
-## Acceptance criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. `list_suppliers` calls `GET /teams/{id}/following?is_virtual=1` and maps to `SupplierRef`; unconfigured base URL → `[]` + warning.
-- [ ] AC-BE-2. `list_ingredients` calls `GET /teams/{id}/products`; a non-empty `query` adds `product_name` + `operator[product_name]=like` (server-side search).
-- [ ] AC-BE-3. `get_ingredient` returns only an exact-`id` match, else `None`; it never falls back to `items[0]`; network/5xx/VPN errors propagate (not swallowed as None).
-- [ ] AC-BE-4. `validate_ingredient_on_commit` blocks on unit mismatch only when both units are set and differ (normalized), and returns fail-closed invalid on timeout/network error.
-- [ ] AC-BE-5. `list_invoices` calls `GET /teams/{id}/orders` with `include=team_to` and honors `per_page`/`page`.
-- [ ] AC-BE-6. `GET /api/v1/invoices` maps orders to `PosOrderOut` with `is_submitted = status==8`, `is_paid = payment_status==2`, tolerates missing `team_to` (supplier id `0`), and returns `[]` when the org has no `esupl_team_id`.
-- [ ] AC-BE-7. Every read requires the per-org Bearer token (via `get_esupl_access`); no token → unauthenticated request → Esupl 401 (no env fallback); tokens never logged.
-- [ ] AC-BE-8. All GETs route through the single `_get` egress helper (URL build, `httpx` param encoding, `guard_vpn`, `raise_for_status`) and tolerantly unwrap list-or-`{data:[]}`.
+- [ ] AC-BE-1. `list_suppliers` вызывает `GET /teams/{id}/following?is_virtual=1` и отображает в `SupplierRef`; ненастроенный базовый URL → `[]` + предупреждение.
+- [ ] AC-BE-2. `list_ingredients` вызывает `GET /teams/{id}/products`; непустой `query` добавляет `product_name` + `operator[product_name]=like` (серверный поиск).
+- [ ] AC-BE-3. `get_ingredient` возвращает только совпадение точного `id`, иначе `None`; никогда не откатывается к `items[0]`; сетевые/5xx/VPN-ошибки распространяются (не глотаются как None).
+- [ ] AC-BE-4. `validate_ingredient_on_commit` блокирует на несовпадении единиц только когда обе единицы установлены и различаются (нормализовано), и возвращает fail-closed invalid при timeout/сетевой ошибке.
+- [ ] AC-BE-5. `list_invoices` вызывает `GET /teams/{id}/orders` с `include=team_to` и учитывает `per_page`/`page`.
+- [ ] AC-BE-6. `GET /api/v1/invoices` отображает заказы в `PosOrderOut` с `is_submitted = status==8`, `is_paid = payment_status==2`, толерирует отсутствующий `team_to` (id поставщика `0`) и возвращает `[]`, когда у организации нет `esupl_team_id`.
+- [ ] AC-BE-7. Каждое чтение требует per-org Bearer-токен (через `get_esupl_access`); нет токена → неаутентифицированный запрос → Esupl 401 (нет env-фолбэка); токены никогда не логируются.
+- [ ] AC-BE-8. Все GET-ы маршрутизируются через единый egress-хелпер `_get` (построение URL, кодирование параметров `httpx`, `guard_vpn`, `raise_for_status`) и толерантно разворачивают list-или-`{data:[]}`.
 
 ### Frontend
-- [ ] AC-FE-1. The invoices list renders `PosOrderOut` (number, delivery date, supplier, total, submitted/paid badges) from `GET /invoices`.
-- [ ] AC-FE-2. An org with no configured Esupl team shows an empty state, not an error.
-- [ ] AC-FE-3. Supplier/catalog data surfaced from Esupl reads is read-only in the UI (LCOS never edits Esupl master data).
+- [ ] AC-FE-1. Список инвойсов отрисовывает `PosOrderOut` (номер, дата доставки, поставщик, итог, бейджи submitted/paid) из `GET /invoices`.
+- [ ] AC-FE-2. Организация без настроенной команды Esupl показывает пустое состояние, а не ошибку.
+- [ ] AC-FE-3. Данные поставщиков/каталога, всплывшие из чтений Esupl, только-для-чтения в UI (LCOS никогда не редактирует master-данные Esupl).
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **`S1` read-only (open):** confirm in the browser that the `products?id=` and `product_name` filters are actually honored; the `/products?id=` (code) vs `/ingredients/{id}` (probe) endpoint divergence is documented.
-- **`VER-021` durability (open, owner-run):** `pos_ingredient_id` stability across edit/delete-recreate is not confirmed empirically; read reflects, does not fix — see [[LCOS-E5-stabilization]].
-- Response shapes are parsed tolerantly pending live confirmation on team 17957 (08 F0.3 AC-3).
+- **`S1` только-чтение (открыто):** подтвердить в браузере, что фильтры `products?id=` и `product_name` действительно учитываются; расхождение endpoint-ов `/products?id=` (код) vs `/ingredients/{id}` (проба) задокументировано.
+- **`VER-021` долговечность (открыто, запуск владельцем):** стабильность `pos_ingredient_id` при edit/delete-recreate эмпирически не подтверждена; чтение отражает, не чинит — см. [[LCOS-E5-stabilization]].
+- Формы ответов разбираются толерантно до живого подтверждения на команде 17957 (08 F0.3 AC-3).
 
-## Sources
+## Источники
 
-- `APP_OVERVIEW.md §9` (real endpoints, per-read token, `get_esupl_access` SSOT).
-- `08_PHASE1_SPEC.md F0.3` (team-scoped path fix; no-token → `[]` + warning; pagination).
-- `mvp.be/app/providers/erp/esupl.py:80` (`list_suppliers`), `:104` (`list_ingredients`), `:123` (`get_ingredient` strict match), `:154` (`validate_ingredient_on_commit`), `:230` (`list_invoices`), `:53` (`_get` egress helper), `:286` (`_auth_headers` no-token → 401).
-- `mvp.be/app/api/v1/routes/invoices.py:72` (`GET /invoices` → `PosOrderOut`, status/payment semantics).
+- `APP_OVERVIEW.md §9` (реальные endpoints, токен на чтение, SSOT `get_esupl_access`).
+- `08_PHASE1_SPEC.md F0.3` (фикс team-scoped путей; нет-токена → `[]` + предупреждение; пагинация).
+- `mvp.be/app/providers/erp/esupl.py:80` (`list_suppliers`), `:104` (`list_ingredients`), `:123` (`get_ingredient` строгое совпадение), `:154` (`validate_ingredient_on_commit`), `:230` (`list_invoices`), `:53` (egress-хелпер `_get`), `:286` (`_auth_headers` нет-токена → 401).
+- `mvp.be/app/api/v1/routes/invoices.py:72` (`GET /invoices` → `PosOrderOut`, семантика status/payment).

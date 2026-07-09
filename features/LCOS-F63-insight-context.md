@@ -1,7 +1,7 @@
 ---
 id: LCOS-F63
 type: feature
-title: Insight context builder
+title: Сборщик контекста инсайтов
 epic: "[[LCOS-E14-strategic-insights]]"
 status: future
 phase: "Phase 2"
@@ -13,52 +13,52 @@ legacy_refs: [plan F10, "plan F10-B1"]
 sources: ["plan/PHASE_F10_STRATEGIC_INSIGHTS.md §1 F10-B1", "plan/PHASE_F10_STRATEGIC_INSIGHTS.md (dependencies)"]
 updated: 2026-07-09
 ---
-# LCOS-F63 · Insight context builder
+# LCOS-F63 · Сборщик контекста инсайтов
 **Epic:** [[LCOS-E14-strategic-insights]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The deterministic core of the strategic-insights epic: an `InsightContextBuilder` service that assembles a compact, structured snapshot of one subdivision over a rolling window of N weeks. It draws from every lower module that is present — sales and anomalies ([[LCOS-E9-sales-analytics]]), supplier price changes and alerts ([[LCOS-E4-suppliers]]), position vs. the neighborhood ([[LCOS-E11-competitor-menu]]), review trends ([[LCOS-E12-competitor-reviews]]), and accepted/rejected menu ideas ([[LCOS-E13-menu-ideas]]).
+Детерминированное ядро эпика стратегических инсайтов: сервис `InsightContextBuilder`, собирающий компактный структурированный снимок одного подразделения за скользящее окно N недель. Он черпает из каждого нижележащего модуля, который присутствует — продажи и аномалии ([[LCOS-E9-sales-analytics]]), изменения цен поставщиков и алерты ([[LCOS-E4-suppliers]]), позиция относительно района ([[LCOS-E11-competitor-menu]]), тренды отзывов ([[LCOS-E12-competitor-reviews]]) и принятые/отклонённые идеи для меню ([[LCOS-E13-menu-ideas]]).
 
-The builder is a **pure function of the database** (no LLM call), so it is unit-tested independently of any model. It degrades gracefully: a module that is absent or has no data simply has its section omitted, with an explicit note left in the context so downstream reasoning knows the gap exists rather than hallucinating around it.
+Сборщик — **чистая функция от базы данных** (без LLM-вызова), поэтому он юнит-тестируется независимо от любой модели. Он грациозно деградирует: у модуля, который отсутствует или не имеет данных, его секция просто опускается с явной пометкой, оставляемой в контексте, чтобы производное рассуждение знало о пробеле, а не галлюцинировало вокруг него.
 
-The context obeys a strict size budget — aggregates and top-N summaries, never raw rows — governed by `insight_context_weeks` (config registry, default 4). This is the shared input consumed by the weekly session ([[LCOS-F64-weekly-questions]]) and the free-form dialog ([[LCOS-F65-freeform-dialog]]), where it is frozen into each session's `context_snapshot` for auditability.
+Контекст подчиняется строгому бюджету размера — агрегаты и топ-N сводки, никогда не сырые строки — регулируемому `insight_context_weeks` (config-реестр, default 4). Это общий вход, потребляемый еженедельной сессией ([[LCOS-F64-weekly-questions]]) и свободным диалогом ([[LCOS-F65-freeform-dialog]]), где он замораживается в `context_snapshot` каждой сессии для аудируемости.
 
-## Capabilities
+## Возможности
 
-- Assemble a per-subdivision context over a configurable N-week window (`insight_context_weeks`, default 4).
-- Aggregate-only budget: top-N and rolled-up figures, never raw line rows, to bound token cost.
-- Graceful degradation: a missing module's section is dropped with an explicit "not available" marker.
-- Pure DB → structure transform, testable without any LLM (matches the [[LCOS-F45-sales-read]] "builder is a pure function" pattern).
-- Produces the exact structure later frozen as `context_snapshot` for [[LCOS-F64-weekly-questions]] audit.
+- Сборка контекста по подразделению за настраиваемое окно N недель (`insight_context_weeks`, default 4).
+- Бюджет только агрегатов: топ-N и свёрнутые цифры, никогда сырые строки, чтобы ограничить стоимость токенов.
+- Грациозная деградация: секция отсутствующего модуля опускается с явным маркером «недоступно».
+- Чистое преобразование БД → структура, тестируемое без всякого LLM (соответствует паттерну «сборщик — чистая функция» из [[LCOS-F45-sales-read]]).
+- Производит ровно ту структуру, что позднее замораживается как `context_snapshot` для аудита [[LCOS-F64-weekly-questions]].
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[admin]] | No direct interaction; the context they see is surfaced indirectly through [[LCOS-F64-weekly-questions]] and [[LCOS-F65-freeform-dialog]]. |
-| [[superadmin]] | Same across all tenants; tunes `insight_context_weeks` and module enable flags via the config API. |
-| [[member]] | Not involved. |
-| [[sqladmin-operator]] | Sets `insight_context_weeks` and module gates in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[admin]] | Прямого взаимодействия нет; видимый ему контекст отображается косвенно через [[LCOS-F64-weekly-questions]] и [[LCOS-F65-freeform-dialog]]. |
+| [[superadmin]] | То же по всем тенантам; настраивает `insight_context_weeks` и флаги включения модулей через config-API. |
+| [[member]] | Не участвует. |
+| [[sqladmin-operator]] | Задаёт `insight_context_weeks` и модульные гейты в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
 
-## Involved entities
+## Задействованные сущности
 
-- [[subdivisions]] — the tenant scope; every context is built for exactly one subdivision.
-- [[ingredients]] — catalog referenced when summarizing consumption/stock signals.
-- [[suppliers]] — source of price-change and delivery-terms signals folded into the context.
-- Phase-2 read models (sales aggregates, weather/events, competitor and review tables, menu-idea statuses) are consumed here but owned by their respective epics; they are not new entities of this feature.
+- [[subdivisions]] — тенант-скоуп; каждый контекст строится ровно для одного подразделения.
+- [[ingredients]] — каталог, на который ссылаются при сводке сигналов потребления/остатков.
+- [[suppliers]] — источник сигналов изменения цен и условий поставки, сворачиваемых в контекст.
+- Read-модели Phase 2 (агрегаты продаж, погода/события, таблицы конкурентов и отзывов, статусы идей меню) потребляются здесь, но принадлежат своим эпикам; они не являются новыми сущностями этой фичи.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (context is strictly subdivision-scoped), [[config-secrets]] (`insight_context_weeks` and module flags via the three-level config), [[provider-abstraction]] (this feature stays LLM-free; the seam is used only by its consumers), [[fail-closed]] (a missing module is an explicit omission, never a silent guess).
-- **Features:** consumed by [[LCOS-F64-weekly-questions]] and [[LCOS-F65-freeform-dialog]]; draws data produced by [[LCOS-E9-sales-analytics]], [[LCOS-E10-local-context]], [[LCOS-E11-competitor-menu]], [[LCOS-E12-competitor-reviews]], [[LCOS-E13-menu-ideas]].
-- **Epics / gates:** part of [[LCOS-E14-strategic-insights]]; the epic closes Phase 1 and feeds the Pilot-Gate check ([[ADR-003]]).
+- **Requirements:** [[multitenancy]] (контекст строго со скоупом подразделения), [[config-secrets]] (`insight_context_weeks` и модульные флаги через трёхуровневый конфиг), [[provider-abstraction]] (эта фича остаётся без LLM; шов используется только её потребителями), [[fail-closed]] (отсутствующий модуль — явное опущение, никогда тихая догадка).
+- **Features:** потребляется [[LCOS-F64-weekly-questions]] и [[LCOS-F65-freeform-dialog]]; черпает данные, произведённые [[LCOS-E9-sales-analytics]], [[LCOS-E10-local-context]], [[LCOS-E11-competitor-menu]], [[LCOS-E12-competitor-reviews]], [[LCOS-E13-menu-ideas]].
+- **Epics / gates:** часть [[LCOS-E14-strategic-insights]]; эпик закрывает Phase 1 и питает проверку Pilot-Gate ([[ADR-003]]).
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). Draft direction: full-module fixtures return all sections; missing-module fixtures omit sections cleanly; the builder is covered by unit tests with no LLM in the loop.
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Направление черновика: фикстуры полного модуля возвращают все секции; фикстуры отсутствующего модуля чисто опускают секции; сборщик покрыт юнит-тестами без LLM в цикле.
 
 ## Sources
 
-- `plan/PHASE_F10_STRATEGIC_INSIGHTS.md §1 F10-B1` (deterministic `InsightContextBuilder`, N-week window, aggregate/top-N budget, `insight_context_weeks` default 4, missing-module omission, LLM-free testing).
-- `plan/PHASE_F10_STRATEGIC_INSIGHTS.md` (dependencies: graceful degradation, max value with F4+F5+F6+F7+F8, formal minimum F5).
+- `plan/PHASE_F10_STRATEGIC_INSIGHTS.md §1 F10-B1` (детерминированный `InsightContextBuilder`, окно N недель, бюджет агрегатов/топ-N, `insight_context_weeks` default 4, опущение отсутствующего модуля, тестирование без LLM).
+- `plan/PHASE_F10_STRATEGIC_INSIGHTS.md` (зависимости: грациозная деградация, максимальная ценность с F4+F5+F6+F7+F8, формальный минимум F5).

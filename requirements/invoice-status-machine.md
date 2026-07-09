@@ -1,7 +1,7 @@
 ---
 id: REQ-INVOICE-STATUS
 type: requirement
-title: Invoice status machine (draft→validated→rejected→prepared→written→failed)
+title: Машина статусов накладной (draft→validated→rejected→prepared→written→failed)
 status: built
 scope: cross-cutting
 roles: [member, admin]
@@ -13,49 +13,49 @@ sources: [01_ARCHITECTURE.md "prepare()→payload", "Enums (InvoiceStatus)", APP
 updated: 2026-07-09
 ---
 
-# REQ-INVOICE-STATUS · Invoice status machine
+# REQ-INVOICE-STATUS · Машина статусов накладной
 
-**Type:** cross-cutting SSOT · **Status:** built. The `Invoice` lifecycle from recognition to the (gated) write into the POS.
+**Type:** cross-cutting SSOT · **Status:** built. Жизненный цикл `Invoice` от распознавания до (gated) записи в POS.
 
-## Normative statement
+## Нормативное положение
 
-- **N1. Enum `InvoiceStatus` (native PG enum):** `draft → validated → rejected → prepared → written → failed`. Default `draft`, indexed. Semantics:
-  - `validated` — OCR ok, arithmetic passed, but **not yet** resolved into a POS payload.
-  - `rejected` — a failure of arithmetic/required fields **or** of the identity commit-resolve (fail-closed).
-  - `prepared` — fully resolved into an `EsuplOutgoingInvoice`, ready to send; **the payload is saved into `invoices.esupl_payload`**.
-  - `written` — actually written to Esupl (only when `ERP_WRITE_ENABLED`).
-  - `failed` — the write to the ERP failed.
-- **N2. Two-step API:** `recognize` (OCR only, no persist) → the client edits → `submit`. `prepare` — a pure resolve step (also `POST /invoices/prepare` for a preview), does not persist.
-- **N3. `submit(draft)` = `validate_draft` + `prepare` + persist:** `validate_draft` checks the number, a positive total, the sum of lines vs the total within `_TOTAL_TOLERANCE = Decimal("0.05")`; then `prepare` (draft-resolve, [[sku-identity-resolver]] N1) and the identity commit-resolve; persists the local [[invoices]], sets the status.
-- **N4. `esupl_payload` is frozen at `prepared`** — so the later gated send reproduces the **exact** validated body without re-resolving.
-- **N5. The write is gated twice:** `submit` calls `erp.write_invoice` **only** when `resolve_bool(ERP_WRITE_ENABLED)` (default False); `EsuplErpProvider.write_invoice` itself **re-gates** on the same flag (returns `esupl-prepared-<number>` without egress when OFF). See [[erp-esupl-integration]] N4.
-- **N6. Write exceptions do not bring down the request:** `submit` catches them and writes `status=failed` + `validation_errors`, not a 500.
-- **N7. Write idempotency:** `UNIQUE(organization_id, external_id)` on [[invoices]] (PG treats NULLs as distinct → drafts without an `external_id` do not conflict); `get_by_external_id` for a re-write. FE dedup — `sentInvoiceKey(scopeId, identity)` (per-browser, to be replaced by a server-side key — DEFER-04).
+- **N1. Enum `InvoiceStatus` (native PG enum):** `draft → validated → rejected → prepared → written → failed`. По умолчанию `draft`, индексирован. Семантика:
+  - `validated` — OCR ok, арифметика прошла, но **ещё не** разрешено в POS-payload.
+  - `rejected` — провал арифметики/обязательных полей **или** commit-resolve identity (fail-closed).
+  - `prepared` — полностью разрешено в `EsuplOutgoingInvoice`, готово к отправке; **payload сохранён в `invoices.esupl_payload`**.
+  - `written` — реально записано в Esupl (только при `ERP_WRITE_ENABLED`).
+  - `failed` — запись в ERP не удалась.
+- **N2. API из двух шагов:** `recognize` (только OCR, без persist) → клиент правит → `submit`. `prepare` — чистый resolve-шаг (также `POST /invoices/prepare` для предпросмотра), не persist-ит.
+- **N3. `submit(draft)` = `validate_draft` + `prepare` + persist:** `validate_draft` проверяет номер, положительный total, сумму строк vs total в пределах `_TOTAL_TOLERANCE = Decimal("0.05")`; затем `prepare` (draft-resolve, [[sku-identity-resolver]] N1) и commit-resolve identity; персистит локальную [[invoices]], выставляет статус.
+- **N4. `esupl_payload` замораживается на `prepared`** — чтобы поздняя gated-отправка воспроизвела **точное** валидированное тело без повторного resolve.
+- **N5. Запись гейтится дважды:** `submit` вызывает `erp.write_invoice` **только** при `resolve_bool(ERP_WRITE_ENABLED)` (по умолчанию False); сам `EsuplErpProvider.write_invoice` **повторно гейтит** по тому же флагу (возвращает `esupl-prepared-<number>` без egress при OFF). См. [[erp-esupl-integration]] N4.
+- **N6. Исключения записи не роняют запрос:** `submit` перехватывает их и пишет `status=failed` + `validation_errors`, не 500.
+- **N7. Идемпотентность записи:** `UNIQUE(organization_id, external_id)` на [[invoices]] (PG трактует NULL как различные → черновики без `external_id` не конфликтуют); `get_by_external_id` для повторной записи. FE dedup — `sentInvoiceKey(scopeId, identity)` (per-browser, подлежит замене серверным ключом — DEFER-04).
 
-## Rationale
+## Обоснование
 
-Separating the statuses makes "recognized", "valid but not POS-ready", "ready", "written" and "write error" distinguishable — critical for human-in-the-loop ([[ADR-002]]): the human sees exactly what is ready to send. Saving `esupl_payload` at `prepared` freezes the validated body, so the double write (local DB + ERP) does not re-resolve on send. The double write gate is part of the fail-closed read-only mode.
+Разделение статусов делает различимыми «распознано», «валидно, но не готово к POS», «готово», «записано» и «ошибка записи» — критично для human-in-the-loop ([[ADR-002]]): человек видит ровно то, что готово к отправке. Сохранение `esupl_payload` на `prepared` замораживает валидированное тело, поэтому двойная запись (локальная БД + ERP) не выполняет resolve заново при отправке. Двойной gate записи — часть fail-closed read-only режима.
 
-## Failure modes
+## Режимы отказа
 
-- **A failure of arithmetic/required fields** → `rejected` (not a silent send of a wrong total).
-- **A failure of the identity commit-resolve** → `rejected` + review (see [[sku-identity-resolver]] N3).
-- **ERP write failed** → `failed` + `validation_errors`, the request does not fall over with a 500.
-- **`ERP_WRITE_ENABLED=OFF`** → `prepared` (not `written`); FE toast "Prepared… POS write disabled".
-- **Lines without a SKU** are dropped on send (new ingredients are never created) — intentional, not an error.
+- **Провал арифметики/обязательных полей** → `rejected` (не тихая отправка неверного total).
+- **Провал commit-resolve identity** → `rejected` + review (см. [[sku-identity-resolver]] N3).
+- **Запись в ERP не удалась** → `failed` + `validation_errors`, запрос не падает с 500.
+- **`ERP_WRITE_ENABLED=OFF`** → `prepared` (не `written`); FE toast "Prepared… POS write disabled".
+- **Строки без SKU** отбрасываются при отправке (новые ингредиенты никогда не создаются) — намеренно, не ошибка.
 
-## Relations
+## Связи
 
-- ADR: [[ADR-001]] (write point), [[ADR-002]] (human-in-the-loop), [[ADR-006]] (fail-closed).
-- Entities: [[invoices]] (`status`, `esupl_payload`, `external_id`), [[invoice_lines]] (`pos_ingredient_id` snapshot).
-- Requirements: [[erp-esupl-integration]] (write/gate), [[sku-identity-resolver]] (commit-resolve → rejected), [[fail-closed]], [[global-requirements]] R8.3.
+- ADR: [[ADR-001]] (точка записи), [[ADR-002]] (human-in-the-loop), [[ADR-006]] (fail-closed).
+- Сущности: [[invoices]] (`status`, `esupl_payload`, `external_id`), [[invoice_lines]] (снапшот `pos_ingredient_id`).
+- Требования: [[erp-esupl-integration]] (write/gate), [[sku-identity-resolver]] (commit-resolve → rejected), [[fail-closed]], [[global-requirements]] R8.3.
 
-## Referenced by
+## На это ссылаются
 
 `LCOS-F10` (Invoice status machine + Esupl payload + gated write), `LCOS-F8`/`F9` (recognize/prepare), `LCOS-F13`/`F14` (commit-resolve → status), `LCOS-F43` (server-side idempotency — DEFER-04).
 
-## Sources
+## Источники
 
 - 01_ARCHITECTURE.md → "Enums (InvoiceStatus)", "How a request flows", "prepare() flow", Data model (`invoices`).
 - APP_OVERVIEW.md §6.
-- Code: `app/services/invoice_service.py` (`submit`/`prepare`/`validate_draft`), `app/db/models.py` (`InvoiceStatus`).
+- Код: `app/services/invoice_service.py` (`submit`/`prepare`/`validate_draft`), `app/db/models.py` (`InvoiceStatus`).

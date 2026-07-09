@@ -1,7 +1,7 @@
 ---
 id: LCOS-F57
 type: feature
-title: Google Places prefill (optional)
+title: Prefill из Google Places (опционально)
 epic: "[[LCOS-E11-competitor-menu]]"
 status: future
 phase: "Phase 2"
@@ -13,53 +13,53 @@ legacy_refs: [plan F7, "plan F7-B4"]
 sources: ["plan/PHASE_F7_COMPETITORS_MENU.md §1 (F7-B4)", "07_PHASES.md Э7", "plan/00_IMPLEMENTATION_PLAN.md F7"]
 updated: 2026-07-09
 ---
-# LCOS-F57 · Google Places prefill (optional)
+# LCOS-F57 · Prefill из Google Places (опционально)
 **Epic:** [[LCOS-E11-competitor-menu]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-An optional convenience for seeding the [[LCOS-F54-competitor-directory]]: if a free-tier Google Places key is configured, search for coffee shops within a radius of the subdivision's coordinates and prefill competitor cards (name, address, rating, `google_place_id`). This is strictly a helper — the primary, always-available path is manual card creation. With no key or an unavailable free tier, the feature simply degrades to manual entry.
+Опциональное удобство для заполнения [[LCOS-F54-competitor-directory]]: если настроен ключ Google Places бесплатного уровня, искать кофейни в радиусе от координат подразделения и предзаполнять карточки конкурентов (название, адрес, рейтинг, `google_place_id`). Это строго вспомогательный инструмент — основной, всегда доступный путь — ручное создание карточек. Без ключа или при недоступном бесплатном уровне фича просто деградирует до ручного ввода.
 
-The Places key is a platform-scoped `integration_credentials` secret (`platform, google_places`), Fernet-encrypted (`enc:v2:*`) and read backend-only; egress follows the platform policy ([[vpn-egress]]). Access is behind a provider seam consistent with the rest of the platform ([[provider-abstraction]], [[ADR-009]]), and the whole section is under `module_competitors_enabled`.
+Ключ Places — секрет `integration_credentials` со скоупом платформы (`platform, google_places`), зашифрован Fernet (`enc:v2:*`) и читается только на бэкенде; egress следует платформенной политике ([[vpn-egress]]). Доступ — за швом провайдера, согласованным с остальной платформой ([[provider-abstraction]], [[ADR-009]]), и вся секция под `module_competitors_enabled`.
 
-## Capabilities
+## Возможности
 
-- Radius search of nearby places from the subdivision's `lat`/`lon`, gated on a configured `google_places` key.
-- Prefill of competitor cards with name, address, rating, `google_place_id` (user confirms before save).
-- Graceful degradation: no key / free tier unavailable → manual card creation (the main path) remains fully functional.
-- Key stored platform-scoped and encrypted (`enc:v2:*`), read backend-only; no browser exposure.
-- Behind the module gate `module_competitors_enabled`.
+- Радиусный поиск ближайших мест от `lat`/`lon` подразделения, закрытый настроенным ключом `google_places`.
+- Предзаполнение карточек конкурентов названием, адресом, рейтингом, `google_place_id` (пользователь подтверждает перед сохранением).
+- Грациозная деградация: нет ключа / недоступен бесплатный уровень → ручное создание карточек (основной путь) остаётся полностью работоспособным.
+- Ключ хранится со скоупом платформы и зашифрован (`enc:v2:*`), читается только на бэкенде; без экспонирования браузеру.
+- За модульным гейтом `module_competitors_enabled`.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[admin]] | Runs the Places search and confirms prefilled competitor cards for the organization. |
-| [[superadmin]] | Sets the Google Places key and toggles the feature via the config API across tenants. |
-| [[sqladmin-operator]] | Stores/rotates the `google_places` credential in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
-| [[member]] | Not involved (directory maintenance is an admin task). |
+| [[admin]] | Запускает поиск Places и подтверждает предзаполненные карточки конкурентов для организации. |
+| [[superadmin]] | Задаёт ключ Google Places и переключает фичу через config-API по тенантам. |
+| [[sqladmin-operator]] | Хранит/ротирует учётные данные `google_places` в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Не участвует (ведение справочника — задача admin). |
 
-Tenant-scoped: prefilled cards are written into the organization's own [[LCOS-F54-competitor-directory]] ([[multitenancy]]).
+Тенант-скоуп: предзаполненные карточки пишутся в собственный [[LCOS-F54-competitor-directory]] организации ([[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[integration_credentials]] — platform-scoped `google_places` key, Fernet-encrypted (`enc:v2:*`), backend-only.
-- [[subdivisions]] — supplies `lat`/`lon` for the radius search.
-- [[system_settings]] — the `module_competitors_enabled` gate and any Places-related flags, resolved at runtime.
-- `competitors` (future org-scoped table) — the prefill target (see [[LCOS-F54-competitor-directory]]).
+- [[integration_credentials]] — ключ `google_places` со скоупом платформы, зашифрован Fernet (`enc:v2:*`), только на бэкенде.
+- [[subdivisions]] — поставляет `lat`/`lon` для радиусного поиска.
+- [[system_settings]] — гейт `module_competitors_enabled` и любые связанные с Places флаги, разрешаемые в рантайме.
+- `competitors` (будущая таблица со скоупом org) — цель prefill (см. [[LCOS-F54-competitor-directory]]).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[provider-abstraction]] (Places behind a seam, consistent with other integrations), [[config-secrets]] + [[secret-encryption]] (key stored encrypted, no env fallback), [[vpn-egress]] (egress governed by platform policy).
-- **Features:** prefills cards for [[LCOS-F54-competitor-directory]]; gated by [[LCOS-F6-module-gates]]; complementary to the manual walk-around behind [[LCOS-F55-menu-ocr]].
-- **ADR:** [[ADR-009]] (provider seam), [[ADR-006]] (egress policy).
+- **Requirements:** [[provider-abstraction]] (Places за швом, согласованно с другими интеграциями), [[config-secrets]] + [[secret-encryption]] (ключ хранится зашифрованным, без фолбэка на env), [[vpn-egress]] (egress регулируется платформенной политикой).
+- **Features:** предзаполняет карточки для [[LCOS-F54-competitor-directory]]; гейтится [[LCOS-F6-module-gates]]; дополняет ручной обход за [[LCOS-F55-menu-ocr]].
+- **ADR:** [[ADR-009]] (шов провайдера), [[ADR-006]] (политика egress).
 
-## Acceptance criteria
+## Критерии приёмки
 
-Acceptance criteria: TBD (Phase 2 — detailed on activation).
+Критерии приёмки: TBD (Phase 2 — детализируются при активации).
 
 ## Sources
 
-- `plan/PHASE_F7_COMPETITORS_MENU.md §1` — F7-B4 (optional Google Places for the initial list; key in `integration_credentials(platform, google_places)`; manual creation is the main path).
-- `07_PHASES.md Э7` (competitor directory seeding).
+- `plan/PHASE_F7_COMPETITORS_MENU.md §1` — F7-B4 (опциональный Google Places для начального списка; ключ в `integration_credentials(platform, google_places)`; ручное создание — основной путь).
+- `07_PHASES.md Э7` (заполнение справочника конкурентов).
 - `plan/00_IMPLEMENTATION_PLAN.md F7`.

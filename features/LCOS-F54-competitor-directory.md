@@ -1,7 +1,7 @@
 ---
 id: LCOS-F54
 type: feature
-title: Competitor directory
+title: Справочник конкурентов
 epic: "[[LCOS-E11-competitor-menu]]"
 status: future
 phase: "Phase 2"
@@ -13,53 +13,53 @@ legacy_refs: [plan F7, "plan F7-B1", "plan F7-F1", 07 Э7]
 sources: ["plan/PHASE_F7_COMPETITORS_MENU.md §1 (F7-B1), §2 (F7-F1)", "07_PHASES.md Э7", "plan/00_IMPLEMENTATION_PLAN.md F7"]
 updated: 2026-07-09
 ---
-# LCOS-F54 · Competitor directory
+# LCOS-F54 · Справочник конкурентов
 **Epic:** [[LCOS-E11-competitor-menu]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The entry point of the competitor-positioning epic: a small, manually curated directory of the 5–10 nearest coffee shops / bakeries whose prices the owner wants to keep an eye on. Data is collected by a legal manual walk-around (photos of menus later fed to [[LCOS-F55-menu-ocr]]) — there is no site scraping or aggregator parsing. This feature owns only the competitor cards; menu capture, comparison and Places prefill live in sibling features.
+Точка входа эпика позиционирования против конкурентов: небольшой, вручную кураторуемый справочник из 5–10 ближайших кофеен / пекарен, за ценами которых владелец хочет присматривать. Данные собираются легальным ручным обходом (фото меню, позднее подаваемые в [[LCOS-F55-menu-ocr]]) — без скрейпинга сайтов или парсинга агрегаторов. Эта фича владеет только карточками конкурентов; захват меню, сравнение и prefill из Places живут в родственных фичах.
 
-A new organization-scoped table `competitors` (`OrganizationScopedMixin`, uuid pk) holds `name`, optional `address`, `lat`/`lon`, `kind` (coffee shop / bakery / …), `rating`, `google_place_id`, `note`, and `is_active`. The whole section sits behind the module gate `module_competitors_enabled` ([[LCOS-F6-module-gates]]): with the module off, the API returns `404` and the UI hides the section. The target for the walk-around is entering 3+ real competitors by phone in ≤15 min each.
+Новая таблица `competitors` со скоупом организации (`OrganizationScopedMixin`, uuid pk) хранит `name`, опциональные `address`, `lat`/`lon`, `kind` (кофейня / пекарня / …), `rating`, `google_place_id`, `note` и `is_active`. Вся секция сидит за модульным гейтом `module_competitors_enabled` ([[LCOS-F6-module-gates]]): при выключенном модуле API возвращает `404`, а UI скрывает секцию. Цель обхода — ввести 3+ реальных конкурентов с телефона за ≤15 мин на каждого.
 
-## Capabilities
+## Возможности
 
-- CRUD of competitor cards, organization-scoped and tenant-isolated ([[multitenancy]]).
-- Card fields: name, address, coordinates, kind, rating, `google_place_id`, free-text note, active/inactive flag.
-- List view with a "menu is stale" badge derived from the latest snapshot's `captured_on` (staleness surfaced by [[LCOS-F56-positioning]]).
-- Manual creation is the primary path; optional prefill from Google Places is [[LCOS-F57-places-prefill]].
-- Module gate `module_competitors_enabled` guards the whole feature (`404` + hidden UI when off).
-- Mock provider ships demo competitors for development without real data.
+- CRUD карточек конкурентов, со скоупом организации и тенант-изоляцией ([[multitenancy]]).
+- Поля карточки: название, адрес, координаты, тип, рейтинг, `google_place_id`, свободная заметка, флаг активен/неактивен.
+- Список с бейджем «меню устарело», выводимым из `captured_on` последнего снимка (устаревание отображается [[LCOS-F56-positioning]]).
+- Ручное создание — основной путь; опциональный prefill из Google Places — [[LCOS-F57-places-prefill]].
+- Модульный гейт `module_competitors_enabled` защищает всю фичу (`404` + скрытый UI при выключении).
+- Mock-провайдер поставляет демо-конкурентов для разработки без реальных данных.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | View competitor cards within their own subdivision/organization. |
-| [[admin]] | Maintains the directory: creates/edits/deactivates competitor cards for the organization. |
-| [[superadmin]] | Cross-tenant access; toggles `module_competitors_enabled` via the config API. |
-| [[sqladmin-operator]] | Flips the module gate in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]); not involved in day-to-day card entry. |
+| [[member]] | Просматривает карточки конкурентов в рамках своего подразделения/организации. |
+| [[admin]] | Ведёт справочник: создаёт/редактирует/деактивирует карточки конкурентов для организации. |
+| [[superadmin]] | Кросс-тенантный доступ; переключает `module_competitors_enabled` через config-API. |
+| [[sqladmin-operator]] | Переключает модульный гейт в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]); не участвует в повседневном вводе карточек. |
 
-Tenant-scoped: `competitors` is isolated per organization; the scope comes from the active JWT context ([[auth]], [[multitenancy]]).
+Тенант-скоуп: `competitors` изолирована по организации; скоуп берётся из активного контекста JWT ([[auth]], [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[organizations]] — the scope owner of a competitor card (`OrganizationScopedMixin`).
-- [[subdivisions]] — the walk-around is anchored to a subdivision's neighborhood; coordinates seed the optional Places radius search.
-- `competitors` (future organization-scoped table) — the directory store; entity doc to be created on activation.
+- [[organizations]] — владелец скоупа карточки конкурента (`OrganizationScopedMixin`).
+- [[subdivisions]] — обход привязан к району подразделения; координаты сеют опциональный радиусный поиск Places.
+- `competitors` (будущая таблица со скоупом организации) — хранилище справочника; документ-сущность создаётся при активации.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (org-scoped rows, tenant isolation covered by tests on activation).
-- **Features:** feeds menu capture [[LCOS-F55-menu-ocr]] and comparison [[LCOS-F56-positioning]]; optional card prefill [[LCOS-F57-places-prefill]]; gated by [[LCOS-F6-module-gates]].
-- **Epic siblings:** part of [[LCOS-E11-competitor-menu]]; downstream context for [[LCOS-E13-menu-ideas]] and [[LCOS-E14-strategic-insights]].
+- **Requirements:** [[multitenancy]] (строки со скоупом org, тенант-изоляция покрывается тестами при активации).
+- **Features:** питает захват меню [[LCOS-F55-menu-ocr]] и сравнение [[LCOS-F56-positioning]]; опциональный prefill карточек [[LCOS-F57-places-prefill]]; гейтится [[LCOS-F6-module-gates]].
+- **Epic siblings:** часть [[LCOS-E11-competitor-menu]]; производный контекст для [[LCOS-E13-menu-ideas]] и [[LCOS-E14-strategic-insights]].
 
-## Acceptance criteria
+## Критерии приёмки
 
-Acceptance criteria: TBD (Phase 2 — detailed on activation).
+Критерии приёмки: TBD (Phase 2 — детализируются при активации).
 
 ## Sources
 
-- `plan/PHASE_F7_COMPETITORS_MENU.md §1` — F7-B1 (`competitors` data model), `§2` — F7-F1 (competitor section / cards UI).
-- `07_PHASES.md Э7` (competitors: photo of menu → structured items; 3 real competitors entered by phone).
+- `plan/PHASE_F7_COMPETITORS_MENU.md §1` — F7-B1 (модель данных `competitors`), `§2` — F7-F1 (UI секции / карточек конкурентов).
+- `07_PHASES.md Э7` (конкуренты: фото меню → структурированные позиции; 3 реальных конкурента введены с телефона).
 - `plan/00_IMPLEMENTATION_PLAN.md F7`.

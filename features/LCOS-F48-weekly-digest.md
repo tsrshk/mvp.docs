@@ -1,7 +1,7 @@
 ---
 id: LCOS-F48
 type: feature
-title: Weekly digest
+title: Еженедельный дайджест
 epic: "[[LCOS-E9-sales-analytics]]"
 status: future
 phase: "Phase 2"
@@ -13,50 +13,50 @@ legacy_refs: [plan F5-B4, plan F5-F1, 07 Э6]
 sources: ["plan/PHASE_F5_SALES_ANALYTICS.md §1 F5-B4", "plan/PHASE_F5_SALES_ANALYTICS.md §2 F5-F1", "06_STRATEGY.md"]
 updated: 2026-07-09
 ---
-# LCOS-F48 · Weekly digest
+# LCOS-F48 · Еженедельный дайджест
 **Epic:** [[LCOS-E9-sales-analytics]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The owner-facing product of the epic: a weekly digest built on schedule from stored sales, so the owner gets the picture of the week without opening Esupl. It is deliberately not a dashboard — it arrives on its own and ends in a reading, in the AI-manager framing (see [[LCOS-E9-sales-analytics]], product strategy). A `digests` table (`SubdivisionScopedMixin`) stores `period_start`, `period_end`, `metrics JSONB` (this week's revenue vs last week and vs the same week 4 weeks ago; top-5 by revenue; items up/down >20% week-over-week; average check if available), `body_md`, `created_at`, `read_at?`, unique `(subdivision_id, period_start)`.
+Продукт эпика, обращённый к владельцу: еженедельный дайджест, строящийся по расписанию из сохранённых продаж, чтобы владелец получал картину недели, не открывая Esupl. Это намеренно не дашборд — он приходит сам и заканчивается прочтением, в рамке AI-управляющего (см. [[LCOS-E9-sales-analytics]], продуктовую стратегию). Таблица `digests` (`SubdivisionScopedMixin`) хранит `period_start`, `period_end`, `metrics JSONB` (выручка этой недели vs прошлой и vs той же недели 4 недели назад; топ-5 по выручке; позиции с ростом/падением >20% неделя-к-неделе; средний чек при наличии), `body_md`, `created_at`, `read_at?`, уникально `(subdivision_id, period_start)`.
 
-All arithmetic is deterministic (SQL/Python, Decimal) and unit-testable; the LLM (`ai_complete`, cheap model) only turns the finished `metrics` into readable prose in `body_md`. If AI is unavailable, the digest is still saved with templated text from the metrics and flagged `"ai_text": false` — an honest computed fallback, not silent degradation (metrics matter more than prose). The whole feature sits behind the `module_analytics_enabled` gate. Delivery channel is web only — a Digest page plus a PWA badge; the old-spec Telegram channel is out of scope (plan §6 Q1).
+Вся арифметика детерминирована (SQL/Python, Decimal) и покрываема юнит-тестами; LLM (`ai_complete`, дешёвая модель) лишь превращает готовые `metrics` в читаемый текст в `body_md`. Если AI недоступен, дайджест всё равно сохраняется с шаблонным текстом из метрик и флагом `"ai_text": false` — честный вычисленный fallback, а не тихая деградация (метрики важнее прозы). Вся фича сидит за гейтом `module_analytics_enabled`. Канал доставки — только веб: страница дайджеста плюс PWA-бейдж; Telegram-канал из старой спеки вне объёма (plan §6 Q1).
 
-## Capabilities
+## Возможности
 
-- `digests` table + scheduled `DigestService.build()` producing deterministic `metrics` and LLM-rendered `body_md`.
-- AI-unavailable fallback: digest saved with templated metric text and `ai_text=false` flag.
-- Routes: `GET /api/v1/digests`, `GET /api/v1/digests/{id}`, `POST /api/v1/digests/{id}/read`, `POST /api/v1/digests/generate` (manual re-generate for a period; needs subdivision context).
-- Frontend "Digest" nav item: list of weekly digests + metric cards rendered from `metrics` (not parsed from markdown), with `body_md` below; unread badge; a data-freshness banner ("Esupl data as of <last successful sync>", explicit warning when the sync is broken).
-- Module gate `module_analytics_enabled`.
+- Таблица `digests` + плановый `DigestService.build()`, производящий детерминированные `metrics` и LLM-рендер `body_md`.
+- Fallback при недоступном AI: дайджест сохраняется с шаблонным текстом метрик и флагом `ai_text=false`.
+- Маршруты: `GET /api/v1/digests`, `GET /api/v1/digests/{id}`, `POST /api/v1/digests/{id}/read`, `POST /api/v1/digests/generate` (ручная перегенерация за период; нужен контекст подразделения).
+- Пункт навигации «Digest» на фронтенде: список еженедельных дайджестов + карточки метрик, рендеримые из `metrics` (не парсятся из markdown), с `body_md` ниже; бейдж непрочитанного; баннер свежести данных («Данные Esupl на <последняя успешная синхронизация>», явное предупреждение при сломанной синхронизации).
+- Модульный гейт `module_analytics_enabled`.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | Read the digest for their subdivision on web/PWA; mark as read. |
-| [[admin]] | Same, plus manual re-generate for a period; sees sync freshness. |
-| [[superadmin]] | Cross-tenant read; toggles `module_analytics_enabled` and the AI provider via config-API. |
-| [[sqladmin-operator]] | Switches the module gate / AI provider in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Читает дайджест своего подразделения в веб/PWA; помечает как прочитанный. |
+| [[admin]] | То же, плюс ручная перегенерация за период; видит свежесть синхронизации. |
+| [[superadmin]] | Кросс-тенантное чтение; переключает `module_analytics_enabled` и AI-провайдера через config-API. |
+| [[sqladmin-operator]] | Переключает модульный гейт / AI-провайдера в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
 
-## Involved entities
+## Задействованные сущности
 
-- [[subdivisions]] — digest scope (`SubdivisionScopedMixin`, unique `(subdivision_id, period_start)`).
-- [[system_settings]] — `module_analytics_enabled` gate, digest schedule flags, `ai_provider` for prose rendering.
-- New table `digests` is defined here (Phase 2 stub, no standalone entity doc yet); metrics are derived from `daily_aggregates` / `sales_records` ([[LCOS-F46-sales-storage]]).
+- [[subdivisions]] — скоуп дайджеста (`SubdivisionScopedMixin`, уникально `(subdivision_id, period_start)`).
+- [[system_settings]] — гейт `module_analytics_enabled`, флаги расписания дайджеста, `ai_provider` для рендера текста.
+- Новая таблица `digests` определяется здесь (заготовка Phase 2, отдельного документа-сущности пока нет); метрики выводятся из `daily_aggregates` / `sales_records` ([[LCOS-F46-sales-storage]]).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (per-subdivision digests, isolation tested), [[provider-abstraction]] (LLM prose behind the AI seam, cheap model), [[fail-closed]] (broken sync shows a stale-data banner, not a fresh date; AI-down is an explicit flagged fallback).
-- **Features:** consumes [[LCOS-F46-sales-storage]], generated on schedule by [[LCOS-F47-scheduler]]; the unread-badge mechanism reuses supplier/price alerts from [[LCOS-F21-price-change-signal]] if available.
-- **Epics:** [[LCOS-E9-sales-analytics]]; free-form "how are we doing" questions are out of scope here → [[LCOS-E14-strategic-insights]]; weather explanations → [[LCOS-E10-local-context]].
+- **Requirements:** [[multitenancy]] (дайджесты по подразделению, изоляция протестирована), [[provider-abstraction]] (LLM-текст за AI-швом, дешёвая модель), [[fail-closed]] (сломанная синхронизация показывает баннер устаревших данных, а не свежую дату; недоступность AI — явный флагованный fallback).
+- **Features:** потребляет [[LCOS-F46-sales-storage]], генерируется по расписанию через [[LCOS-F47-scheduler]]; механизм бейджа непрочитанного переиспользует алерты о поставщиках/ценах из [[LCOS-F21-price-change-signal]] при наличии.
+- **Epics:** [[LCOS-E9-sales-analytics]]; свободные вопросы «как у нас дела» вне объёма здесь → [[LCOS-E14-strategic-insights]]; объяснения через погоду → [[LCOS-E10-local-context]].
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). Scheduled generation, metric contents, AI-fallback flag, mobile readability, stale-data banner, and tenant isolation are drafted on activation.
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Плановая генерация, содержимое метрик, флаг AI-fallback, читаемость на мобильных, баннер устаревших данных и тенант-изоляция прорабатываются при активации.
 
 ## Sources
 
-- `plan/PHASE_F5_SALES_ANALYTICS.md §1 F5-B4` (digest table, deterministic metrics, AI fallback, routes).
-- `plan/PHASE_F5_SALES_ANALYTICS.md §2 F5-F1` (Digest page, metric cards, freshness banner).
-- `06_STRATEGY.md` (AI-manager framing: digest arrives and ends in an action, not a dashboard).
+- `plan/PHASE_F5_SALES_ANALYTICS.md §1 F5-B4` (таблица дайджеста, детерминированные метрики, AI-fallback, маршруты).
+- `plan/PHASE_F5_SALES_ANALYTICS.md §2 F5-F1` (страница дайджеста, карточки метрик, баннер свежести).
+- `06_STRATEGY.md` (рамка AI-управляющего: дайджест приходит и заканчивается действием, а не дашбордом).

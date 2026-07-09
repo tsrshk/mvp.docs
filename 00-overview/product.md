@@ -1,7 +1,7 @@
 ---
 id: OV-PRODUCT
 type: overview
-title: Product — identity, strategy, market
+title: Продукт — идентичность, стратегия, рынок
 status: current
 phase: cross-cutting
 updated: 2026-07-09
@@ -13,110 +13,110 @@ sources:
   - APP_OVERVIEW.md §1 (verified_against_code 2026-07-09)
 ---
 
-# Product — LCOS as an AI manager
+# Продукт — LCOS как AI-управляющий
 
-> **The SSOT for product identity and strategy** is `06_STRATEGY.md`. This document is a navigational summary for the vault; on a strategy conflict `06_STRATEGY.md` prevails, on implementation facts the code and [[architecture]] prevail. Roadmap — [[roadmap]], architecture — [[architecture]].
+> **SSOT продуктовой идентичности и стратегии** — `06_STRATEGY.md`. Этот документ — навигационная сводка для хранилища; при конфликте по стратегии главенствует `06_STRATEGY.md`, по фактам реализации главенствуют код и [[architecture]]. Roadmap — [[roadmap]], архитектура — [[architecture]].
 
-## 1. Identity: a digital manager, not a tool
+## 1. Идентичность: цифровой управляющий, а не инструмент
 
-**LCOS is not a POS, not "yet another OCR service", and not an analytics dashboard. It is a digital manager for a small venue** — a layer that takes over the owner's routine work: entering invoices, maintaining the catalog and supplier prices, planning and preparing purchases, positioning against competitors, ideas for new menu items. The POS system (Esupl today, others later) remains the ledger; LCOS is the one who *works* with it on the owner's behalf.
+**LCOS — это не POS, не «ещё один OCR-сервис» и не аналитический дашборд. Это цифровой управляющий для маленького заведения** — слой, который берёт на себя рутинную работу владельца: ввод накладных, ведение каталога и цен поставщиков, планирование и подготовку закупок, позиционирование против конкурентов, идеи для новых пунктов меню. POS-система (сегодня Esupl, позже другие) остаётся книгой учёта; LCOS — тот, кто *работает* с ней от имени владельца.
 
-The product is validated on itself: **Customer Zero** is the coffee shop of the founder's wife. First the product becomes indispensable to one real business ([[glossary]]), and only then is it packaged for the market.
+Продукт проверяется на самом себе: **Customer Zero** — кофейня жены основателя. Сначала продукт становится незаменимым для одного реального бизнеса ([[glossary]]), и только потом упаковывается для рынка.
 
-### Three rules that vet every feature
+### Три правила, отсеивающие каждую фичу
 
-1. **A feature must DO the work, not display numbers.** A "margin dashboard" is not our feature. "A draft supplier order assembled from stock levels and prices — confirm and send" is. An assistant that "shows the numbers" is an explicitly rejected anti-pattern.
-2. **The AI prepares — the human confirms** ([[ADR-002]] human-in-the-loop). No automatic actions in external systems without confirmation. The manager brings a finished decision for signature rather than acting behind your back. The technical embodiment is [[ADR-002]] and the single write-point behind the [[glossary]] toggle.
-3. **Every closed routine = deeper lock-in.** The business mechanics are to become indispensable through habit and accumulated data (the routine ladder, §3). Retention is not a "later" metric but the product strategy itself. The technical anchor of lock-in is the [[glossary]] (the learning-loop mapping, [[sku_mapping]]).
+1. **Фича должна ДЕЛАТЬ работу, а не показывать числа.** «Дашборд маржи» — не наша фича. «Черновик заказа поставщику, собранный из остатков и цен — подтверди и отправь» — да. Ассистент, который «показывает числа», — явно отвергнутый анти-паттерн.
+2. **AI готовит — человек подтверждает** ([[ADR-002]] human-in-the-loop). Никаких автоматических действий во внешних системах без подтверждения. Управляющий приносит готовое решение на подпись, а не действует за твоей спиной. Техническое воплощение — [[ADR-002]] и единственная точка записи за тумблером [[glossary]].
+3. **Каждая закрытая рутина = глубже lock-in.** Бизнес-механика — стать незаменимым через привычку и накопленные данные (лестница рутин, §3). Retention — не «поздняя» метрика, а сама продуктовая стратегия. Технический якорь lock-in — [[glossary]] (маппинг обучающей петли, [[sku_mapping]]).
 
-### Why this is the right bet
+### Почему это правильная ставка
 
-Every competitor found sits in one of two pits: either "an invoice-entry tool" (DocsInBox, RestData — a commodity a POS vendor can replicate) or "analytics/inventory" (MarginEdge, MarketMan — they show but do not do). The niche of "a manager that closes the routine end to end" is unoccupied in the CIS and, essentially, globally. That is also the defense against the main risk: a POS can add an OCR feature in a quarter, but a POS vendor will never become a manager — that is neither its role nor its business model.
+Каждый найденный конкурент сидит в одной из двух ям: либо «инструмент ввода накладных» (DocsInBox, RestData — коммодити, которое POS-вендор может воспроизвести), либо «аналитика/инвентаризация» (MarginEdge, MarketMan — показывают, но не делают). Ниша «управляющего, закрывающего рутину от начала до конца» не занята в СНГ и, по сути, глобально. Это же и защита от главного риска: POS может добавить OCR-фичу за квартал, но POS-вендор никогда не станет управляющим — это ни его роль, ни его бизнес-модель.
 
-### The identity trap — scope
+### Ловушка идентичности — scope
 
-"A smart assistant that does everything" for a single developer at 10–15 h/week is a recipe for finishing nothing. The discipline: **one routine at a time, brought to "works every day without reminders", and only then the next.**
+«Умный ассистент, который делает всё» для одного разработчика на 10–15 ч/неделю — рецепт не закончить ничего. Дисциплина: **одна рутина за раз, доведённая до «работает каждый день без напоминаний», и только затем следующая.**
 
-## 2. The wedge: invoices
+## 2. Клин: накладные
 
-**Invoices are not the product but the wedge we enter with.** It is the owner's most frequent, most measurable pain, and it fills the data for all subsequent routines. The first working flow is invoice intake: photo → OCR (Claude Vision) → matching lines against the POS catalog → validation → payload to Esupl + local persistence (see [[LCOS-E2-invoice-intake]], [[invoice-status-machine]]).
+**Накладные — не продукт, а клин, которым мы входим.** Это самая частая, самая измеримая боль владельца, и она наполняет данные для всех последующих рутин. Первый рабочий поток — приёмка накладных: фото → OCR (Claude Vision) → сопоставление строк с каталогом POS → валидация → payload в Esupl + локальное сохранение (см. [[LCOS-E2-invoice-intake]], [[invoice-status-machine]]).
 
-Four original owner pains (from the vision doc) that the product closes along the ladder:
-1. Manually entering invoices into the accounting system — the most time-consuming routine.
-2. Different names for the same product across suppliers ("Coffee beans Ethiopia Yirgacheffe 1kg" = "Ethiop Yirgacheff 1000g" = one SKU) — solved by SKU identity ([[LCOS-E3-sku-identity]], [[sku-identity-resolver]]).
-3. "Where is it best to order from?" — decisions based on data, not WhatsApp chatter.
-4. Positioning against the neighborhood — competitors' prices/menus/reviews.
+Четыре исходные боли владельца (из vision-документа), которые продукт закрывает вдоль лестницы:
+1. Ручной ввод накладных в систему учёта — самая трудозатратная рутина.
+2. Разные названия одного и того же товара у разных поставщиков («Coffee beans Ethiopia Yirgacheffe 1kg» = «Ethiop Yirgacheff 1000g» = один SKU) — решается через SKU identity ([[LCOS-E3-sku-identity]], [[sku-identity-resolver]]).
+3. «Где лучше заказать?» — решения на данных, а не на болтовне в WhatsApp.
+4. Позиционирование против района — цены/меню/отзывы конкурентов.
 
-## 3. The routine ladder (lock-in mechanics)
+## 3. Лестница рутин (механика lock-in)
 
-Each rung: which routine it takes over → which data it accumulates → why leaving after it becomes more expensive. The rungs map onto the roadmap's epics ([[roadmap]]).
+Каждая ступень: какую рутину берёт на себя → какие данные накапливает → почему уйти после неё становится дороже. Ступени ложатся на эпики roadmap ([[roadmap]]).
 
-| # | Routine | Status | Lock-in data | Epic |
+| # | Рутина | Статус | Данные lock-in | Эпик |
 |---|--------|--------|-----------------|------|
-| 1 | Invoice entry (photo → POS) | Built, live mode behind a gate | Invoices, suppliers, purchase history | [[LCOS-E2-invoice-intake]] |
-| 2 | Nomenclature mapping (supplier item → SKU, auto-substitution) | Built | Mapping memory — the main early switching cost | [[LCOS-E3-sku-identity]] |
-| 3 | Supplier prices (a directory that updates itself) | Partial / next rung | Price history for your own suppliers — data neither the POS nor the owner has | [[LCOS-E4-suppliers]] |
-| 4 | Purchase selection and planning (a draft order for confirmation) | Not built | Consumption patterns, a purchase plan. The first routine where LCOS "thinks and proposes an action" | [[LCOS-E7-stock]], [[LCOS-E8-purchasing]] |
-| 5 | Business pulse (weekly digest, anomalies, local context) | Not built | The habit loop — LCOS starts the conversation itself on a schedule | [[LCOS-E9-sales-analytics]], [[LCOS-E10-local-context]] |
-| 6 | Position against the neighborhood (competitors' prices/menus/reviews) | Not built | External data the owner will not gather themselves | [[LCOS-E11-competitor-menu]], [[LCOS-E12-competitor-reviews]] |
-| 7 | Development (new items from existing ingredients, strategic dialog) | Not built | The full business context — leaving = "firing a manager who knows everything" | [[LCOS-E13-menu-ideas]], [[LCOS-E14-strategic-insights]] |
+| 1 | Ввод накладных (фото → POS) | Построено, живой режим за gate | Накладные, поставщики, история закупок | [[LCOS-E2-invoice-intake]] |
+| 2 | Маппинг номенклатуры (позиция поставщика → SKU, авто-подстановка) | Построено | Память маппинга — главная ранняя цена переключения | [[LCOS-E3-sku-identity]] |
+| 3 | Цены поставщиков (справочник, который обновляется сам) | Частично / следующая ступень | История цен по своим поставщикам — данные, которых нет ни у POS, ни у владельца | [[LCOS-E4-suppliers]] |
+| 4 | Подбор и планирование закупок (черновик заказа на подтверждение) | Не построено | Паттерны потребления, план закупок. Первая рутина, где LCOS «думает и предлагает действие» | [[LCOS-E7-stock]], [[LCOS-E8-purchasing]] |
+| 5 | Пульс бизнеса (еженедельный дайджест, аномалии, локальный контекст) | Не построено | Петля привычки — LCOS сам начинает разговор по расписанию | [[LCOS-E9-sales-analytics]], [[LCOS-E10-local-context]] |
+| 6 | Позиция против района (цены/меню/отзывы конкурентов) | Не построено | Внешние данные, которые владелец сам не соберёт | [[LCOS-E11-competitor-menu]], [[LCOS-E12-competitor-reviews]] |
+| 7 | Развитие (новые пункты из имеющихся ингредиентов, стратегический диалог) | Не построено | Полный бизнес-контекст, уход = «уволить управляющего, который знает всё» | [[LCOS-E13-menu-ideas]], [[LCOS-E14-strategic-insights]] |
 
-By rung 4 the product is no longer sold against "$30 for OCR" but against **the cost of manager/owner hours** — hence the $99–149/month bar.
+К ступени 4 продукт продаётся уже не против «$30 за OCR», а против **стоимости часов управляющего/владельца** — отсюда планка $99–149/месяц.
 
-## 4. Market and channel: Esupl-BY → marketplace
+## 4. Рынок и канал: Esupl-BY → marketplace
 
-The identity (a manager) is a constant. The options are a choice of **market and channel** along which to roll it out. The routine ladder is not a separate option but the pace of value growth within the chosen market.
+Идентичность (управляющий) — константа. Опции — это выбор **рынка и канала**, вдоль которого её раскатывать. Лестница рутин — не отдельная опция, а темп роста ценности внутри выбранного рынка.
 
-| Option | TAM | Distribution | Verdict |
+| Опция | TAM | Дистрибуция | Вердикт |
 |-------|-----|-------------|---------|
-| **A. Esupl-first (Belarus)** | Small | Partnership with Esupl, manual sales via the community | **Do it now.** Fast validation, first MRR, zero competition. Ceiling ~$3–10k MRR |
-| **B. Poster app (BY/UA/KZ/PL)** | Medium+ | **The Poster marketplace** (an open app marketplace + API) — the only accessible scalable channel | **The next step after [[glossary]] + 5–10 customers on A.** The path to "the exponent" |
-| **C. Global market (EN)** | Large | No channel; funded competitors | Not now. Come back if B gains traction and a team appears |
+| **A. Esupl-first (Беларусь)** | Малый | Партнёрство с Esupl, ручные продажи через сообщество | **Делаем сейчас.** Быстрая валидация, первый MRR, ноль конкуренции. Потолок ~$3–10k MRR |
+| **B. Poster app (BY/UA/KZ/PL)** | Средний+ | **Poster marketplace** (открытый app-маркетплейс + API) — единственный доступный масштабируемый канал | **Следующий шаг после [[glossary]] + 5–10 клиентов на A.** Путь к «экспоненте» |
+| **C. Глобальный рынок (EN)** | Большой | Нет канала; конкуренты с финансированием | Не сейчас. Вернуться, если B наберёт тягу и появится команда |
 
-**Strategy:** first revenue in the niche (A), then the exponent through the channel (B). Trying to build "straight for the exponent" before [[glossary]] is the classic way to lose a year. Enter market B already with rungs 1–3 at minimum, to stand apart from "yet another OCR". The technical groundwork for switching POS is the `ErpProvider` Protocol ([[provider-abstraction]], [[erp-esupl-integration]]): every new POS integration = a new market, not a new product.
+**Стратегия:** сначала первая выручка в нише (A), затем экспонента через канал (B). Попытка строить «сразу в экспоненту» до [[glossary]] — классический способ потерять год. Входить на рынок B уже минимум со ступенями 1–3, чтобы отличаться от «ещё одного OCR». Технический задел для смены POS — Protocol `ErpProvider` ([[provider-abstraction]], [[erp-esupl-integration]]): каждая новая интеграция POS = новый рынок, а не новый продукт.
 
-**Willingness-to-pay evidence (US):** MarginEdge ($249/mo), MarketMan ($480/mo), Restaurant365, xtraCHEF, WISK — restaurants pay $250–500/mo to close this routine. All of them are "tools with dashboards", not managers. **CIS:** DocsInBox, iikoScanning, RestData, Kontur.Market — invoice entry is solved and sold (demand confirmed), but the iiko niche in Russia is taken and everyone sits on the ladder's first rung. **Belarus:** no direct "photo of an invoice → Esupl" competitor found.
+**Доказательства готовности платить (US):** MarginEdge ($249/мес), MarketMan ($480/мес), Restaurant365, xtraCHEF, WISK — рестораны платят $250–500/мес, чтобы закрыть эту рутину. Все они — «инструменты с дашбордами», а не управляющие. **СНГ:** DocsInBox, iikoScanning, RestData, Kontur.Market — ввод накладных решён и продаётся (спрос подтверждён), но ниша iiko в России занята, и все сидят на первой ступени лестницы. **Беларусь:** прямого конкурента «фото накладной → Esupl» не найдено.
 
-## 5. Dev stop-list (what we consciously do NOT do now)
+## 5. Dev stop-list (что мы сознательно НЕ делаем сейчас)
 
-Eats time, does not move us up the ladder — until the corresponding trigger:
+Съедает время, не двигает нас вверх по лестнице — до соответствующего триггера:
 
-- **A chat interface / conversational assistant** — before rung 4 it has nothing to "do the work" with; hands first, then a mouth. "A chat wrapper without actions" = a rejected anti-pattern.
-- **Gemini as a second LLM vendor** ([DEC-01] → variant A, remove) — a backup LLM is not needed before platform scale. One implementation per seam ([[ADR-009]]).
-- **Semantic matching on pgvector** ([DEC-02] → drop the column) — fuzzy+LLM works; the `invoice_lines.sku_embedding` column is unused (dead code, backlog `DEC-02`). Come back on real mapping misses.
-- **Billing, self-service onboarding, prod hardening on Hetzner** — before the first third-party customer this is negative value ([[LCOS-E15-saas]] — behind [[glossary]]).
-- **Any work for "the global market"** (i18n, EN interface) — before option C.
-- **Auto-sending orders, any write to Esupl other than the gated `write_invoice`** — human-in-the-loop is inviolable.
-- **Demand/recipe forecasting** — manual thresholds + hints from history, not an ML forecast.
-- **Celery/APScheduler background jobs** — everything is button-driven in Phase 1.
+- **Чат-интерфейс / разговорный ассистент** — до ступени 4 ему нечем «делать работу»; сначала руки, потом рот. «Чат-обёртка без действий» = отвергнутый анти-паттерн.
+- **Gemini как второй LLM-вендор** ([DEC-01] → вариант A, remove) — резервный LLM не нужен до платформенного масштаба. По одной реализации на шов ([[ADR-009]]).
+- **Семантическое сопоставление на pgvector** ([DEC-02] → удалить колонку) — fuzzy+LLM работает; колонка `invoice_lines.sku_embedding` не используется (мёртвый код, backlog `DEC-02`). Вернуться при реальных промахах маппинга.
+- **Биллинг, self-service онбординг, prod-hardening на Hetzner** — до первого стороннего клиента это отрицательная ценность ([[LCOS-E15-saas]] — за [[glossary]]).
+- **Любая работа для «глобального рынка»** (i18n, EN-интерфейс) — до опции C.
+- **Авто-отправка заказов, любая запись в Esupl кроме гейтированного `write_invoice`** — human-in-the-loop нерушим.
+- **Прогнозирование спроса/рецептов** — ручные пороги + подсказки из истории, а не ML-прогноз.
+- **Фоновые задания Celery/APScheduler** — в Фазе 1 всё запускается кнопкой.
 
-## 6. Assets (a developer's view)
+## 6. Активы (взгляд разработчика)
 
-| Component | Value as an asset |
+| Компонент | Ценность как актива |
 |-----------|--------------------|
-| OCR via vision-LLM | **Commodity.** Any competitor gets the same in a week. Does not protect |
-| **Mapping memory** ([[sku_mapping]], [[glossary]]) | **The core of retention** (rung 2). The main current technical asset |
-| **ERP integration** (Esupl payload: supplier/item/unit/packing/warehouse resolve) | **The real barrier** and the embodiment of "works with the POS, there can be different ones". The `ErpProvider` Protocol is the right seam |
-| Multi-tenant + config/secret architecture | Groundwork for Phase 2, done "minimally" — do not deepen until the second customer |
-| Photo-first UX (2 steps, auto-supplier, auto-mapping) | A differentiator against "upload a scan into the back office"; the mobile scenario = the owner's real scenario |
-| Supplier price data (not built) | Potentially the most valuable asset: neither the POS nor the suppliers hold a history of purchase prices |
+| OCR через vision-LLM | **Коммодити.** Любой конкурент получит то же за неделю. Не защищает |
+| **Память маппинга** ([[sku_mapping]], [[glossary]]) | **Ядро retention** (ступень 2). Главный текущий технический актив |
+| **ERP-интеграция** (payload Esupl: resolve поставщика/позиции/единицы/фасовки/склада) | **Реальный барьер** и воплощение «работает с POS, их может быть разные». Protocol `ErpProvider` — правильный шов |
+| Multi-tenant + архитектура config/secret | Задел для Фазы 2, сделан «минимально» — не углублять до второго клиента |
+| Photo-first UX (2 шага, авто-поставщик, авто-маппинг) | Дифференциатор против «залей скан в бэк-офис»; мобильный сценарий = реальный сценарий владельца |
+| Данные о ценах поставщиков (не построено) | Потенциально самый ценный актив: ни у POS, ни у поставщиков нет истории закупочных цен |
 
-## 7. The core principle
+## 7. Ключевой принцип
 
-> **"First help Customer Zero. Then — money."**
+> **«Сначала помоги Customer Zero. Потом — деньги.»**
 
-If Phase 1 does not close the pain at our own coffee shop, we do not move to the second ([[glossary]]). This protects against the classic startup trap of "we build for the market, nobody buys": Customer Zero is right at hand, daily feedback, zero cost of a wrong direction. The architectural line — **"multi-tenant ready, single-tenant first"** — is a direct embodiment of the strategy.
+Если Фаза 1 не закрывает боль в нашей собственной кофейне, мы не переходим ко второй ([[glossary]]). Это защищает от классической стартап-ловушки «строим для рынка, никто не покупает»: Customer Zero прямо под рукой, ежедневная обратная связь, ноль стоимости неверного направления. Архитектурная линия — **«multi-tenant ready, single-tenant first»** — прямое воплощение стратегии.
 
-## Related documents
+## Связанные документы
 
-- [[roadmap]] — the roadmap (phases, epics, Pilot-Gate)
-- [[architecture]] — the as-built architecture
-- [[glossary]] — terms (moat, source_key, fail-closed, …)
-- [[MOC]] — the vault's map of content
+- [[roadmap]] — roadmap (фазы, эпики, Pilot-Gate)
+- [[architecture]] — as-built архитектура
+- [[glossary]] — термины (moat, source_key, fail-closed, …)
+- [[MOC]] — карта содержимого хранилища
 - [[glossary]] · [[glossary]] · [[ADR-002]] · [[provider-abstraction]]
 
 ## Sources
 
-- `06_STRATEGY.md` v1.1.1 — §1 identity, §2 routine ladder, §4 market, §7 options A/B/C, §9 stop-list.
-- `Local_OS_About.md` — the original vision (the four pains, "First help my wife").
-- `APP_OVERVIEW.md` §1 — the as-built product essence (verified_against_code 2026-07-09).
+- `06_STRATEGY.md` v1.1.1 — §1 идентичность, §2 лестница рутин, §4 рынок, §7 опции A/B/C, §9 stop-list.
+- `Local_OS_About.md` — исходное видение (четыре боли, «Сначала помоги моей жене»).
+- `APP_OVERVIEW.md` §1 — as-built суть продукта (verified_against_code 2026-07-09).

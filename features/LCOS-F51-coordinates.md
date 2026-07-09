@@ -1,7 +1,7 @@
 ---
 id: LCOS-F51
 type: feature
-title: Subdivision coordinates
+title: Координаты подразделения
 epic: "[[LCOS-E10-local-context]]"
 status: future
 phase: "Phase 2"
@@ -13,46 +13,46 @@ legacy_refs: [plan F6, "plan F6-B2"]
 sources: ["plan/PHASE_F6_LOCAL_CONTEXT.md §1 (F6-B2)", "plan/00_IMPLEMENTATION_PLAN.md F6"]
 updated: 2026-07-09
 ---
-# LCOS-F51 · Subdivision coordinates
+# LCOS-F51 · Координаты подразделения
 **Epic:** [[LCOS-E10-local-context]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-Adds a geographic location to each point of sale so the weather sync ([[LCOS-F50-weather]]) knows where to fetch conditions for. Two nullable columns `lat`/`lon` (`Numeric(9,6)`) are added to [[subdivisions]], editable both in the SQLAdmin operator plane and in the org-admin Settings screen. A subdivision without coordinates is not an error: the weather sync simply skips it with an explicit `sync_run` note, so the rest of the pipeline keeps running.
+Добавляет географическое положение каждой точки продаж, чтобы синхронизация погоды ([[LCOS-F50-weather]]) знала, для какого места забирать погодные условия. Два nullable-столбца `lat`/`lon` (`Numeric(9,6)`) добавляются к [[subdivisions]], редактируемые как в операторской плоскости SQLAdmin, так и на экране настроек org-admin. Подразделение без координат — не ошибка: синхронизация погоды просто пропускает его с явной пометкой в `sync_run`, так что остальной пайплайн продолжает работать.
 
-This is a small enabling feature — no external calls of its own — but it is the precondition for any local-context enrichment, since weather and (implicitly) neighborhood events are anchored to the subdivision's location.
+Это небольшая обеспечивающая фича — без собственных внешних вызовов, — но она является предусловием для любого обогащения локальным контекстом, поскольку погода и (неявно) события района привязаны к местоположению подразделения.
 
-## Capabilities
+## Возможности
 
-- `subdivisions.lat` / `subdivisions.lon` columns (`Numeric(9,6)`, nullable) via migration.
-- Editable in SQLAdmin (operator plane) and in org-admin Settings (self-serve).
-- Missing coordinates → weather sync skips that subdivision with an explicit note (never a silent skip, never an exception).
+- Столбцы `subdivisions.lat` / `subdivisions.lon` (`Numeric(9,6)`, nullable) через миграцию.
+- Редактируемы в SQLAdmin (операторская плоскость) и в настройках org-admin (self-serve).
+- Отсутствующие координаты → синхронизация погоды пропускает это подразделение с явной пометкой (никогда не тихий пропуск, никогда не исключение).
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[admin]] | Sets/edits the subdivision's coordinates in the Settings screen for their own tenant. |
-| [[superadmin]] | Sets coordinates for any tenant via the config/admin surface. |
-| [[sqladmin-operator]] | Edits `lat`/`lon` directly in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
-| [[member]] | No access — read-only consumer of downstream context only. |
+| [[admin]] | Задаёт/редактирует координаты подразделения на экране настроек для своего тенанта. |
+| [[superadmin]] | Задаёт координаты для любого тенанта через config/admin-поверхность. |
+| [[sqladmin-operator]] | Редактирует `lat`/`lon` напрямую в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Нет доступа — только чтение производного контекста. |
 
-Tenant-scoped: coordinates belong to a subdivision within its organization ([[multitenancy]]).
+Тенант-скоуп: координаты принадлежат подразделению внутри его организации ([[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[subdivisions]] — gains `lat`/`lon`; these feed the `get_daily`/`get_forecast` calls in [[LCOS-F50-weather]].
+- [[subdivisions]] — получает `lat`/`lon`; они питают вызовы `get_daily`/`get_forecast` в [[LCOS-F50-weather]].
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (coordinates scoped to a subdivision inside its org).
-- **Features:** prerequisite for [[LCOS-F50-weather]]; indirectly supports [[LCOS-F53-digest-enrichment]].
+- **Requirements:** [[multitenancy]] (координаты со скоупом подразделения внутри его org).
+- **Features:** предусловие для [[LCOS-F50-weather]]; косвенно поддерживает [[LCOS-F53-digest-enrichment]].
 
-## Acceptance criteria
+## Критерии приёмки
 
-Acceptance criteria: TBD (Phase 2 — detailed on activation).
+Критерии приёмки: TBD (Phase 2 — детализируются при активации).
 
 ## Sources
 
-- `plan/PHASE_F6_LOCAL_CONTEXT.md §1` — F6-B2 (subdivision `lat`/`lon`, edited in SQLAdmin + Settings, missing-coords skip).
+- `plan/PHASE_F6_LOCAL_CONTEXT.md §1` — F6-B2 (подразделение `lat`/`lon`, редактируется в SQLAdmin + настройках, пропуск при отсутствии координат).
 - `plan/00_IMPLEMENTATION_PLAN.md F6`.

@@ -1,7 +1,7 @@
 ---
 id: LCOS-F9
 type: feature
-title: Line↔catalog matching (draft-resolve)
+title: Матчинг строка↔каталог (draft-resolve)
 epic: "[[LCOS-E2-invoice-intake]]"
 status: built
 phase: "Phase 1"
@@ -13,77 +13,77 @@ legacy_refs: ["08 F1.1", "08 F1.2", plan F1]
 sources: ["APP_OVERVIEW.md §6", "APP_OVERVIEW.md §7", "mvp.be app/services/invoice_service.py:130", "mvp.be app/services/invoice_service.py:422", "mvp.be app/services/match_service.py", "mvp.be app/api/v1/routes/invoices.py:48", "mvp.be app/api/v1/routes/invoices.py:62"]
 updated: 2026-07-09
 ---
-# LCOS-F9 · Line↔catalog matching (draft-resolve)
-**Epic:** [[LCOS-E2-invoice-intake]] · **Status:** built · **Phase:** Phase 1
+# LCOS-F9 · Матчинг строка↔каталог (draft-resolve)
+**Эпик:** [[LCOS-E2-invoice-intake]] · **Статус:** built · **Фаза:** Phase 1
 
-## Description
+## Описание
 
-After [[LCOS-F8-ocr-recognition]] produces an `InvoiceDraft` of raw lines, each line has to be tied to a real position in the tenant's local catalog so a POS payload can be built. F9 is the **draft-context** side of that job: the tolerant, suggestion-friendly resolution that happens inside `InvoiceService.prepare()` and the AI escalation behind `POST /invoices/suggest-matches`. It answers "which catalog SKU is this line?" — not the durable-identity question, which is deliberately kept separate on the commit path ([[LCOS-F13-sku-identity-resolver]], DEC-0011).
+После того как [[LCOS-F8-ocr-recognition]] производит `InvoiceDraft` из сырых строк, каждую строку нужно привязать к реальной позиции в локальном каталоге арендатора, чтобы можно было построить POS-payload. F9 — это **draft-контекстная** сторона этой задачи: толерантное, дружелюбное к подсказкам разрешение, которое происходит внутри `InvoiceService.prepare()` и AI-эскалации за `POST /invoices/suggest-matches`. Оно отвечает на вопрос «какой SKU каталога — эта строка?» — а не на вопрос долговечной идентичности, который намеренно вынесен отдельно на путь коммита ([[LCOS-F13-sku-identity-resolver]], DEC-0011).
 
-`prepare()` iterates lines through `_resolve_line`: it looks the line's `sku` up in the local catalog (by Esupl `external_id`, then by ingredient UUID), and on a hit copies the numeric Esupl foreign keys needed for the payload — `esupl_item_id`, `esupl_unit_id`, a default packing (`esupl_packing_id`, name, factor) and `tax_rate` from the catalog default. A line is "POS-ready" only when every required field is resolved; otherwise a per-line `resolution_note` and a warning are attached and the line blocks payload readiness. Crucially, `prepare()` does **not** persist anything and does **not** touch the durable `pos_ingredient_id` — all fuzzy / LLM / exact-cache hints live only here (APP_OVERVIEW §6, §7).
+`prepare()` прогоняет строки через `_resolve_line`: он ищет `sku` строки в локальном каталоге (по Esupl `external_id`, затем по UUID ингредиента) и при попадании копирует числовые внешние ключи Esupl, нужные для payload — `esupl_item_id`, `esupl_unit_id`, дефолтную упаковку (`esupl_packing_id`, имя, фактор) и `tax_rate` из дефолта каталога. Строка «POS-ready» только когда все требуемые поля разрешены; иначе к строке прикрепляется `resolution_note` и предупреждение, и строка блокирует готовность payload. Принципиально: `prepare()` **не** сохраняет ничего и **не** трогает долговечный `pos_ingredient_id` — все нечёткие / LLM / точно-кэшевые подсказки живут только здесь (APP_OVERVIEW §6, §7).
 
-Matching help comes in three tiers, cheapest first: client-side fuzzy match against the catalog, then AI escalation via `POST /invoices/suggest-matches` (server-side LLM over the org's local catalog — the model may only return SKUs that exist in the catalog, never invent them), and separately the learning-loop auto-fill of previously confirmed mappings ([[LCOS-F14-learning-loop]]). The human confirms the final line→SKU choice before send.
+Помощь в матчинге приходит в трёх уровнях, дешевле сначала: клиентский нечёткий матч против каталога, затем AI-эскалация через `POST /invoices/suggest-matches` (LLM на стороне сервера над локальным каталогом организации — модель может возвращать только SKU, существующие в каталоге, никогда не выдумывать их) и отдельно авто-заполнение цикла обучения ранее подтверждённых маппингов ([[LCOS-F14-learning-loop]]). Человек подтверждает финальный выбор строка→SKU перед отправкой.
 
-## Capabilities
+## Возможности
 
-- `prepare()` resolves each draft line against the local catalog and stamps payload foreign keys: `esupl_item_id`, `esupl_unit_id`, default `packing` (`esupl_packing_id` / name / factor), and `tax_rate` (from `Ingredient.default_tax_rate` when OCR left it empty).
-- Catalog lookup is dual-keyed: by Esupl `external_id` first, then by ingredient UUID (`by_external` / `by_uuid` maps built once per `prepare`).
-- Per-line readiness: a line is ready only when `esupl_item_id`, `esupl_unit_id`, packing, `quantity`, `unit_price` and `tax_rate` are all present; missing fields produce a human-readable `resolution_note` ("missing for POS: …") and a warning, and hold back `all_lines_ready`.
-- Default-packing selection: the packing flagged `is_default`, else the first packing on the ingredient.
-- `POST /invoices/suggest-matches` — server-side LLM returns up to 3 scored candidates (0..1) per line, drawn strictly from the tenant's local catalog; candidates whose SKU is not in the catalog are dropped, unparseable model output degrades to empty candidates.
-- Empty catalog degrades softly to empty suggestions rather than erroring.
-- `POST /invoices/prepare` exposes the resolved preview (payload + warnings) to the client without persisting.
+- `prepare()` разрешает каждую строку черновика против локального каталога и проставляет внешние ключи payload: `esupl_item_id`, `esupl_unit_id`, дефолтную `packing` (`esupl_packing_id` / имя / фактор) и `tax_rate` (из `Ingredient.default_tax_rate`, когда OCR оставил его пустым).
+- Поиск в каталоге двухключевой: сначала по Esupl `external_id`, затем по UUID ингредиента (карты `by_external` / `by_uuid` строятся один раз на `prepare`).
+- Готовность строки: строка готова только когда `esupl_item_id`, `esupl_unit_id`, packing, `quantity`, `unit_price` и `tax_rate` все присутствуют; отсутствующие поля производят человекочитаемый `resolution_note` («missing for POS: …») и предупреждение и удерживают `all_lines_ready`.
+- Выбор дефолтной упаковки: упаковка с флагом `is_default`, иначе первая упаковка на ингредиенте.
+- `POST /invoices/suggest-matches` — LLM на стороне сервера возвращает до 3 кандидатов со скором (0..1) на строку, строго из локального каталога арендатора; кандидаты, чей SKU не в каталоге, отбрасываются, неразбираемый вывод модели деградирует до пустых кандидатов.
+- Пустой каталог мягко деградирует до пустых подсказок, а не ошибается.
+- `POST /invoices/prepare` предоставляет разрешённый предпросмотр (payload + предупреждения) клиенту без сохранения.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | Match lines to catalog within their subdivision; accept/override AI or fuzzy suggestions before send. |
-| [[admin]] | Same as member within their subdivision; maintains the local catalog that matching resolves against. |
-| [[superadmin]] | All tenants; plus controls the AI provider used by `suggest-matches`. |
-| [[sqladmin-operator]] | Not in the flow; toggles `ai_provider` in the SQLAdmin plane ([[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Матчит строки к каталогу внутри своей subdivision; принимает/переопределяет AI- или нечёткие подсказки перед отправкой. |
+| [[admin]] | То же, что member, внутри своей subdivision; поддерживает локальный каталог, против которого разрешается матчинг. |
+| [[superadmin]] | Все арендаторы; плюс управляет AI-провайдером, используемым `suggest-matches`. |
+| [[sqladmin-operator]] | Не в потоке; переключает `ai_provider` в плоскости SQLAdmin ([[LCOS-F3-sqladmin-operator]]). |
 
-Both endpoints are tenant-scoped: `organization_id` / `subdivision_id` come from the active JWT context (see [[auth]], [[multitenancy]]).
+Оба endpoint-а со scope арендатора: `organization_id` / `subdivision_id` приходят из активного контекста JWT (см. [[auth]], [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[ingredients]] — the local catalog matched against; supplies `esupl_item_id`, `esupl_unit_id`, `default_tax_rate` and its [[packings]].
-- [[packings]] — default packing supplies `esupl_packing_id`, name and factor for the payload line.
-- [[invoice_lines]] — the draft line (`InvoiceLineDraft`) carries `sku`, resolved FKs, `resolution_note`; persisted later at submit.
-- [[sku_mapping]] — read (not written) by the learning-loop auto-fill that seeds line matches; the durable moat itself is [[LCOS-F14-learning-loop]].
-- [[ingredient_cache]] — non-authoritative draft-only cache; may hint matches in draft context but is barred from the commit path (VER-022 closed).
+- [[ingredients]] — локальный каталог, против которого матчится; поставляет `esupl_item_id`, `esupl_unit_id`, `default_tax_rate` и свои [[packings]].
+- [[packings]] — дефолтная упаковка поставляет `esupl_packing_id`, имя и фактор для строки payload.
+- [[invoice_lines]] — строка черновика (`InvoiceLineDraft`) несёт `sku`, разрешённые FK, `resolution_note`; сохраняется позже при submit.
+- [[sku_mapping]] — читается (не пишется) авто-заполнением цикла обучения, которое засеивает матчи строк; сам долговечный «ров» — [[LCOS-F14-learning-loop]].
+- [[ingredient_cache]] — неавторитетный кэш только для черновика; может подсказывать матчи в draft-контексте, но запрещён на пути коммита (VER-022 закрыт).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[sku-identity-resolver]] (two-context split: draft-resolve here is tolerant; durable identity is commit-only), [[provider-abstraction]] (AI behind a seam, one implementation — [[ADR-009]]), [[fail-closed]] (server-side LLM only; no keys in the browser).
-- **Features:** consumes the draft from [[LCOS-F8-ocr-recognition]]; feeds the payload/status machine in [[LCOS-F10-invoice-status-machine]]; the durable-identity counterpart is [[LCOS-F13-sku-identity-resolver]]; auto-fill of confirmed matches is [[LCOS-F14-learning-loop]]; catalog/packings are [[LCOS-F15-sku-catalog]].
-- **ADR / decisions:** [[DEC-0011]] and [[DEC-0013]] (two-context model; suggestions never auto-commit identity), [[ADR-011]] (cache is non-authoritative, no-cache reads on commit), [[ADR-009]] (single AI implementation).
+- **Требования:** [[sku-identity-resolver]] (разделение двух контекстов: draft-resolve здесь толерантен; долговечная идентичность — только на коммите), [[provider-abstraction]] (AI за швом, одна реализация — [[ADR-009]]), [[fail-closed]] (LLM только на стороне сервера; нет ключей в браузере).
+- **Фичи:** потребляет черновик из [[LCOS-F8-ocr-recognition]]; питает payload/машину статусов в [[LCOS-F10-invoice-status-machine]]; аналог долговечной идентичности — [[LCOS-F13-sku-identity-resolver]]; авто-заполнение подтверждённых матчей — [[LCOS-F14-learning-loop]]; каталог/упаковки — [[LCOS-F15-sku-catalog]].
+- **ADR / решения:** [[DEC-0011]] и [[DEC-0013]] (модель двух контекстов; подсказки никогда не авто-коммитят идентичность), [[ADR-011]] (кэш неавторитетен, чтения без кэша на коммите), [[ADR-009]] (единственная AI-реализация).
 
-## Acceptance criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. `prepare()` resolves each line via `_resolve_line`, looking up the catalog by `external_id` then ingredient UUID, and stamps `esupl_item_id`, `esupl_unit_id`, packing FKs and `tax_rate` on a hit.
-- [ ] AC-BE-2. A line is reported ready only when all of `esupl_item_id`, `esupl_unit_id`, packing, `quantity`, `unit_price`, `tax_rate` are present; otherwise `resolution_note` and a warning are set and readiness is withheld.
-- [ ] AC-BE-3. `prepare()` persists nothing and never sets `pos_ingredient_id` (draft context only; durable identity is resolved on the commit path).
-- [ ] AC-BE-4. Default packing = the `is_default` packing, else the first packing; `packing_factor` and `packing_name` are copied onto the line.
-- [ ] AC-BE-5. `POST /invoices/suggest-matches` returns ≤3 scored candidates per line, all present in the tenant's local catalog; SKUs absent from the catalog are dropped.
-- [ ] AC-BE-6. Empty catalog → empty candidates (no error); unparseable LLM output → empty candidates with a warning log.
-- [ ] AC-BE-7. `suggest-matches` runs server-side (no LLM credentials in the client) and is tenant-scoped to the caller's org/subdivision catalog.
+- [ ] AC-BE-1. `prepare()` разрешает каждую строку через `_resolve_line`, ища каталог по `external_id`, затем по UUID ингредиента, и при попадании проставляет `esupl_item_id`, `esupl_unit_id`, FK упаковки и `tax_rate`.
+- [ ] AC-BE-2. Строка отмечается готовой только когда все из `esupl_item_id`, `esupl_unit_id`, packing, `quantity`, `unit_price`, `tax_rate` присутствуют; иначе устанавливаются `resolution_note` и предупреждение, а готовность удерживается.
+- [ ] AC-BE-3. `prepare()` не сохраняет ничего и никогда не устанавливает `pos_ingredient_id` (только draft-контекст; долговечная идентичность разрешается на пути коммита).
+- [ ] AC-BE-4. Дефолтная упаковка = упаковка `is_default`, иначе первая упаковка; `packing_factor` и `packing_name` копируются на строку.
+- [ ] AC-BE-5. `POST /invoices/suggest-matches` возвращает ≤3 кандидатов со скором на строку, все присутствующие в локальном каталоге арендатора; SKU, отсутствующие в каталоге, отбрасываются.
+- [ ] AC-BE-6. Пустой каталог → пустые кандидаты (без ошибки); неразбираемый вывод LLM → пустые кандидаты с логом предупреждения.
+- [ ] AC-BE-7. `suggest-matches` работает на стороне сервера (нет LLM-учётных данных в клиенте) и ограничен по scope арендатора каталогом org/subdivision вызывающего.
 
 ### Frontend
-- [ ] AC-FE-1. Each recognized line shows a catalog-match control with client-side fuzzy suggestions.
-- [ ] AC-FE-2. "Suggest with AI" calls `POST /invoices/suggest-matches` and renders scored candidates the user can accept per line.
-- [ ] AC-FE-3. Unresolved lines are visually flagged from `resolution_note` / warnings; the user can override any suggested match before send.
-- [ ] AC-FE-4. Previously confirmed matches for the same supplier are auto-filled (learning-loop apply, [[LCOS-F14-learning-loop]]); the user can still change them.
+- [ ] AC-FE-1. Каждая распознанная строка показывает элемент матча к каталогу с клиентскими нечёткими подсказками.
+- [ ] AC-FE-2. «Подсказать с помощью AI» вызывает `POST /invoices/suggest-matches` и отрисовывает кандидатов со скором, которых пользователь может принять на строку.
+- [ ] AC-FE-3. Неразрешённые строки визуально помечаются из `resolution_note` / предупреждений; пользователь может переопределить любой предложенный матч перед отправкой.
+- [ ] AC-FE-4. Ранее подтверждённые матчи для того же поставщика авто-заполняются (применение цикла обучения, [[LCOS-F14-learning-loop]]); пользователь всё ещё может их изменить.
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- Durable identity is intentionally out of scope here and resolved fail-closed on commit — see [[LCOS-F13-sku-identity-resolver]] and gate `VER-021` in [[LCOS-E5-stabilization]].
-- `ingredient_cache` may seed draft suggestions but must never leak onto the commit path (VER-022 closed; enforced by [[LCOS-F10-invoice-status-machine]]).
+- Долговечная идентичность намеренно вне scope здесь и разрешается fail-closed на коммите — см. [[LCOS-F13-sku-identity-resolver]] и гейт `VER-021` в [[LCOS-E5-stabilization]].
+- `ingredient_cache` может засеивать draft-подсказки, но никогда не должен просачиваться на путь коммита (VER-022 закрыт; обеспечивается [[LCOS-F10-invoice-status-machine]]).
 
-## Sources
+## Источники
 
-- `APP_OVERVIEW.md §6` (prepare = tolerant draft-resolve; hints live only here), `§7` (two-context model, draft vs commit).
-- `mvp.be/app/services/invoice_service.py:130` (`prepare`), `:422` (`_resolve_line` catalog + FK + packing + tax_rate), `:151-175` (per-line readiness → `EsuplLineItem`).
-- `mvp.be/app/services/match_service.py` (`suggest`, prompt build, candidate parse — catalog-only, ≤3, soft-degrade).
+- `APP_OVERVIEW.md §6` (prepare = толерантный draft-resolve; подсказки живут только здесь), `§7` (модель двух контекстов, draft vs commit).
+- `mvp.be/app/services/invoice_service.py:130` (`prepare`), `:422` (`_resolve_line` каталог + FK + packing + tax_rate), `:151-175` (готовность строки → `EsuplLineItem`).
+- `mvp.be/app/services/match_service.py` (`suggest`, сборка промпта, разбор кандидатов — только каталог, ≤3, мягкая деградация).
 - `mvp.be/app/api/v1/routes/invoices.py:48` (`POST /prepare`), `:62` (`POST /suggest-matches`).

@@ -1,7 +1,7 @@
 ---
 id: LCOS-F39
 type: feature
-title: Confirm → copyable supplier message
+title: Confirm → копируемое сообщение поставщику
 epic: "[[LCOS-E8-purchasing]]"
 status: planned
 phase: "Phase 1"
@@ -13,60 +13,60 @@ legacy_refs: ["08 F4.3", "07 Э4a"]
 sources: ["08_PHASE1_SPEC.md F4.3", "07_PHASES.md Э4a"]
 updated: 2026-07-09
 ---
-# LCOS-F39 · Confirm → copyable supplier message
+# LCOS-F39 · Confirm → копируемое сообщение поставщику
 **Epic:** [[LCOS-E8-purchasing]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-Turns a confirmed order into a ready-to-send text the owner copies and pastes to the supplier. Suppliers use different channels (WhatsApp / Telegram / Viber / phone / email — captured as `contact_channel` / `contact_value` on the supplier card, see [[LCOS-F18-supplier-criteria]]). Phase 1 is deliberately **channel-agnostic**: LCOS composes a universal, human-readable text that is copied and sent manually. There are **no messenger/email integrations** (global constraint G7); the channel is used only as a hint about *where* to send, never as a way to send.
+Превращает подтверждённый заказ в готовый к отправке текст, который владелец копирует и вставляет поставщику. Поставщики используют разные каналы (WhatsApp / Telegram / Viber / телефон / email — фиксируются как `contact_channel` / `contact_value` на карточке поставщика, см. [[LCOS-F18-supplier-criteria]]). Phase 1 намеренно **канал-агностична**: LCOS составляет универсальный, человекочитаемый текст, который копируется и отправляется вручную. **Интеграций с мессенджерами/email нет** (глобальное ограничение G7); канал используется только как подсказка о том, *куда* отправлять, никогда как способ отправить.
 
-"Confirm order" calls confirm on the backend (`draft → confirmed`, from [[LCOS-F37-purchase-orders]]) and opens a modal with the generated message: greeting, one line per position ("item — quantity in packs/units"), total, and the shop's signature, in plain Russian. A "Copy" button uses `navigator.clipboard` and marks the order `sent_manually`. The channel hint (e.g. "send to Telegram @…") is shown from the supplier's `contact_channel`/`contact_value`, and a `tel:` / `https://t.me/…` deep link is allowed as a convenience — but the message text itself stays universal.
+«Подтвердить заказ» вызывает confirm на бэкенде (`draft → confirmed`, из [[LCOS-F37-purchase-orders]]) и открывает модалку со сгенерированным сообщением: приветствие, по одной строке на позицию («товар — количество в упаковках/единицах»), итог и подпись магазина, на простом русском. Кнопка «Копировать» использует `navigator.clipboard` и помечает заказ `sent_manually`. Подсказка канала (например, «отправить в Telegram @…») показывается из `contact_channel`/`contact_value` поставщика, а deep link `tel:` / `https://t.me/…` разрешён для удобства — но сам текст сообщения остаётся универсальным.
 
-## Capabilities
+## Возможности
 
-- "Confirm order" → backend confirm (`draft → confirmed`) → modal with the composed text.
-- Composed message: greeting, per-line "position — quantity (packs/units)", total, shop signature; human-readable Russian.
-- "Copy" (`navigator.clipboard`) → also transitions the order to `sent_manually` (manual mark that the order went out).
-- Channel hint from `contact_channel` / `contact_value` ("send to Telegram @…"); optional deep link (`tel:` / `t.me`) when a value exists.
-- No messenger/email API integration (G7) — text only.
+- «Подтвердить заказ» → confirm на бэкенде (`draft → confirmed`) → модалка с составленным текстом.
+- Составленное сообщение: приветствие, per-line «позиция — количество (упаковки/единицы)», итог, подпись магазина; человекочитаемый русский.
+- «Копировать» (`navigator.clipboard`) → также переводит заказ в `sent_manually` (ручная пометка, что заказ ушёл).
+- Подсказка канала из `contact_channel` / `contact_value` («отправить в Telegram @…»); опциональный deep link (`tel:` / `t.me`), когда значение существует.
+- Нет интеграции с API мессенджеров/email (G7) — только текст.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[member]] | Confirm an order, copy the message, mark it `sent_manually`. |
-| [[admin]] | Same, within their subdivision. |
-| [[superadmin]] | Cross-tenant access. |
-| [[sqladmin-operator]] | Not involved. |
+| [[member]] | Подтвердить заказ, скопировать сообщение, пометить его `sent_manually`. |
+| [[admin]] | То же, в пределах своего subdivision. |
+| [[superadmin]] | Межтенантный доступ. |
+| [[sqladmin-operator]] | Не участвует. |
 
-Scope from active JWT context; a member confirms only their subdivision's orders.
+Scope из активного JWT-контекста; member подтверждает только заказы своего subdivision.
 
-## Involved entities
+## Задействованные сущности
 
-- [[purchase_orders]] — confirm (`draft → confirmed`) then `sent_manually`; `confirmed_by`/`confirmed_at` stamped on confirm.
-- [[purchase_order_lines]] — the source of message lines (position, quantity, pack/unit).
-- [[suppliers]] — `contact_channel` / `contact_value` supply the channel hint and optional deep link (from [[LCOS-F18-supplier-criteria]]).
+- [[purchase_orders]] — confirm (`draft → confirmed`), затем `sent_manually`; `confirmed_by`/`confirmed_at` проставляются на confirm.
+- [[purchase_order_lines]] — источник строк сообщения (позиция, количество, упаковка/единица).
+- [[suppliers]] — `contact_channel` / `contact_value` поставляют подсказку канала и опциональный deep link (из [[LCOS-F18-supplier-criteria]]).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[erp-esupl-integration]] (G5/G7 — no ERP write, no messenger integration; the order leaves LCOS as copyable text only), [[supplier-criteria-registry]] (`contact_channel`/`contact_value` live on the supplier card).
-- **Features:** consumes confirm/`sent_manually` transitions from [[LCOS-F37-purchase-orders]]; opens from the `/orders` screen [[LCOS-F38-orders-ui]]; reused unchanged by AI-proposed drafts [[LCOS-F41-ai-order-ui]]; channel fields from [[LCOS-F17-supplier-cards]] / [[LCOS-F18-supplier-criteria]]. A `sent_manually` order is later reconciled against the arriving invoice in [[LCOS-F42-receipt-reconciliation]].
+- **Требования:** [[erp-esupl-integration]] (G5/G7 — нет записи в ERP, нет интеграции с мессенджером; заказ покидает LCOS только как копируемый текст), [[supplier-criteria-registry]] (`contact_channel`/`contact_value` живут на карточке поставщика).
+- **Фичи:** потребляет переходы confirm/`sent_manually` из [[LCOS-F37-purchase-orders]]; открывается с экрана `/orders` [[LCOS-F38-orders-ui]]; переиспользуется без изменений AI-предложенными черновиками [[LCOS-F41-ai-order-ui]]; поля канала из [[LCOS-F17-supplier-cards]] / [[LCOS-F18-supplier-criteria]]. Заказ `sent_manually` позже сверяется с приходящим счётом-фактурой в [[LCOS-F42-receipt-reconciliation]].
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. Confirm transition `draft → confirmed` stamps `confirmed_by`/`confirmed_at`; a subsequent "sent" mark transitions `confirmed → sent_manually` (rejects illegal transitions with `409`, per [[LCOS-F37-purchase-orders]]).
+- [ ] AC-BE-1. Переход confirm `draft → confirmed` проставляет `confirmed_by`/`confirmed_at`; последующая пометка «sent» переводит `confirmed → sent_manually` (отклоняет нелегальные переходы с `409`, согласно [[LCOS-F37-purchase-orders]]).
 
 ### Frontend
-- [ ] AC-FE-1. Message contains all lines, quantities with units, and the total; pasting into any messenger preserves line breaks.
-- [ ] AC-FE-2. After "Copy", the order moves to `sent_manually` and appears in the list with its date.
-- [ ] AC-FE-3. The channel hint matches the supplier's `contact_channel` (or is hidden when unset); optional deep link opens the channel.
-- [ ] AC-FE-4. No messenger/email is called — the only outbound action is clipboard copy (G7).
+- [ ] AC-FE-1. Сообщение содержит все строки, количества с единицами и итог; вставка в любой мессенджер сохраняет переносы строк.
+- [ ] AC-FE-2. После «Копировать» заказ переходит в `sent_manually` и появляется в списке с датой.
+- [ ] AC-FE-3. Подсказка канала совпадает с `contact_channel` поставщика (или скрыта, когда не задан); опциональный deep link открывает канал.
+- [ ] AC-FE-4. Мессенджер/email не вызывается — единственное исходящее действие — копирование в буфер обмена (G7).
 
-## Open questions / gates
-- **Human confirms sending:** LCOS composes and marks; the actual send is a human action in the supplier's channel (cross-cutting principle of [[LCOS-E8-purchasing]]).
-- Owner acceptance (whole Э4a): the supplier accepts the copied text without questions about its format.
+## Открытые вопросы / гейты
+- **Человек подтверждает отправку:** LCOS составляет и помечает; фактическая отправка — человеческое действие в канале поставщика (сквозной принцип [[LCOS-E8-purchasing]]).
+- Приёмка владельцем (весь Э4a): поставщик принимает скопированный текст без вопросов о его формате.
 
-## Sources
-- `08_PHASE1_SPEC.md F4.3` (channel-agnostic approach, confirm→modal, clipboard + `sent_manually`, channel hint, G7 no-integration, AC).
-- `07_PHASES.md Э4a` ("Скопировать текст для WhatsApp" — channel is text, no auto-send).
+## Источники
+- `08_PHASE1_SPEC.md F4.3` (канал-агностичный подход, confirm→модалка, clipboard + `sent_manually`, подсказка канала, G7 без интеграции, AC).
+- `07_PHASES.md Э4a` («Скопировать текст для WhatsApp» — канал — это текст, без авто-отправки).

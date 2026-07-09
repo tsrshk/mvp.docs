@@ -1,7 +1,7 @@
 ---
 id: LCOS-F3
 type: feature
-title: SQLAdmin operator plane + config API
+title: Плоскость оператора SQLAdmin + config API
 epic: "[[LCOS-E1-platform]]"
 status: built
 phase: "Phase 1"
@@ -13,78 +13,78 @@ legacy_refs: [LCOS_Conformance R4, APP_OVERVIEW §3 §4]
 sources: ["APP_OVERVIEW.md §3 §4", "01_ARCHITECTURE.md (Admin panel, Keys/Secrets)", "LCOS_Conformance_Alignment_GlobalRequirements.md R4", "mvp.be app/admin/setup.py", "mvp.be app/core/security.py", "mvp.be app/api/v1/routes/admin_system.py:41"]
 updated: 2026-07-09
 ---
-# LCOS-F3 · SQLAdmin operator plane + config API
-**Epic:** [[LCOS-E1-platform]] · **Status:** built · **Phase:** Phase 1
+# LCOS-F3 · Плоскость оператора SQLAdmin + config API
+**Эпик:** [[LCOS-E1-platform]] · **Статус:** built · **Фаза:** Phase 1
 
-## Description
+## Описание
 
-The **operator/superadmin control plane**: the SQLAdmin panel mounted at `/admin` plus the superadmin config API under `/api/v1/admin/*`. It is the second of the two separate auth mechanisms — a single dev/operator "backdoor" driven by env vars `ADMIN_USERNAME` + `ADMIN_PASSWORD_HASH` (**bcrypt**), session-cookie based (`SessionMiddleware`, `session_secret`). Crucially it has **no row in `users`** and must never be mixed with the application-auth plane ([[LCOS-F2-app-auth]], which uses argon2 + JWT).
+**Плоскость управления оператора/superadmin**: панель SQLAdmin, смонтированная на `/admin`, плюс config API superadmin под `/api/v1/admin/*`. Это второй из двух раздельных механизмов аутентификации — единственный «чёрный ход» разработчика/оператора, управляемый env-переменными `ADMIN_USERNAME` + `ADMIN_PASSWORD_HASH` (**bcrypt**), на основе session-cookie (`SessionMiddleware`, `session_secret`). Принципиально важно: у него **нет строки в `users`**, и его нельзя смешивать с плоскостью аутентификации приложения ([[LCOS-F2-app-auth]], которая использует argon2 + JWT).
 
-Through SQLAdmin ModelViews an operator edits the whole platform state that isn't code: `Organization`, `Subdivision`, `User`, `Membership`, `Supplier`, `Invoice`, `InvoiceLine`, `SystemSetting`, `IntegrationCredential`, and a read-only `RefreshSession` view. Two ModelViews carry security logic: `UserAdmin.on_model_change` accepts **plaintext** in the `password_hash` field and argon2-hashes it on save (this is how operators create real app users), and `IntegrationCredentialAdmin.on_model_change` **encrypts before persist**, masks the value to last-4 on read, and enforces the single-active-credential invariant (see [[LCOS-F4-config-secrets]]).
+Через SQLAdmin ModelViews оператор редактирует всё состояние платформы, которое не является кодом: `Organization`, `Subdivision`, `User`, `Membership`, `Supplier`, `Invoice`, `InvoiceLine`, `SystemSetting`, `IntegrationCredential` и read-only-представление `RefreshSession`. Два ModelView несут логику безопасности: `UserAdmin.on_model_change` принимает **открытый текст** в поле `password_hash` и argon2-хеширует его при сохранении (именно так операторы создают реальных пользователей приложения), а `IntegrationCredentialAdmin.on_model_change` **шифрует перед сохранением**, маскирует значение до последних 4 символов при чтении и обеспечивает инвариант единственного активного credential (см. [[LCOS-F4-config-secrets]]).
 
-The config API (`routes/admin_system.py`) exposes runtime knobs to a superadmin without a redeploy: `GET /admin/status`, `POST /admin/ai-vpn` (flip the fail-closed VPN toggle), and `GET /admin/modules` (module gate state — see [[LCOS-F6-module-gates]]). Changing `system_settings` here takes effect at runtime because the resolver reads the DB on demand ([[config-secrets]]).
+Config API (`routes/admin_system.py`) предоставляет superadmin ручки времени выполнения без редеплоя: `GET /admin/status`, `POST /admin/ai-vpn` (переключить fail-closed VPN-тумблер) и `GET /admin/modules` (состояние гейтов модулей — см. [[LCOS-F6-module-gates]]). Изменение `system_settings` здесь вступает в силу во время выполнения, потому что резолвер читает БД по требованию ([[config-secrets]]).
 
-## Capabilities
+## Возможности
 
-- SQLAdmin panel at `/admin`; `AdminAuth` form login checks `authenticate_admin` (`username == settings.admin_username`, bcrypt-verify `admin_password_hash`), stores `admin_authenticated=True` in the Starlette session.
-- ModelViews for all structural/operational/config tables; `RefreshSessionAdmin` is read-only (inspection only).
-- `UserAdmin.on_model_change`: plaintext `password_hash` field → argon2 on save (skips if already `$argon2`) — operators create/reset real users.
-- `IntegrationCredentialAdmin.on_model_change`: plaintext in → `encrypt()` before persist (idempotent) → set `rotated_at` → deactivate other active rows of the same (scope, provider, org, subdivision); lists/detail mask to last-4; field is write-only plaintext, read-masked.
-- `SystemSettingAdmin`: keys chosen from the whitelist (`SETTING_TYPES` dropdown), not free-typed; edits change runtime behavior without redeploy.
-- Config API: `GET /admin/status`, `POST /admin/ai-vpn`, `GET /admin/modules` (superadmin-gated via `require_admin`).
-- No endpoint or view ever returns a decrypted secret outside the process.
+- Панель SQLAdmin на `/admin`; форма логина `AdminAuth` проверяет `authenticate_admin` (`username == settings.admin_username`, bcrypt-проверка `admin_password_hash`), сохраняет `admin_authenticated=True` в сессии Starlette.
+- ModelView для всех структурных/операционных/конфигурационных таблиц; `RefreshSessionAdmin` — read-only (только инспекция).
+- `UserAdmin.on_model_change`: поле `password_hash` с открытым текстом → argon2 при сохранении (пропускает, если уже `$argon2`) — операторы создают/сбрасывают реальных пользователей.
+- `IntegrationCredentialAdmin.on_model_change`: открытый текст на входе → `encrypt()` перед сохранением (идемпотентно) → установка `rotated_at` → деактивация других активных строк того же (scope, provider, org, subdivision); списки/детали маскируются до последних 4 символов; поле write-only для открытого текста, read-masked.
+- `SystemSettingAdmin`: ключи выбираются из белого списка (выпадающий список `SETTING_TYPES`), не вводятся свободно; правки меняют поведение во время выполнения без редеплоя.
+- Config API: `GET /admin/status`, `POST /admin/ai-vpn`, `GET /admin/modules` (защищено для superadmin через `require_admin`).
+- Ни один endpoint или представление никогда не возвращает расшифрованный секрет за пределы процесса.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[sqladmin-operator]] | Log in to `/admin` with env creds (bcrypt); CRUD all ModelViews; create app users (plaintext→argon2); set/rotate secrets (plaintext→encrypted, masked). Has **no `users` row**. |
-| [[superadmin]] | The app-plane god-mode counterpart; drives runtime config through the config API (`/admin/status`, `/admin/ai-vpn`, `/admin/modules`) and OCR-prompt/`ai_provider` changes. |
-| [[admin]] | Not in this plane, except the tenant-scoped POS-config write (`PUT /organizations/{id}/pos-config`) documented in [[LCOS-F4-config-secrets]]. |
-| [[member]] | No access. |
+| [[sqladmin-operator]] | Логин на `/admin` с env-учётными данными (bcrypt); CRUD всех ModelView; создание пользователей приложения (открытый текст→argon2); установка/ротация секретов (открытый текст→зашифровано, замаскировано). У него **нет строки в `users`**. |
+| [[superadmin]] | God-mode-аналог на плоскости приложения; управляет конфигурацией времени выполнения через config API (`/admin/status`, `/admin/ai-vpn`, `/admin/modules`) и изменениями OCR-промпта/`ai_provider`. |
+| [[admin]] | Не в этой плоскости, кроме записи POS-конфига со scope арендатора (`PUT /organizations/{id}/pos-config`), задокументированной в [[LCOS-F4-config-secrets]]. |
+| [[member]] | Нет доступа. |
 
-The two planes must never authenticate each other: `admin`/`admin` (env) is the SQLAdmin operator and is intentionally **not** seeded into `users`; `iter` is the seeded app superadmin.
+Две плоскости никогда не аутентифицируют друг друга: `admin`/`admin` (env) — это оператор SQLAdmin, и он намеренно **не** засеян в `users`; `iter` — засеянный superadmin приложения.
 
-## Involved entities
+## Задействованные сущности
 
-- [[system_settings]] — non-secret runtime KV edited via `SystemSettingAdmin`; whitelisted keys only.
-- [[integration_credentials]] — all integration secrets; `IntegrationCredentialAdmin` encrypts/masks/enforces single-active.
-- [[users]] / [[memberships]] — operators create users and assign subdivision memberships.
-- [[organizations]] / [[subdivisions]] — the tenant structure is authored here.
-- [[refresh_sessions]] — read-only inspection view.
+- [[system_settings]] — несекретный KV времени выполнения, редактируемый через `SystemSettingAdmin`; только ключи из белого списка.
+- [[integration_credentials]] — все секреты интеграций; `IntegrationCredentialAdmin` шифрует/маскирует/обеспечивает единственный активный.
+- [[users]] / [[memberships]] — операторы создают пользователей и назначают membership subdivision.
+- [[organizations]] / [[subdivisions]] — структура арендатора создаётся здесь.
+- [[refresh_sessions]] — read-only-представление для инспекции.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[config-secrets]] (runtime settings + secrets tiers this plane edits), [[secret-encryption]] (encrypt-before-persist, mask-on-read), [[auth]] (operator plane separation), [[global-requirements]] (R4).
-- **Features:** distinct plane from [[LCOS-F2-app-auth]]; the secret/settings storage semantics live in [[LCOS-F4-config-secrets]]; module toggles surface via [[LCOS-F6-module-gates]]; structure it edits is isolated by [[LCOS-F1-multitenancy]].
-- **ADR:** [[ADR-007]] (two auth planes), [[ADR-005]] (three-level config the operator drives).
+- **Требования:** [[config-secrets]] (уровни runtime-настроек + секретов, которые редактирует эта плоскость), [[secret-encryption]] (шифрование-перед-сохранением, маскировка-при-чтении), [[auth]] (разделение плоскости оператора), [[global-requirements]] (R4).
+- **Фичи:** отдельная плоскость от [[LCOS-F2-app-auth]]; семантика хранения секретов/настроек живёт в [[LCOS-F4-config-secrets]]; тумблеры модулей проявляются через [[LCOS-F6-module-gates]]; редактируемая структура изолирована [[LCOS-F1-multitenancy]].
+- **ADR:** [[ADR-007]] (две плоскости auth), [[ADR-005]] (трёхуровневый конфиг, которым управляет оператор).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. `/admin` login uses `ADMIN_USERNAME` + bcrypt `ADMIN_PASSWORD_HASH` from env with a session cookie; the operator has no row in `users` and cannot authenticate as an app user (or vice-versa).
-- [ ] AC-BE-2. `UserAdmin.on_model_change` argon2-hashes a plaintext `password_hash` on save (skips if already `$argon2`).
-- [ ] AC-BE-3. `IntegrationCredentialAdmin.on_model_change` encrypts plaintext before persist, sets `rotated_at`, and deactivates other active rows of the same (scope, provider, org, subdivision).
-- [ ] AC-BE-4. Credential lists/detail views mask the value to last-4; no view or endpoint returns plaintext.
-- [ ] AC-BE-5. `SystemSettingAdmin` restricts keys to the registry whitelist; a change is observed at runtime with no redeploy (resolver reads DB on demand).
-- [ ] AC-BE-6. `RefreshSessionAdmin` is read-only.
-- [ ] AC-BE-7. Config API `GET /admin/status`, `POST /admin/ai-vpn`, `GET /admin/modules` are gated to superadmin/operator (`require_admin`) and reject unauthenticated callers.
+- [ ] AC-BE-1. Логин `/admin` использует `ADMIN_USERNAME` + bcrypt `ADMIN_PASSWORD_HASH` из env с session-cookie; у оператора нет строки в `users`, и он не может аутентифицироваться как пользователь приложения (и наоборот).
+- [ ] AC-BE-2. `UserAdmin.on_model_change` argon2-хеширует открытый `password_hash` при сохранении (пропускает, если уже `$argon2`).
+- [ ] AC-BE-3. `IntegrationCredentialAdmin.on_model_change` шифрует открытый текст перед сохранением, устанавливает `rotated_at` и деактивирует другие активные строки того же (scope, provider, org, subdivision).
+- [ ] AC-BE-4. Списки/детальные представления credential маскируют значение до последних 4 символов; ни одно представление или endpoint не возвращает открытый текст.
+- [ ] AC-BE-5. `SystemSettingAdmin` ограничивает ключи белым списком реестра; изменение наблюдается во время выполнения без редеплоя (резолвер читает БД по требованию).
+- [ ] AC-BE-6. `RefreshSessionAdmin` — read-only.
+- [ ] AC-BE-7. Config API `GET /admin/status`, `POST /admin/ai-vpn`, `GET /admin/modules` защищены для superadmin/оператора (`require_admin`) и отклоняют неаутентифицированных вызывающих.
 
-### Other (infra / config)
-- [ ] AC-OTHER-1. Config lives in `lcos.env` (bind-mounted read-only as `/app/.env`), not `./.env`, so the bcrypt `$`-laden `ADMIN_PASSWORD_HASH` is not corrupted by compose interpolation.
-- [ ] AC-OTHER-2. `SessionMiddleware` shares `session_secret` with SQLAdmin; startup refuses weak/default `SESSION_SECRET`.
+### Прочее (инфра / конфиг)
+- [ ] AC-OTHER-1. Конфиг живёт в `lcos.env` (примонтирован bind-mount read-only как `/app/.env`), не в `./.env`, так что нагруженный `$` bcrypt-хеш `ADMIN_PASSWORD_HASH` не искажается интерполяцией compose.
+- [ ] AC-OTHER-2. `SessionMiddleware` разделяет `session_secret` с SQLAdmin; запуск отказывает при слабом/дефолтном `SESSION_SECRET`.
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- The SQLAdmin panel is an operator/dev surface, not a Phase-1 end-user product; a richer superadmin UI is future work.
-- Whether org-admin (not just superadmin) should keep the POS-config write is a Phase-1 confirm item (Conformance D-h) — resolved in [[LCOS-F4-config-secrets]].
-- `wtforms>=3.1,<3.2` is pinned (3.2 breaks SQLAdmin's boolean widget) — a known infra constraint.
+- Панель SQLAdmin — это поверхность оператора/разработчика, а не продукт для конечного пользователя Phase 1; более богатый UI superadmin — будущая работа.
+- Должен ли org-admin (а не только superadmin) сохранять запись POS-конфига — это пункт подтверждения Phase 1 (Conformance D-h) — решено в [[LCOS-F4-config-secrets]].
+- `wtforms>=3.1,<3.2` закреплён (3.2 ломает boolean-виджет SQLAdmin) — известное инфраограничение.
 
-## Sources
+## Источники
 
-- `APP_OVERVIEW.md §3` (routes incl. `admin_system`), `§4` (two auth planes, seeded accounts).
-- `01_ARCHITECTURE.md` — "Admin panel (SQLAdmin)", "Keys, Secrets & Credential Management" (write path).
-- `LCOS_Conformance_Alignment_GlobalRequirements.md` R4 / Part 4 (superadmin test scenarios).
-- `mvp.be/app/admin/setup.py:45+` (ModelViews; `UserAdmin`/`IntegrationCredentialAdmin`/`SystemSettingAdmin` `on_model_change`; `RefreshSessionAdmin` read-only).
+- `APP_OVERVIEW.md §3` (маршруты, включая `admin_system`), `§4` (две плоскости auth, засеянные аккаунты).
+- `01_ARCHITECTURE.md` — «Admin panel (SQLAdmin)», «Keys, Secrets & Credential Management» (путь записи).
+- `LCOS_Conformance_Alignment_GlobalRequirements.md` R4 / Part 4 (сценарии тестов superadmin).
+- `mvp.be/app/admin/setup.py:45+` (ModelViews; `on_model_change` у `UserAdmin`/`IntegrationCredentialAdmin`/`SystemSettingAdmin`; `RefreshSessionAdmin` read-only).
 - `mvp.be/app/core/security.py` (`AdminAuth`, `authenticate_admin`, bcrypt).
 - `mvp.be/app/api/v1/routes/admin_system.py:41` (`system_status`), `:60` (`set_ai_vpn`), `:68` (`list_modules`), `:21` (`require_admin`).

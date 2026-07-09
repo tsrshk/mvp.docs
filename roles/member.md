@@ -1,10 +1,10 @@
 ---
 id: role-member
 type: role
-title: member (subdivision participant)
+title: member (участник подразделения)
 status: built
 plane: app-plane (JWT)
-identity: presence of a row in memberships (any user↔subdivision)
+identity: наличие строки в memberships (любой user↔subdivision)
 sources:
   - 01_ARCHITECTURE.md §Auth (Roles), §Data Model (memberships)
   - APP_OVERVIEW.md §Auth
@@ -13,35 +13,35 @@ updated: 2026-07-09
 ---
 # member
 
-**Plane:** app-plane (application, JWT) · **Identity:** presence of a row in [[memberships]] for `(user_id, subdivision_id)` · **Not a separate enum value** — `Role` in Phase 1 carries only `admin`.
+**Plane:** app-plane (приложение, JWT) · **Identity:** наличие строки в [[memberships]] для `(user_id, subdivision_id)` · **Не отдельное значение enum** — `Role` в Phase 1 несёт только `admin`.
 
-## Who this is
-Any application user ([[users]]) who has a membership in a [[subdivisions]] — i.e. they receive an active tenant context and access to that subdivision's operational data. "member" is a general name for "a participant with a membership"; the concrete role in the membership in Phase 1 is always `admin` (the only enum value), so in the current code "just a member without the admin role" practically coincides with [[admin]] at the data level. The distinction matters as a **semantic seam**: when the `Role` enum is extended, member will become a separate level.
+## Кто это
+Любой пользователь приложения ([[users]]), у которого есть membership в [[subdivisions]] — то есть он получает активный контекст тенанта и доступ к операционным данным этого подразделения. «member» — общее название для «участник с membership»; конкретная роль в membership в Phase 1 всегда `admin` (единственное значение enum), поэтому в текущем коде «просто member без роли admin» практически совпадает с [[admin]] на уровне данных. Различие важно как **семантический шов**: при расширении enum `Role` member станет отдельным уровнем.
 
-## Authentication plane
-app-plane: `POST /auth/login`, argon2, access-JWT (15 min, HttpOnly `lcos_access`) + refresh ([[refresh_sessions]]). The payload carries `org`, `sub_div`, `role`. Authorization is stateless from the signed token. NOT the [[sqladmin-operator]] plane ([[ADR-007]]).
+## Плоскость аутентификации
+app-plane: `POST /auth/login`, argon2, access-JWT (15 мин, HttpOnly `lcos_access`) + refresh ([[refresh_sessions]]). Payload несёт `org`, `sub_div`, `role`. Авторизация — stateless из подписанного токена. НЕ плоскость [[sqladmin-operator]] ([[ADR-007]]).
 
-## Capabilities
-- **Active context only within its own membership.** `GET /auth/me` returns only the subdivisions where the user has a row in `memberships` (the full tree is a [[superadmin]] privilege).
-- **`switch-context`** only into subdivisions of its own membership; otherwise `403` (without leaking the existence of others' scopes — `404` is available only to the superadmin).
-- **Operational work** within its subdivision: invoice intake, SKU catalog/mappings, suppliers — access to the subdivision's data via `get_tenant_context` (requires an active `organization_id`).
-- **Fail-closed for a non-participant.** A user without a membership and not a superadmin can log in but has **no active context** → `get_tenant_context` returns `403 "no active organization context"`, the FE shows "no available subdivisions".
+## Возможности
+- **Активный контекст только в рамках своего membership.** `GET /auth/me` возвращает только подразделения, где у пользователя есть строка в `memberships` (полное дерево — привилегия [[superadmin]]).
+- **`switch-context`** только в подразделения своего membership; иначе `403` (без утечки существования чужих scope — `404` доступен только superadmin).
+- **Операционная работа** в своём подразделении: приём накладных, каталог/маппинги SKU, поставщики — доступ к данным подразделения через `get_tenant_context` (требует активного `organization_id`).
+- **Fail-closed для не-участника.** Пользователь без membership и не superadmin может войти, но у него **нет активного контекста** → `get_tenant_context` возвращает `403 "no active organization context"`, FE показывает «нет доступных подразделений».
 
-## Difference from other roles
-- **admin** — the same membership, but with an explicit `role=admin` (the only enum value right now); plus the right to the organization POS config. See [[admin]].
-- **superadmin** — a global flag, treated as admin across all subdivisions, crosses the tenant boundary. See [[superadmin]].
+## Отличие от других ролей
+- **admin** — тот же membership, но с явным `role=admin` (сейчас единственное значение enum); плюс право на POS-конфигурацию организации. См. [[admin]].
+- **superadmin** — глобальный флаг, трактуется как admin во всех подразделениях, пересекает границу тенанта. См. [[superadmin]].
 
-There is no RBAC matrix (an explicit non-goal). There are two authorization levels: `superadmin` (flag) and `admin` (membership role); "member" is the fact of having a membership.
+RBAC-матрицы нет (явный non-goal). Есть два уровня авторизации: `superadmin` (флаг) и `admin` (роль в membership); «member» — факт наличия membership.
 
-## Features granting/using the role
-- [[LCOS-F2-app-auth]] — membership → active context, `/auth/me` only your subdivisions, `switch-context`.
-- [[LCOS-F1-multitenancy]] — membership as the key to the tenant scope; no membership = closed data.
-- Intake [[LCOS-E2-invoice-intake]] and SKU identity [[LCOS-E3-sku-identity]] run in the member/admin context.
+## Features, предоставляющие/использующие роль
+- [[LCOS-F2-app-auth]] — membership → активный контекст, `/auth/me` только ваши подразделения, `switch-context`.
+- [[LCOS-F1-multitenancy]] — membership как ключ к scope тенанта; нет membership = данные закрыты.
+- Приём [[LCOS-E2-invoice-intake]] и SKU-identity [[LCOS-E3-sku-identity]] выполняются в контексте member/admin.
 
-## Relations / requirements
+## Связи / требования
 [[auth]] · [[multitenancy]] · [[ADR-007]] · [[users]] · [[memberships]] · [[subdivisions]] · [[refresh_sessions]]
 
-## Sources
-- `01_ARCHITECTURE.md` §Auth — Roles (no-membership → closed tenant, line ~434), Endpoints `/auth/me` `/auth/switch-context` (~447–448), `get_tenant_context` (~454).
+## Источники
+- `01_ARCHITECTURE.md` §Auth — Roles (no-membership → закрытый тенант, строка ~434), Endpoints `/auth/me` `/auth/switch-context` (~447–448), `get_tenant_context` (~454).
 - `APP_OVERVIEW.md` §Auth.
-- Code: `db/models.py` (`Membership`), `app/auth/service.py` (`_role_for`), `app/auth/dependencies.py` (`get_current_context`, `get_tenant_context`).
+- Код: `db/models.py` (`Membership`), `app/auth/service.py` (`_role_for`), `app/auth/dependencies.py` (`get_current_context`, `get_tenant_context`).

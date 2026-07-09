@@ -1,7 +1,7 @@
 ---
 id: OVERVIEW-ARCH
 type: overview
-title: LCOS architecture (as-built SSOT)
+title: Архитектура LCOS (as-built SSOT)
 status: current
 phase: "Phase 1"
 verified_against_code: 2026-07-09
@@ -17,101 +17,101 @@ sources:
   - DEC-0011, DEC-0013
 ---
 
-# LCOS architecture (as-built)
+# Архитектура LCOS (as-built)
 
-> This is the single SSOT for the system's actual architecture. It merges the normative `01_ARCHITECTURE.md` (tier 2) and the code-verified `APP_OVERVIEW.md` (tier 3, `verified_against_code 2026-07-09`). Authority on conflict: **code + `CLAUDE.md` > [[DEC-0011]]/[[DEC-0013]] > docs**. Data on entities and requirements is not duplicated here — see the links to [[MOC]] and [[MOC]].
+> Это единственный SSOT фактической архитектуры системы. Он объединяет нормативный `01_ARCHITECTURE.md` (tier 2) и сверенный с кодом `APP_OVERVIEW.md` (tier 3, `verified_against_code 2026-07-09`). Авторитет при конфликте: **код + `CLAUDE.md` > [[DEC-0011]]/[[DEC-0013]] > документы**. Данные о сущностях и требованиях здесь не дублируются — см. ссылки на [[MOC]] и [[MOC]].
 
-## 1. What it is (system boundaries)
+## 1. Что это такое (границы системы)
 
-**LCOS** is an intake and strategic-analytics layer on top of an ERP/POS (the Belarusian **Esupl**). The product essence is an **AI manager** that *does the work* rather than drawing dashboards. The first wedge is **invoice intake**: photo → OCR → matching lines against the POS catalog → arithmetic validation → building a goods-receipt payload for Esupl → local persistence and (behind a gate) writing to the POS.
+**LCOS** — это слой приёмки и стратегической аналитики поверх ERP/POS (белорусский **Esupl**). Суть продукта — **AI-управляющий**, который *делает работу*, а не рисует дашборды. Первый клин — **приёмка накладных**: фото → OCR → сопоставление строк с каталогом POS → арифметическая проверка → построение payload приходной накладной для Esupl → локальное сохранение и (за gate) запись в POS.
 
-**What it is NOT:** it is not a POS, not operational accounting, not bookkeeping — that stays in Esupl. LCOS is the **invoice write-point** and is **read-only** with respect to Esupl's own data. Hard product rule: **the AI shows data and arguments; the human decides** — no auto-orders and no writes to the POS without human confirmation.
+**Чем это НЕ является:** это не POS, не оперативный учёт, не бухгалтерия — это остаётся в Esupl. LCOS — это **точка записи накладной** и **read-only** по отношению к собственным данным Esupl. Жёсткое продуктовое правило: **AI показывает данные и аргументы; решает человек** — никаких автозаказов и никаких записей в POS без подтверждения человеком.
 
-Phase 1 is a single coffee shop (Customer Zero), free of charge, running locally in Docker Compose. Product context: [[product]]. Roadmap: [[roadmap]]. The key phasing decision — [[ADR-001]]. Pilot-Gate (== Wife-Gate) — [[ADR-003]].
+Фаза 1 — одна кофейня (Customer Zero), бесплатно, работает локально в Docker Compose. Продуктовый контекст: [[product]]. Roadmap: [[roadmap]]. Ключевое решение о фазировании — [[ADR-001]]. Pilot-Gate (== Wife-Gate) — [[ADR-003]].
 
-## 2. Stack
+## 2. Стек
 
-| Layer | Technologies |
+| Слой | Технологии |
 |---|---|
 | Backend (`mvp.be`) | Python 3.12, FastAPI, SQLAlchemy 2.0 **async** (asyncpg), Alembic, Pydantic v2, PostgreSQL 16 + pgvector, httpx, SQLAdmin, anthropic SDK, `uv`/`ruff`/pytest |
-| Frontend (`mvp.fe`) | React 18 + TypeScript, Redux Toolkit (RTK Query), react-router v6, Tailwind v4, Vite 6, vite-plugin-pwa (mobile-first); strict Feature-Sliced Design (FSD) |
-| Infra | Docker Compose: `db` (pgvector/pg16) + `backend` + `gluetun` (VPN sidecar for egress to the AI) |
-| AI / OCR | Vision-LLM (Claude Vision, default); provider chosen at runtime from `system_settings.ai_provider` |
+| Frontend (`mvp.fe`) | React 18 + TypeScript, Redux Toolkit (RTK Query), react-router v6, Tailwind v4, Vite 6, vite-plugin-pwa (mobile-first); строгий Feature-Sliced Design (FSD) |
+| Infra | Docker Compose: `db` (pgvector/pg16) + `backend` + `gluetun` (VPN-сайдкар для egress к AI) |
+| AI / OCR | Vision-LLM (Claude Vision, по умолчанию); провайдер выбирается в рантайме из `system_settings.ai_provider` |
 
-Monorepo at `d:\_work\mvp`: `mvp.be` (backend), `mvp.fe` (frontend PWA), `mvp.docs` (docs).
+Монорепозиторий в `d:\_work\mvp`: `mvp.be` (backend), `mvp.fe` (frontend PWA), `mvp.docs` (документация).
 
-## 3. Backend layers and dependency direction
+## 3. Слои backend и направление зависимостей
 
-`CLAUDE.md` fixes the direction: **`api` → `services` (use-cases) → `providers` / `repositories`**. `services` depend **only on provider interfaces** (`providers/*/base.py`), never on concrete implementations.
+`CLAUDE.md` фиксирует направление: **`api` → `services` (use-cases) → `providers` / `repositories`**. `services` зависят **только от интерфейсов провайдеров** (`providers/*/base.py`), никогда от конкретных реализаций.
 
-- **api** (`app/api/v1/routes/*`) — thin: validates input, resolves DI, calls the service, maps ORM → `InvoiceOut`.
-- **services** (`app/services/*`) — use-cases (`InvoiceService`, `MatchService`, `SupplierService`, catalog). The constructor accepts `session, ocr: OcrProvider, erp: ErpProvider, organization_id, subdivision_id` and instantiates tenant repositories internally. References only Protocols.
-- **domain** (`app/domain/entities.py`) — ORM-free Pydantic models that cross the provider interfaces (`InvoiceDraft`, `PreparedInvoice`, `EsuplOutgoingInvoice`, `EsuplLineItem`, `IngredientRef`, `PackingRef`, `SupplierRef`, `MatchCandidate`). `Decimal` for money/quantities.
-- **providers / repositories** — infra. OCR/ERP behind a `Protocol`; repositories wrap SQLAlchemy and **require `organization_id`**.
+- **api** (`app/api/v1/routes/*`) — тонкий: валидирует ввод, разрешает DI, вызывает сервис, маппит ORM → `InvoiceOut`.
+- **services** (`app/services/*`) — use-cases (`InvoiceService`, `MatchService`, `SupplierService`, catalog). Конструктор принимает `session, ocr: OcrProvider, erp: ErpProvider, organization_id, subdivision_id` и внутри инстанцирует тенант-репозитории. Ссылается только на Protocols.
+- **domain** (`app/domain/entities.py`) — ORM-free Pydantic-модели, пересекающие интерфейсы провайдеров (`InvoiceDraft`, `PreparedInvoice`, `EsuplOutgoingInvoice`, `EsuplLineItem`, `IngredientRef`, `PackingRef`, `SupplierRef`, `MatchCandidate`). `Decimal` для денег/количеств.
+- **providers / repositories** — инфраструктура. OCR/ERP за `Protocol`; репозитории оборачивают SQLAlchemy и **требуют `organization_id`**.
 
-The `core` layer sits to the side; `effective_config.py` uses lazy imports inside functions to avoid the `core → providers → core` cycle.
+Слой `core` стоит сбоку; `effective_config.py` использует ленивые импорты внутри функций, чтобы избежать цикла `core → providers → core`.
 
-**Two DI mechanisms:**
-1. **FastAPI `Depends`** (`api/deps.py`, `auth/dependencies.py`, `modules/registry.py`) — per-request wiring of the session, providers, services, auth context, and module gates via `Annotated[T, Depends(...)]` (`SessionDep`, `OcrDep`, `ErpDep`, `InvoiceServiceDep`, `TenantContext`).
-2. **`ProviderContext`** (`providers/context.py`) — a module-global singleton `_CTX` with cross-cutting infra (`egress` — two long-lived httpx clients, `ai_vpn` — `AiVpnToggle`, `session_scope` — `SessionFactory`) so it does not leak into Protocol signatures. Set in `main.py::lifespan`, cleared on shutdown; `get_provider_context()` raises `RuntimeError` if unset. Tests substitute fakes.
+**Два механизма DI:**
+1. **FastAPI `Depends`** (`api/deps.py`, `auth/dependencies.py`, `modules/registry.py`) — пер-реквестное связывание сессии, провайдеров, сервисов, контекста auth и module gates через `Annotated[T, Depends(...)]` (`SessionDep`, `OcrDep`, `ErpDep`, `InvoiceServiceDep`, `TenantContext`).
+2. **`ProviderContext`** (`providers/context.py`) — модуль-глобальный синглтон `_CTX` со сквозной инфраструктурой (`egress` — два долгоживущих httpx-клиента, `ai_vpn` — `AiVpnToggle`, `session_scope` — `SessionFactory`), чтобы она не протекала в сигнатуры Protocol. Устанавливается в `main.py::lifespan`, очищается при shutdown; `get_provider_context()` бросает `RuntimeError`, если не установлен. Тесты подставляют фейки.
 
-**Routes** (`app/api/v1/routes/`): `health`, `auth` (via `app/auth`), `organizations`, `ingredients` (catalog + SKU mappings), `invoices` (recognize/prepare/submit), `suppliers` (cards + criteria), `admin_system` (superadmin config). A single error envelope `{"error":{code,message,details?}}` (`core/errors.py`); the catch-all manually re-applies CORS headers.
+**Routes** (`app/api/v1/routes/`): `health`, `auth` (через `app/auth`), `organizations`, `ingredients` (каталог + SKU-маппинги), `invoices` (recognize/prepare/submit), `suppliers` (карточки + критерии), `admin_system` (superadmin config). Единый конверт ошибок `{"error":{code,message,details?}}` (`core/errors.py`); catch-all вручную переприменяет CORS-заголовки.
 
-More: [[provider-abstraction]].
+Подробнее: [[provider-abstraction]].
 
-## 4. Provider seams
+## 4. Швы провайдеров
 
-- **Behind a `Protocol` + registry, one implementation per seam:** OCR = `claude` (default), ERP = `esupl`. Alternatives are **not written** until a real trigger ([[ADR-009]]).
-- `providers/base.py` holds `_OCR_REGISTRY`/`_ERP_REGISTRY` (name → class), registered via decorators `@register_ocr("claude")`, `@register_erp("esupl")`. `import_providers()` explicitly imports the impl modules once in lifespan (the decorators fire on import).
-- **No LLM `Protocol`.** LLM transport is module-level async functions in `providers/ai.py` (`ai_complete`, `claude_complete`, `gemini_complete`); OCR providers are thin adapters to them.
-- **Implementation selection is split across two config planes** (easy to get wrong):
-  - **ERP = statically from env** — `get_erp()` reads `settings.erp_provider` (`ERP_PROVIDER`, default `"esupl"`).
-  - **OCR/AI = from the DB at runtime** — `get_ocr()` calls `resolve_ai_provider()` → `system_settings.ai_provider` (default `"claude"`). A lazy resolver: write paths do not pay for a DB read, and a superadmin can switch the provider in SQLAdmin without a redeploy.
-- The frontend holds no secrets; live provider paths live only on the `backend` ([[ADR-012]]). FE providers (`shared/ocr`, `shared/match`, `shared/pos`) have `backend | mock` axes.
+- **За `Protocol` + registry, по одной реализации на шов:** OCR = `claude` (по умолчанию), ERP = `esupl`. Альтернативы **не пишутся** до реального триггера ([[ADR-009]]).
+- `providers/base.py` держит `_OCR_REGISTRY`/`_ERP_REGISTRY` (name → class), регистрируемые декораторами `@register_ocr("claude")`, `@register_erp("esupl")`. `import_providers()` явно импортирует модули реализаций один раз в lifespan (декораторы срабатывают при импорте).
+- **Нет LLM `Protocol`.** LLM-транспорт — модульные async-функции в `providers/ai.py` (`ai_complete`, `claude_complete`, `gemini_complete`); OCR-провайдеры — тонкие адаптеры к ним.
+- **Выбор реализации разнесён по двум плоскостям конфигурации** (легко ошибиться):
+  - **ERP = статически из env** — `get_erp()` читает `settings.erp_provider` (`ERP_PROVIDER`, по умолчанию `"esupl"`).
+  - **OCR/AI = из БД в рантайме** — `get_ocr()` вызывает `resolve_ai_provider()` → `system_settings.ai_provider` (по умолчанию `"claude"`). Ленивый resolver: пути записи не платят за чтение БД, а superadmin может переключить провайдера в SQLAdmin без редеплоя.
+- Frontend не держит секретов; живые пути провайдеров живут только на `backend` ([[ADR-012]]). FE-провайдеры (`shared/ocr`, `shared/match`, `shared/pos`) имеют оси `backend | mock`.
 
 ## 5. Module gates
 
-Modules are gated **at request time**: `modules/registry.py::require_module` returns **404** if the module is off. **Routes are always registered** — the gate lives at the request-dependency level, not at mounting. This lets functional areas be turned on/off without changing the routing graph.
+Модули гейтятся **в момент запроса**: `modules/registry.py::require_module` возвращает **404**, если модуль выключен. **Routes регистрируются всегда** — gate живёт на уровне request-dependency, а не на mounting. Это позволяет включать/выключать функциональные области без изменения графа маршрутизации.
 
-## 6. Multitenancy and authorization
+## 6. Мультитенантность и авторизация
 
-- **Tenant = organization.** `organization_id` is **denormalized into every operational row** — a tenant query is impossible without a scope (hard isolation boundary, `ondelete=RESTRICT`). Operational rows also carry `subdivision_id`. `users` is the only **global** table; membership is via `memberships`.
-- Hierarchy: `organization → subdivision → membership(user↔subdivision+role)`. `organization ↔ exactly one Esupl team`; `subdivision ↔ Esupl warehouse` ([[ADR-004]], [[ADR-008]]).
-- **Two independent auth planes (never mix them)** — a non-negotiable in `CLAUDE.md`:
-  1. **Application users** (React FE) — the `users` table, **argon2**, JWT access 15 min in an HttpOnly cookie (`lcos_access`) + opaque refresh 30 min (`lcos_refresh`), family_id rotation, reuse detection. `app/auth/*`.
-  2. **SQLAdmin operator** — a single env "backdoor" (`ADMIN_USERNAME` + `ADMIN_PASSWORD_HASH`, **bcrypt**), session cookie, **no row in `users`**. `app/core/security.py` + `app/admin/setup.py` ([[ADR-007]]).
-- **Roles:** `is_superadmin` — a global boolean on `User` (god-mode: sees/switches into any org/subdivision, treated as `admin` everywhere). The `Role` enum contains a **single value `admin`**, assigned per-subdivision via `Membership.role`. There is no RBAC matrix (an explicit non-goal). A user with no membership who is not a superadmin can log in but has no active context → tenant data is closed (403 from `get_tenant_context`).
-- **Tenant isolation** is covered by tests and **blocks merge**.
+- **Тенант = organization.** `organization_id` **денормализован в каждую операционную строку** — запрос тенанта невозможен без scope (жёсткая граница изоляции, `ondelete=RESTRICT`). Операционные строки также несут `subdivision_id`. `users` — единственная **глобальная** таблица; членство — через `memberships`.
+- Иерархия: `organization → subdivision → membership(user↔subdivision+role)`. `organization ↔ ровно одна команда Esupl`; `subdivision ↔ склад Esupl` ([[ADR-004]], [[ADR-008]]).
+- **Две независимые плоскости auth (никогда не смешивать)** — непреложное правило в `CLAUDE.md`:
+  1. **Пользователи приложения** (React FE) — таблица `users`, **argon2**, JWT access 15 мин в HttpOnly-куке (`lcos_access`) + непрозрачный refresh 30 мин (`lcos_refresh`), ротация family_id, детекция повторного использования. `app/auth/*`.
+  2. **SQLAdmin operator** — единый env-«backdoor» (`ADMIN_USERNAME` + `ADMIN_PASSWORD_HASH`, **bcrypt**), session-куки, **без строки в `users`**. `app/core/security.py` + `app/admin/setup.py` ([[ADR-007]]).
+- **Роли:** `is_superadmin` — глобальный boolean на `User` (god-mode: видит/переключается в любую org/subdivision, везде трактуется как `admin`). Enum `Role` содержит **единственное значение `admin`**, присваиваемое пер-subdivision через `Membership.role`. RBAC-матрицы нет (явная не-цель). Пользователь без членства, не являющийся superadmin, может залогиниться, но не имеет активного контекста → данные тенанта закрыты (403 из `get_tenant_context`).
+- **Изоляция тенантов** покрыта тестами и **блокирует merge**.
 
-Roles: [[superadmin]] · [[admin]] · [[member]] · [[sqladmin-operator]]. More: [[auth]], [[multitenancy]].
+Роли: [[superadmin]] · [[admin]] · [[member]] · [[sqladmin-operator]]. Подробнее: [[auth]], [[multitenancy]].
 
-> **doc↔code correction:** the `admin_system` routes are gated by the **SQLAdmin OPERATOR** plane (env + bcrypt session), **not** the app-JWT superadmin. `is_superadmin` is the application plane; operator system configuration goes through the operator plane.
+> **коррекция doc↔code:** routes `admin_system` гейтятся плоскостью **SQLAdmin OPERATOR** (env + bcrypt session), **а не** app-JWT superadmin. `is_superadmin` — это плоскость приложения; системная конфигурация оператора идёт через плоскость оператора.
 
-## 7. Three configuration tiers and secrets
+## 7. Три уровня конфигурации и секреты
 
-Three tiers ([[ADR-005]]); for tiers 2–3 there is **no env fallback**:
+Три уровня ([[ADR-005]]); для уровней 2–3 **нет env-fallback**:
 
-1. **`.env`** — boot / trust root. `core/config.py::Settings` — the single reader of env, singleton `settings`.
-2. **`system_settings`** — non-secret runtime settings (whitelisted keys), a typed registry `core/system_settings.py` (SSOT of keys/types/defaults), resolver `core/effective_config.py` (`DB → registry default`, **no env fallback**). Managed by the superadmin via SQLAdmin.
-3. **`integration_credentials`** — integration secrets (a single SSOT table), scope=`platform|org|subdivision`, provider=`anthropic|gemini|esupl`. **Fernet encryption**. `core/credentials.py::get_active_credential` reads+decrypts **without a cache**.
+1. **`.env`** — boot / корень доверия. `core/config.py::Settings` — единственный читатель env, синглтон `settings`.
+2. **`system_settings`** — несекретные рантайм-настройки (whitelisted-ключи), типизированный registry `core/system_settings.py` (SSOT ключей/типов/дефолтов), resolver `core/effective_config.py` (`DB → registry default`, **без env-fallback**). Управляется superadmin через SQLAdmin.
+3. **`integration_credentials`** — секреты интеграций (единая SSOT-таблица), scope=`platform|org|subdivision`, provider=`anthropic|gemini|esupl`. **Шифрование Fernet**. `core/credentials.py::get_active_credential` читает+расшифровывает **без кэша**.
 
-**Secret encryption:** Fernet envelope `enc:v2:<key_id>:<token>`, versioned KEK, rotation without losing old ciphertexts ([[ADR-010]]); reads **without a cache** — rotation is instant ([[ADR-011]]). Startup secret-guard in `main.py::lifespan`. More: [[config-secrets]], [[secret-encryption]].
+**Шифрование секретов:** Fernet-конверт `enc:v2:<key_id>:<token>`, версионированный KEK, ротация без потери старых шифротекстов ([[ADR-010]]); чтение **без кэша** — ротация мгновенна ([[ADR-011]]). Стартовый secret-guard в `main.py::lifespan`. Подробнее: [[config-secrets]], [[secret-encryption]].
 
-## 8. Fail-closed doctrine
+## 8. Доктрина fail-closed
 
-Fail-closed **everywhere** ([[ADR-006]]):
+Fail-closed **везде** ([[ADR-006]]):
 
-- **VPN egress to the AI:** `providers/http.py` holds `direct_client` and `vpn_client` (via `gluetun:8888`). `get_client(via_vpn=True)` raises `VpnUnavailableError` if there is no vpn client — **no silent fallback to direct** (non-negotiable). `guard_vpn` converts transport errors into `VpnUnavailableError`. `via_vpn` for the AI is a **runtime toggle** (`AiVpnToggle`, cached, default fail-closed **True**), not a static `requires_vpn`.
-- **POS token:** no active credential → the request goes out unauthenticated and Esupl returns **401** (no env fallback).
-- **AI key:** its absence == `AiUnavailableError` → **503** (missing-config == unavailable, intentionally).
-- **`ERP_WRITE_ENABLED`** defaults to **False** — there is no write to the POS until it is turned on.
-- Errors map to a single envelope: `VpnUnavailableError → 503 vpn_unavailable`, `AiUnavailableError → 503 ai_unavailable`.
+- **VPN egress к AI:** `providers/http.py` держит `direct_client` и `vpn_client` (через `gluetun:8888`). `get_client(via_vpn=True)` бросает `VpnUnavailableError`, если vpn-клиента нет — **никакого тихого fallback на direct** (непреложно). `guard_vpn` конвертирует транспортные ошибки в `VpnUnavailableError`. `via_vpn` для AI — **рантайм-тумблер** (`AiVpnToggle`, кэшируемый, по умолчанию fail-closed **True**), а не статический `requires_vpn`.
+- **POS-токен:** нет активного credential → запрос уходит неаутентифицированным, и Esupl возвращает **401** (нет env-fallback).
+- **AI-ключ:** его отсутствие == `AiUnavailableError` → **503** (missing-config == недоступно, намеренно).
+- **`ERP_WRITE_ENABLED`** по умолчанию **False** — записи в POS нет, пока не включено.
+- Ошибки маппятся в единый конверт: `VpnUnavailableError → 503 vpn_unavailable`, `AiUnavailableError → 503 ai_unavailable`.
 
-More: [[fail-closed]], [[vpn-egress]].
+Подробнее: [[fail-closed]], [[vpn-egress]].
 
-## 9. Key flow: the invoice
+## 9. Ключевой поток: накладная
 
-A 2-step API: `recognize` (OCR, no persist) → the client edits → `submit`. `prepare` is a pure resolve step (also `POST /invoices/prepare` for preview).
+2-шаговый API: `recognize` (OCR, без persist) → клиент редактирует → `submit`. `prepare` — чистый шаг resolve (также `POST /invoices/prepare` для превью).
 
 ```text
 Photo → recognize (OCR, vision-LLM)  →  InvoiceDraft (raw lines + supplier from the name)
@@ -126,114 +126,114 @@ Photo → recognize (OCR, vision-LLM)  →  InvoiceDraft (raw lines + supplier f
   → write_invoice()  ONLY when ERP_WRITE_ENABLED (default OFF → esupl-prepared-<number>, no write)
 ```
 
-**MatchService.suggest** — the LLM matching path: a prompt built from the lines + local catalog → `ai_complete` (fail-closed VPN). The model cannot invent SKUs outside the catalog (`_parse_matches` drops an unknown `sku`).
+**MatchService.suggest** — путь LLM-сопоставления: промпт, собранный из строк + локального каталога → `ai_complete` (fail-closed VPN). Модель не может выдумать SKU вне каталога (`_parse_matches` отбрасывает неизвестный `sku`).
 
-The persisted invoice (dual-write: local DB + gated ERP): [[invoices]], [[invoice_lines]].
+Сохранённая накладная (dual-write: локальная БД + гейтированный ERP): [[invoices]], [[invoice_lines]].
 
-## 10. Invoice status machine
+## 10. Машина статусов накладной
 
-`InvoiceStatus` (native PG enum): `draft → validated → rejected → prepared → written → failed`.
+`InvoiceStatus` (нативный PG-enum): `draft → validated → rejected → prepared → written → failed`.
 
-| Status | Meaning |
+| Статус | Значение |
 |---|---|
-| `draft` | initial (recognize, not submitted) |
-| `validated` | recognized, arithmetic ok, but not ready for a POS payload |
-| `rejected` | failed arithmetic / required fields / commit identity / live validation — **nothing written** |
-| `prepared` | payload fully built and saved in `invoices.esupl_payload`, ready to send; writing is off |
-| `written` | actually written to Esupl (only under `ERP_WRITE_ENABLED`) |
-| `failed` | the write to ERP failed (caught, does not crash the request) |
+| `draft` | начальный (recognize, не submitted) |
+| `validated` | распознана, арифметика ok, но не готова к payload POS |
+| `rejected` | провалена арифметика / обязательные поля / commit identity / live-валидация — **ничего не записано** |
+| `prepared` | payload полностью собран и сохранён в `invoices.esupl_payload`, готов к отправке; запись выключена |
+| `written` | фактически записана в Esupl (только под `ERP_WRITE_ENABLED`) |
+| `failed` | запись в ERP провалилась (перехвачена, не роняет запрос) |
 
-`esupl_payload (Text)` is filled at `status=prepared` so that a later gated send reproduces the exact validated body. Write idempotency — unique `(organization_id, external_id)`. Full contract: [[invoice-status-machine]].
+`esupl_payload (Text)` заполняется при `status=prepared`, чтобы более поздняя гейтированная отправка воспроизвела точное валидированное тело. Идемпотентность записи — уникальный `(organization_id, external_id)`. Полный контракт: [[invoice-status-machine]].
 
-## 11. SKU identity — the two-context model ([[DEC-0011]] / [[DEC-0013]] variant A)
+## 11. SKU identity — модель двух контекстов ([[DEC-0011]] / [[DEC-0013]] вариант A)
 
-Two entities are separated:
-- **Ingredient master data** (`name`, `unit`, `category`) — someone else's asset, owned by the POS. LCOS is **never** authoritative.
-- **Mapping** (`source_key` → identity) — an LCOS asset, the accumulating **moat** ([[sku_mapping]]).
+Разделены две сущности:
+- **Мастер-данные ingredient** (`name`, `unit`, `category`) — чужой актив, принадлежит POS. LCOS **никогда** не авторитетен.
+- **Mapping** (`source_key` → identity) — актив LCOS, накапливающийся **moat** ([[sku_mapping]]).
 
-Line→SKU resolution happens in **two different contexts** (do not confuse them):
+Резолвинг line→SKU происходит в **двух разных контекстах** (не путать их):
 
-- **Draft resolve** (`prepare()`, tolerant, cheap): a payload from the local [[ingredients]] catalog — numeric FKs, tax_rate. Readiness = "payload buildable". Hints (client-side fuzzy, the LLM `suggest-matches`, an exact hit from [[ingredient_cache]]) are **hints only**. `prepare()` does **not** set `pos_ingredient_id`.
-- **Commit resolve** (`submit()` → `_resolve_commit_identities` → Phase 2, **fail-closed**): the durable `pos_ingredient_id` is taken **only from `sku_mapping`** by `normalize_source_key(line.description)` (the same normalizer used on write, SSOT), priority **subdivision → org**, and **only a confirmed identity** (`method=manual` **OR** `confirmed_by IS NOT NULL`). Cache / fuzzy / AI **do not participate** on commit. Then a live query to the POS (`GET /teams/{id}/products?id=`; no exact match → `None`, no `items[0]` fallback). None / mismatch / unavailability → **block + review** (`rejected`), never a silent skip. On success the durable id is snapshotted onto `invoice_lines.pos_ingredient_id`.
+- **Draft resolve** (`prepare()`, толерантный, дешёвый): payload из локального каталога [[ingredients]] — числовые FK, tax_rate. Готовность = «payload buildable». Подсказки (client-side fuzzy, LLM `suggest-matches`, точное попадание из [[ingredient_cache]]) — **только подсказки**. `prepare()` **не** устанавливает `pos_ingredient_id`.
+- **Commit resolve** (`submit()` → `_resolve_commit_identities` → Phase 2, **fail-closed**): durable `pos_ingredient_id` берётся **только из `sku_mapping`** по `normalize_source_key(line.description)` (тот же нормализатор, что и при записи, SSOT), приоритет **subdivision → org**, и **только подтверждённая identity** (`method=manual` **ИЛИ** `confirmed_by IS NOT NULL`). Cache / fuzzy / AI **не участвуют** на commit. Затем живой запрос к POS (`GET /teams/{id}/products?id=`; нет точного совпадения → `None`, без fallback на `items[0]`). None / mismatch / недоступность → **block + review** (`rejected`), никогда тихий пропуск. При успехе durable id снапшотится на `invoice_lines.pos_ingredient_id`.
 
-- **[[DEC-0013]] variant A:** an exact cache match **without** a confirmed mapping does NOT auto-commit and does NOT auto-create a mapping — the line is held for manual confirmation. Variant C (auto-creating `cache_exact`/`confirmed_by='system'`) was proposed in the TZ and **rejected** ([[ADR-018]]); implementing it would break the merge-gate test `test_exact_cache_match_does_not_commit_and_creates_no_mapping`.
-- **[[ADR-019]] ([[ADR-019]]) — composite key:** `sku_mapping` is keyed by `(scope_type, scope_id, supplier_external_id, source_key)`. The same line text from **different suppliers** can point to different POS SKUs — without the supplier in the key that is a collision.
-- **`esupl_item_id` (int) vs `pos_ingredient_id` (str):** one Esupl entity in two representations — an int copy of the catalog for the payload (draft) and a str identity anchor in `sku_mapping`/on the line (commit); `pos_ingredient_id == str(esupl id)`.
-- **Unit authority (D2):** the unit in the payload comes from the POS (`esupl_unit_id`); the OCR unit is a tolerant cross-check in `validate_ingredient_on_commit` (block only if **both** are set and differ).
+- **[[DEC-0013]] вариант A:** точное попадание кэша **без** подтверждённого mapping НЕ авто-коммитит и НЕ авто-создаёт mapping — строка удерживается для ручного подтверждения. Вариант C (авто-создание `cache_exact`/`confirmed_by='system'`) был предложен в ТЗ и **отклонён** ([[ADR-018]]); его реализация сломала бы merge-gate-тест `test_exact_cache_match_does_not_commit_and_creates_no_mapping`.
+- **[[ADR-019]] ([[ADR-019]]) — составной ключ:** `sku_mapping` ключуется `(scope_type, scope_id, supplier_external_id, source_key)`. Один и тот же текст строки от **разных поставщиков** может указывать на разные SKU POS — без поставщика в ключе это коллизия.
+- **`esupl_item_id` (int) vs `pos_ingredient_id` (str):** одна сущность Esupl в двух представлениях — int-копия каталога для payload (draft) и str-якорь identity в `sku_mapping`/на строке (commit); `pos_ingredient_id == str(esupl id)`.
+- **Авторитет единицы (D2):** единица в payload берётся из POS (`esupl_unit_id`); OCR-единица — толерантная кросс-проверка в `validate_ingredient_on_commit` (блокировать только если **обе** заданы и различаются).
 
-**Learning loop (the moat grows), persist-then-commit ([[ADR-020]]):** each line's match → SKU is written by a **separate client** call `POST /ingredients/mappings` (`method='manual'`, `confirmed_by` = the authenticated user), which the FE makes in `InvoiceWorkbench.onSend` **before** the `sendInvoice` mutation. This is a separate transaction, **not a side effect of the submit endpoint** — submit only reads the mapping on commit resolve. `source_key` is the **raw line text** (not the SKU name from the catalog); in the send payload the `description` carries the same raw text. Normalization is on the backend (`normalize_source_key`, SSOT), and FE normalization mirrors it (a golden-vector parity test). Persist happens **BEFORE** send, so a confirmed mapping survives the reject of the first invoice — otherwise a fail-closed reject would not let the moat initialize. The loop used to live in localStorage; it was migrated entirely to the backend.
+**Обучающая петля (moat растёт), persist-then-commit ([[ADR-020]]):** сопоставление каждой строки → SKU записывается **отдельным клиентским** вызовом `POST /ingredients/mappings` (`method='manual'`, `confirmed_by` = аутентифицированный пользователь), который FE делает в `InvoiceWorkbench.onSend` **перед** мутацией `sendInvoice`. Это отдельная транзакция, **а не побочный эффект submit-эндпоинта** — submit лишь читает mapping при commit resolve. `source_key` — **сырой текст строки** (не имя SKU из каталога); в send-payload `description` несёт тот же сырой текст. Нормализация — на backend (`normalize_source_key`, SSOT), а FE-нормализация её зеркалит (golden-vector parity-тест). Persist происходит **ПЕРЕД** send, поэтому подтверждённый mapping переживает reject первой накладной — иначе fail-closed reject не дал бы moat инициализироваться. Петля раньше жила в localStorage; она целиком мигрирована на backend.
 
-More: [[sku-identity-resolver]], [[DEC-0011]], [[DEC-0013]].
+Подробнее: [[sku-identity-resolver]], [[DEC-0011]], [[DEC-0013]].
 
-## 12. Suppliers: flexible criteria
+## 12. Поставщики: гибкие критерии
 
-`Supplier.criteria` is JSONB; the definitions live in the registry `app/domain/supplier_criteria.py` (`CriterionDef`: volume, delivery lead time, days, payment mode, deferral). Validation against the registry happens at the API level (invalid → 422; unknown keys are silently dropped). New criteria are added by editing the registry, without migrations. Consumer analytics (REQ 1b) — the model exists (a seam), the consumer is deferred per checkpoint. The supplier-card FE fields (the suppliers page, the supplier selector) **exist**.
+`Supplier.criteria` — JSONB; определения живут в registry `app/domain/supplier_criteria.py` (`CriterionDef`: объём, срок доставки, дни, режим оплаты, отсрочка). Валидация против registry происходит на уровне API (невалидное → 422; неизвестные ключи тихо отбрасываются). Новые критерии добавляются редактированием registry, без миграций. Аналитика потребления (REQ 1b) — модель существует (шов), потребитель отложен по checkpoint. FE-поля карточки поставщика (страница поставщиков, селектор поставщика) **существуют**.
 
-More: [[supplier-criteria-registry]], [[suppliers]].
+Подробнее: [[supplier-criteria-registry]], [[suppliers]].
 
-> **doc↔code correction:** supplier resolution (`_resolve_supplier`) uses a **blended score, trigram 0.65 + token Jaccard 0.35, minimum threshold 0.4** (NOT "Jaccard ≥ 0.5"). Order: tax_id priority, then the blended fuzzy score. The suppliers FE page, the supplier selector, breadcrumbs, and footer **exist** (the outdated statement that they are missing is retracted).
+> **коррекция doc↔code:** резолвинг поставщика (`_resolve_supplier`) использует **смешанный score, trigram 0.65 + token Jaccard 0.35, минимальный порог 0.4** (НЕ «Jaccard ≥ 0.5»). Порядок: приоритет tax_id, затем смешанный fuzzy-score. FE-страница поставщиков, селектор поставщика, breadcrumbs и footer **существуют** (устаревшее утверждение об их отсутствии отозвано).
 
-## 13. Esupl integration (read-only)
+## 13. Интеграция Esupl (read-only)
 
-Real endpoints (the tenant's Bearer token on every read):
+Реальные эндпоинты (Bearer-токен тенанта на каждом чтении):
 
-| Purpose | Endpoint |
+| Назначение | Эндпоинт |
 |---|---|
-| Suppliers | `GET /teams/{id}/following?is_virtual=1` |
-| Catalog (search) | `GET /teams/{id}/products` (server-side `product_name` LIKE search) |
-| Single item (commit validation) | `GET /teams/{id}/products?id=` |
-| Invoices | `GET /teams/{id}/orders` |
-| Write | `POST /teams/{id}/outgoing-invoices` — **behind the `ERP_WRITE_ENABLED` toggle (OFF)** |
+| Поставщики | `GET /teams/{id}/following?is_virtual=1` |
+| Каталог (поиск) | `GET /teams/{id}/products` (server-side `product_name` LIKE-поиск) |
+| Одна позиция (commit-валидация) | `GET /teams/{id}/products?id=` |
+| Накладные | `GET /teams/{id}/orders` |
+| Запись | `POST /teams/{id}/outgoing-invoices` — **за тумблером `ERP_WRITE_ENABLED` (OFF)** |
 
-`get_esupl_access(session, org_id) → (team_id, token)` — the SSOT for POS access (4 places: supplier list/sync, catalog, invoices, commit). `EsuplErpProvider` is the only ERP implementation, `requires_vpn=False` (Esupl is reachable directly). At OFF, `write_invoice` returns a synthetic `esupl-prepared-<number>` **without contacting Esupl**; at ON, the same path POSTs the real payload. Read surface: [[erp-esupl-integration]]. Requirement: [[erp-esupl-integration]].
+`get_esupl_access(session, org_id) → (team_id, token)` — SSOT доступа к POS (4 места: список/синк поставщиков, каталог, накладные, commit). `EsuplErpProvider` — единственная реализация ERP, `requires_vpn=False` (Esupl доступен напрямую). При OFF `write_invoice` возвращает синтетический `esupl-prepared-<number>` **без обращения к Esupl**; при ON тот же путь POSTит реальный payload. Поверхность чтения: [[erp-esupl-integration]]. Требование: [[erp-esupl-integration]].
 
-> **Open gate [[VER-021_ESUPL_DURABILITY_TEST]]:** `pos_ingredient_id` durability (whether the id is stable under edit/delete-recreate in Esupl) is **NOT** empirically confirmed; the probe requires a WRITE to the sandbox (team 17957) → **owner-run**, and cannot be closed under read-only. **Merge stays gated.** An endpoint discrepancy is also documented: commit validation reads `/teams/{id}/products?id=`, while the VER-021 probe/doc mutates `/teams/{id}/ingredients/{id}` — different resources; until `products.id == ingredients.id` is documented, the probe does not certify the exact id that commit resolves.
+> **Открытый gate [[VER-021_ESUPL_DURABILITY_TEST]]:** durability `pos_ingredient_id` (стабилен ли id при edit/delete-recreate в Esupl) **НЕ** подтверждён эмпирически; проба требует ЗАПИСИ в sandbox (team 17957) → **owner-run**, и не может быть закрыта в read-only. **Merge остаётся гейтированным.** Также задокументировано расхождение эндпоинтов: commit-валидация читает `/teams/{id}/products?id=`, тогда как проба/документ VER-021 мутирует `/teams/{id}/ingredients/{id}` — разные ресурсы; пока не задокументировано `products.id == ingredients.id`, проба не сертифицирует точный id, который резолвит commit.
 
-## 14. Data model and migration chain
+## 14. Модель данных и цепочка миграций
 
-All tables are SQLAlchemy 2.0 (async, typed `Mapped`) on PostgreSQL 16 + pgvector. `organization_id` is a denormalized hard boundary on every operational row (`RESTRICT`); within a tenant, parent-child is `CASCADE`. Mixed PK types: UUID for structural/catalog tables, **int autoincrement** for `suppliers`/`invoices`/`invoice_lines`, int for `system_settings`.
+Все таблицы — SQLAlchemy 2.0 (async, типизированный `Mapped`) на PostgreSQL 16 + pgvector. `organization_id` — денормализованная жёсткая граница на каждой операционной строке (`RESTRICT`); внутри тенанта parent-child — `CASCADE`. Смешанные типы PK: UUID для структурных/каталожных таблиц, **int autoincrement** для `suppliers`/`invoices`/`invoice_lines`, int для `system_settings`.
 
-14 entities (details and columns are in the docs, not duplicated here):
+14 сущностей (детали и колонки — в документах, здесь не дублируются):
 [[organizations]] · [[subdivisions]] · [[users]] · [[memberships]] · [[refresh_sessions]] · [[suppliers]] · [[invoices]] · [[invoice_lines]] · [[ingredients]] · [[packings]] · [[sku_mapping]] · [[ingredient_cache]] · [[system_settings]] · [[integration_credentials]].
 
-**Migration chain (Alembic async): `0001` … `0009` + `1e12…` (OCR prompt).**
+**Цепочка миграций (Alembic async): `0001` … `0009` + `1e12…` (OCR prompt).**
 
-| Revision | Contents |
+| Ревизия | Содержимое |
 |---|---|
-| `0001_initial` | squashed ("consolidated 0001–0004"), `down_revision=None`; `CREATE EXTENSION vector` first, creates all tables; `downgrade()` drops the enum types but does **not** drop `vector` |
-| `0002_org_pos_token` | `organizations.esupl_api_token` (encrypted) — a per-org POS secret (later migrated) |
-| `0003_integration_credentials` | the `integration_credentials` table + partial-unique via a sentinel-UUID COALESCE; **data-migrate** of secrets from `system_settings`/`esupl_api_token` → scoped rows; + `refresh_sessions.last_used_at` |
-| `0004` | `sku_mapping` + `ingredient_cache` (moat + draft cache) |
-| `0005` | `invoice_lines.pos_ingredient_id` (durable POS identity on the line) |
-| `0006` | supplier-card fields (`contact_name`, `phone`, `messenger`, `delivery_terms`, `min_order_amount`, …) |
-| `0007`–`0008` | supplier criteria JSONB / further evolution |
-| `0009_sku_mapping_packing` | `packing` in `sku_mapping` ([[ADR-019]]) — the **last numbered** one |
-| `1e12…` (OCR prompt) | OCR prompt in `system_settings` (an out-of-chain revision) |
+| `0001_initial` | squashed («consolidated 0001–0004»), `down_revision=None`; сначала `CREATE EXTENSION vector`, создаёт все таблицы; `downgrade()` дропает enum-типы, но **не** дропает `vector` |
+| `0002_org_pos_token` | `organizations.esupl_api_token` (encrypted) — per-org POS-секрет (позже мигрирован) |
+| `0003_integration_credentials` | таблица `integration_credentials` + частично-уникальное через sentinel-UUID COALESCE; **data-migrate** секретов из `system_settings`/`esupl_api_token` → scoped-строки; + `refresh_sessions.last_used_at` |
+| `0004` | `sku_mapping` + `ingredient_cache` (moat + draft-кэш) |
+| `0005` | `invoice_lines.pos_ingredient_id` (durable POS-identity на строке) |
+| `0006` | поля карточки поставщика (`contact_name`, `phone`, `messenger`, `delivery_terms`, `min_order_amount`, …) |
+| `0007`–`0008` | критерии поставщика JSONB / дальнейшая эволюция |
+| `0009_sku_mapping_packing` | `packing` в `sku_mapping` ([[ADR-019]]) — **последняя нумерованная** |
+| `1e12…` (OCR prompt) | OCR-промпт в `system_settings` (ревизия вне цепочки) |
 
-`alembic/env.py` `include_object` excludes the `vector` extension (`EXCLUDE_NAMES={"vector"}`) so that autogenerate does not drop it.
+`alembic/env.py` `include_object` исключает расширение `vector` (`EXCLUDE_NAMES={"vector"}`), чтобы autogenerate его не дропал.
 
-> **doc↔code correction (dead code, backlog `DEC-02`, `status: open`):** the column **`invoice_lines.sku_embedding` `Vector(1536)` is NOT used** — nobody reads or writes it, there is no ANN index (ivfflat/hnsw), no embedding provider, no write trigger. It is an unused placeholder column for future semantic matching, flagged for dead-code cleanup ([[DEC-0011]]). The current line→SKU matching uses fuzzy + LLM, not this column.
+> **коррекция doc↔code (мёртвый код, backlog `DEC-02`, `status: open`):** колонка **`invoice_lines.sku_embedding` `Vector(1536)` НЕ используется** — никто её не читает и не пишет, нет ANN-индекса (ivfflat/hnsw), нет embedding-провайдера, нет write-триггера. Это неиспользуемая placeholder-колонка для будущего семантического сопоставления, помеченная на dead-code-очистку ([[DEC-0011]]). Текущее сопоставление line→SKU использует fuzzy + LLM, а не эту колонку.
 
-The ER summary and FK behavior are in the [[MOC]] docs; normative slices are in [[multitenancy]].
+Сводка ER и поведение FK — в документах [[MOC]]; нормативные срезы — в [[multitenancy]].
 
-## 15. Testing
+## 15. Тестирование
 
-- **Backend:** pytest + pytest-asyncio; the test DB is **real Postgres+pgvector** (not SQLite); outbound HTTP is mocked with respx. Non-negotiables (fail-closed VPN, tenant isolation, admin auth) are covered and **block merge**. A dedicated marker `merge_gate` (17 durable-id + DEC-0013 tests). **Currently: 209 passed.** Run: `docker compose run --rm backend pytest`.
-- **Frontend:** vitest (+ RTL/jsdom); Playwright e2e separately. **Currently: 43 passed.**
+- **Backend:** pytest + pytest-asyncio; тестовая БД — **реальный Postgres+pgvector** (не SQLite); исходящий HTTP мокается через respx. Непреложные вещи (fail-closed VPN, изоляция тенантов, admin auth) покрыты и **блокируют merge**. Выделенный маркер `merge_gate` (17 тестов durable-id + DEC-0013). **Сейчас: 209 passed.** Запуск: `docker compose run --rm backend pytest`.
+- **Frontend:** vitest (+ RTL/jsdom); Playwright e2e отдельно. **Сейчас: 43 passed.**
 
-## 16. Open gates and non-goals
+## 16. Открытые gate и не-цели
 
-**Open / gated:**
-- [[VER-021_ESUPL_DURABILITY_TEST]] durability — owner-run (a write to the Esupl sandbox), merge gated.
-- `S1` read-only — empirically confirm that the `products?id=` / `product_name` filters behave as expected; resolve the `/products` vs `/ingredients` discrepancy.
-- `DEC-02` — dead-code cleanup of `sku_embedding` (backlog, open).
-- The consumer of supplier analytics (REQ 1b) — deferred per checkpoint.
+**Открытые / гейтированные:**
+- [[VER-021_ESUPL_DURABILITY_TEST]] durability — owner-run (запись в sandbox Esupl), merge гейтирован.
+- `S1` read-only — эмпирически подтвердить, что фильтры `products?id=` / `product_name` ведут себя как ожидается; разрешить расхождение `/products` vs `/ingredients`.
+- `DEC-02` — dead-code-очистка `sku_embedding` (backlog, open).
+- Потребитель аналитики поставщиков (REQ 1b) — отложен по checkpoint.
 
-**Phase 1 non-goals:** Celery/queues, cloud hosting, RBAC matrix/OAuth, self-registration, supplier portal (schema placeholder only, [[ADR-017]]).
+**Не-цели Фазы 1:** Celery/очереди, облачный хостинг, RBAC-матрица/OAuth, self-registration, портал поставщика (только placeholder в схеме, [[ADR-017]]).
 
-## Related documents
+## Связанные документы
 
-- Product and strategy: [[product]] · Roadmap: [[roadmap]] · Glossary: [[glossary]]
-- Epics: [[LCOS-E1-platform]] · [[LCOS-E2-invoice-intake]] · [[LCOS-E3-sku-identity]] · [[LCOS-E4-suppliers]] · [[LCOS-E5-stabilization]]
-- Requirements: [[auth]] · [[multitenancy]] · [[config-secrets]] · [[secret-encryption]] · [[fail-closed]] · [[vpn-egress]] · [[provider-abstraction]] · [[erp-esupl-integration]] · [[sku-identity-resolver]] · [[invoice-status-machine]] · [[supplier-criteria-registry]] · [[global-requirements]]
-- Decisions: [[index]] · key ones — [[ADR-001]] [[ADR-005]] [[ADR-006]] [[ADR-009]] [[ADR-011]] [[ADR-018]] [[ADR-019]] [[ADR-020]] · [[DEC-0011]] [[DEC-0013]]
+- Продукт и стратегия: [[product]] · Roadmap: [[roadmap]] · Глоссарий: [[glossary]]
+- Эпики: [[LCOS-E1-platform]] · [[LCOS-E2-invoice-intake]] · [[LCOS-E3-sku-identity]] · [[LCOS-E4-suppliers]] · [[LCOS-E5-stabilization]]
+- Требования: [[auth]] · [[multitenancy]] · [[config-secrets]] · [[secret-encryption]] · [[fail-closed]] · [[vpn-egress]] · [[provider-abstraction]] · [[erp-esupl-integration]] · [[sku-identity-resolver]] · [[invoice-status-machine]] · [[supplier-criteria-registry]] · [[global-requirements]]
+- Решения: [[index]] · ключевые — [[ADR-001]] [[ADR-005]] [[ADR-006]] [[ADR-009]] [[ADR-011]] [[ADR-018]] [[ADR-019]] [[ADR-020]] · [[DEC-0011]] [[DEC-0013]]

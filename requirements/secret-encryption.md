@@ -1,7 +1,7 @@
 ---
 id: REQ-SECRET-ENCRYPTION
 type: requirement
-title: Secret encryption at-rest (Fernet envelope, versioned KEK)
+title: Шифрование секретов at-rest (Fernet envelope, versioned KEK)
 status: built
 scope: cross-cutting
 roles: [superadmin, sqladmin-operator]
@@ -13,47 +13,47 @@ sources: [01_ARCHITECTURE.md "Encryption scheme (enc:v2)", APP_OVERVIEW.md §5, 
 updated: 2026-07-09
 ---
 
-# REQ-SECRET-ENCRYPTION · Secret encryption at-rest
+# REQ-SECRET-ENCRYPTION · Шифрование секретов at-rest
 
-**Type:** cross-cutting SSOT · **Status:** built (caveat A1 — the plaintext fallback of `encrypt()`). Envelope encryption of secrets in [[integration_credentials]]; the store/resolution — in [[config-secrets]].
+**Type:** cross-cutting SSOT · **Status:** built (оговорка A1 — plaintext fallback у `encrypt()`). Envelope-шифрование секретов в [[integration_credentials]]; хранилище/разрешение — в [[config-secrets]].
 
-## Normative statement
+## Нормативное положение
 
-- **N1. Storage format** (`app/core/secrets.py`): secrets are Fernet ciphertext (AES-128-CBC + HMAC). The KEK is only in `.env`, never in the DB — a DB dump without `.env` is useless.
-  - `enc:v2:<key_id>:<token>` — the **current** format; `key_id` records which key encrypted (for rotation).
-  - `enc:v1:<token>` — legacy (no key_id); decrypted by trying the whole keyring.
-  - no prefix → plaintext/passthrough (dev fallback / unencrypted legacy).
-- **N2. `encrypt(value)`** — encrypts with the primary key → `enc:v2:<kid>:...`; idempotent (skips already-`enc:*`). **Target (R2.2/A1):** with an empty keyring it **must** fail with `RuntimeError`, not write plaintext.
-- **N3. `decrypt(value)`** — passthrough without an `enc:` prefix; `enc:v2` — the exact key by `key_id` with a fallback to the keyring; `enc:v1` — trying the keyring. **Ciphertext with an empty keyring → `RuntimeError`** (explicitly, not silent garbage).
-- **N4. Keyring** (`Settings.secrets_keyring`): `SECRETS_ENC_KEY` = primary (encrypts everything new), stamped `SECRETS_ENC_KEY_ID` (default `"v1"`); `SECRETS_ENC_KEYS_OLD` = retired keys, decrypt-only, format `"kid1:key1,kid2:key2"`. Keyring order: primary → retired. `_keyring()` is `@lru_cache`d (`cache_clear()` in tests/rotation).
-- **N5. Rotation:** promote a new KEK into `SECRETS_ENC_KEY` with a new `SECRETS_ENC_KEY_ID`, move the old one → into `SECRETS_ENC_KEYS_OLD`. New records get the new key_id; old ciphertexts remain readable.
-- **N6. `validate_keyring()`** — eager startup validation; a malformed Fernet key → `RuntimeError` immediately (see [[fail-closed]] N7).
-- **N7. Writing/reading a secret via SQLAdmin** ([[sqladmin-operator]]): `IntegrationCredentialAdmin.on_model_change` takes plaintext → `encrypt()` before persist (idempotent) → `rotated_at` → deactivation of other active rows of the same (scope,provider,org,subdivision). List/detail — last-4 mask (`_cred_last4`). The field is write-only plaintext, read-masked. No endpoint/view returns a decrypted secret to the outside.
-- **N8. Redaction in logs** (`core/logging.py::redact()`): fully masks `admin_password_hash`, `session_secret`, `jwt_secret`, `secrets_enc_key(_old)`, the password in `database_url`. AI keys/POS tokens do not live in `Settings` → do not leak through a config snapshot.
+- **N1. Формат хранения** (`app/core/secrets.py`): секреты — Fernet-шифртекст (AES-128-CBC + HMAC). KEK только в `.env`, никогда в БД — дамп БД без `.env` бесполезен.
+  - `enc:v2:<key_id>:<token>` — **текущий** формат; `key_id` фиксирует, какой ключ зашифровал (для ротации).
+  - `enc:v1:<token>` — legacy (без key_id); дешифруется перебором всего keyring.
+  - без префикса → plaintext/passthrough (dev fallback / незашифрованный legacy).
+- **N2. `encrypt(value)`** — шифрует основным ключом → `enc:v2:<kid>:...`; идемпотентно (пропускает уже-`enc:*`). **Цель (R2.2/A1):** при пустом keyring **обязан** упасть с `RuntimeError`, не писать plaintext.
+- **N3. `decrypt(value)`** — passthrough без префикса `enc:`; `enc:v2` — точный ключ по `key_id` с fallback на keyring; `enc:v1` — перебор keyring. **Шифртекст при пустом keyring → `RuntimeError`** (явно, не тихий мусор).
+- **N4. Keyring** (`Settings.secrets_keyring`): `SECRETS_ENC_KEY` = основной (шифрует всё новое), помечен `SECRETS_ENC_KEY_ID` (default `"v1"`); `SECRETS_ENC_KEYS_OLD` = выведенные ключи, decrypt-only, формат `"kid1:key1,kid2:key2"`. Порядок keyring: основной → выведенные. `_keyring()` `@lru_cache`-нут (`cache_clear()` в тестах/ротации).
+- **N5. Ротация:** повысить новый KEK в `SECRETS_ENC_KEY` с новым `SECRETS_ENC_KEY_ID`, переместить старый → в `SECRETS_ENC_KEYS_OLD`. Новые записи получают новый key_id; старые шифртексты остаются читаемыми.
+- **N6. `validate_keyring()`** — eager-валидация при старте; malformed Fernet-ключ → `RuntimeError` немедленно (см. [[fail-closed]] N7).
+- **N7. Запись/чтение секрета через SQLAdmin** ([[sqladmin-operator]]): `IntegrationCredentialAdmin.on_model_change` берёт plaintext → `encrypt()` перед persist (идемпотентно) → `rotated_at` → деактивация других активных строк той же (scope,provider,org,subdivision). List/detail — маска last-4 (`_cred_last4`). Поле write-only plaintext, read-masked. Ни один endpoint/view не возвращает наружу расшифрованный секрет.
+- **N8. Редактирование в логах** (`core/logging.py::redact()`): полностью маскирует `admin_password_hash`, `session_secret`, `jwt_secret`, `secrets_enc_key(_old)`, пароль в `database_url`. AI-ключи/POS-токены не живут в `Settings` → не утекают через снапшот конфигурации.
 
-## Rationale
+## Обоснование
 
-Cleartext secrets in the DB = a leak on dump. A Fernet envelope with the KEK in env separates the data from the key. Versioning the key_id (`enc:v2`) allows KEK rotation without losing old ciphertexts (the old key moves to decrypt-only). An idempotent `encrypt()` makes a repeated save in SQLAdmin safe. Fail-closed on an empty keyring does not allow silently returning/saving garbage.
+Cleartext-секреты в БД = утечка на дампе. Fernet-envelope с KEK в env разделяет данные и ключ. Версионирование key_id (`enc:v2`) позволяет ротацию KEK без потери старых шифртекстов (старый ключ переходит в decrypt-only). Идемпотентный `encrypt()` делает повторное сохранение в SQLAdmin безопасным. Fail-closed при пустом keyring не позволяет тихо вернуть/сохранить мусор.
 
-## Failure modes
+## Режимы отказа
 
-- **Empty keyring + ciphertext** → `RuntimeError` (decrypt) — not silent garbage.
-- **A malformed KEK** → `RuntimeError` at startup (`validate_keyring`).
-- **Caveat (BACKLOG A1):** `encrypt()` with an empty keyring currently logs a warning and writes **plaintext** (a deliberate dev fallback) — it contradicts fail-closed; with `SECRETS_ENC_KEY` unset locally the secrets will be stored openly. Action: `encrypt()`→`RuntimeError`, the startup guard requires a non-empty `SECRETS_ENC_KEY` always (or guarantee a dev KEK in `lcos.env.example`). See [[fail-closed]] R8.4.
-- **No `enc:v6.2` confusion:** the prefix scheme makes migration/repeat idempotent; unencrypted legacy is read as passthrough.
+- **Пустой keyring + шифртекст** → `RuntimeError` (decrypt) — не тихий мусор.
+- **Malformed KEK** → `RuntimeError` при старте (`validate_keyring`).
+- **Оговорка (BACKLOG A1):** `encrypt()` при пустом keyring сейчас логирует warning и пишет **plaintext** (намеренный dev fallback) — противоречит fail-closed; при незаданном локально `SECRETS_ENC_KEY` секреты будут храниться открыто. Действие: `encrypt()`→`RuntimeError`, startup-guard требует непустого `SECRETS_ENC_KEY` всегда (или гарантировать dev-KEK в `lcos.env.example`). См. [[fail-closed]] R8.4.
+- **Никакой путаницы `enc:v6.2`:** схема префиксов делает миграцию/повтор идемпотентными; незашифрованный legacy читается как passthrough.
 
-## Relations
+## Связи
 
-- ADR: [[ADR-010]] (Fernet envelope, versioned KEK), [[ADR-011]] (no-cache reads — rotation is instant), [[ADR-005]] (three levels).
-- Entities: [[integration_credentials]] (`encrypted_value`, `rotated_at`, partial-unique active).
-- Requirements: [[config-secrets]] (store/resolution), [[fail-closed]] R8.4, [[global-requirements]] R2.
+- ADR: [[ADR-010]] (Fernet envelope, versioned KEK), [[ADR-011]] (no-cache reads — ротация мгновенна), [[ADR-005]] (три уровня).
+- Сущности: [[integration_credentials]] (`encrypted_value`, `rotated_at`, partial-unique active).
+- Требования: [[config-secrets]] (хранилище/разрешение), [[fail-closed]] R8.4, [[global-requirements]] R2.
 
-## Referenced by
+## На это ссылаются
 
-`LCOS-F4` (Three-level config & secret encryption), `LCOS-F23` (Fail-closed encryption ALIGN-01), `LCOS-F3` (SQLAdmin operator plane), any consumer of a POS/AI token.
+`LCOS-F4` (Three-level config & secret encryption), `LCOS-F23` (Fail-closed encryption ALIGN-01), `LCOS-F3` (плоскость SQLAdmin operator), любой потребитель POS/AI-токена.
 
-## Sources
+## Источники
 
 - 01_ARCHITECTURE.md → "Encryption scheme (envelope encryption with KEK versioning, enc:v2)", "How secrets reach providers at runtime", "Secret redaction in logs".
 - APP_OVERVIEW.md §5; LCOS_Conformance R2, A1.
-- Code: `app/core/secrets.py`, `app/core/logging.py::redact`, `app/admin/setup.py`.
+- Код: `app/core/secrets.py`, `app/core/logging.py::redact`, `app/admin/setup.py`.

@@ -1,7 +1,7 @@
 ---
 id: LCOS-F56
 type: feature
-title: Neighborhood comparison / positioning
+title: Сравнение с районом / позиционирование
 epic: "[[LCOS-E11-competitor-menu]]"
 status: future
 phase: "Phase 2"
@@ -13,54 +13,54 @@ legacy_refs: [plan F7, "plan F7-B3", "plan F7-F1", 07 Э8]
 sources: ["plan/PHASE_F7_COMPETITORS_MENU.md §1 (F7-B3), §2 (F7-F1)", "07_PHASES.md Э8", "plan/00_IMPLEMENTATION_PLAN.md F7"]
 updated: 2026-07-09
 ---
-# LCOS-F56 · Neighborhood comparison / positioning
+# LCOS-F56 · Сравнение с районом / позиционирование
 **Epic:** [[LCOS-E11-competitor-menu]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The payoff of the epic: answer "how do my prices look against the neighborhood?" per position. `GET /api/v1/competitors/compare?position=<canonical_name>` returns our price (sourced from the Esupl menu via the read provider [[LCOS-F11-esupl-read]] when available, otherwise a manual "our price" field on the comparison position), the neighborhood average / min / max, and a per-competitor breakdown — computed only from the **latest** snapshot of each **active** competitor ([[LCOS-F55-menu-ocr]]). The report is built to drive a decision, not to hand over a table of numbers: e.g. "latte is 12% below market — consider +0.5".
+Отдача эпика: ответить на вопрос «как мои цены выглядят на фоне района?» по каждой позиции. `GET /api/v1/competitors/compare?position=<canonical_name>` возвращает нашу цену (берётся из меню Esupl через read-провайдер [[LCOS-F11-esupl-read]] при наличии, иначе — из ручного поля «наша цена» у позиции сравнения), среднее / мин / макс по району и разбивку по конкурентам — вычисляемые только из **последнего** снимка каждого **активного** конкурента ([[LCOS-F55-menu-ocr]]). Отчёт построен, чтобы вести к решению, а не отдавать таблицу чисел: например, «латте на 12% ниже рынка — рассмотрите +0.5».
 
-Positions are joined on a `canonical_name` assigned when a snapshot is confirmed — a fuzzy suggestion (reusing the `rankSkus` approach from [[LCOS-F13-sku-identity-resolver]] on the backend, or a simple Jaccard) plus manual confirmation. Items left with `canonical_name = NULL` do not enter comparison. A quarterly "refresh the base" reminder is generated as an alert (the config-registry alert mechanism) for competitors whose `captured_on` is older than `competitor_staleness_days` (REGISTRY, default 90). The whole section is behind `module_competitors_enabled`. Actual price changes stay manual — the product only informs.
+Позиции джойнятся по `canonical_name`, назначаемому при подтверждении снимка — нечёткое предложение (переиспользование подхода `rankSkus` из [[LCOS-F13-sku-identity-resolver]] на бэкенде или простой Jaccard) плюс ручное подтверждение. Позиции, оставшиеся с `canonical_name = NULL`, не входят в сравнение. Ежеквартальное напоминание «обновить базу» генерируется как алерт (механизм алертов config-реестра) для конкурентов, у которых `captured_on` старше `competitor_staleness_days` (REGISTRY, default 90). Вся секция сидит за `module_competitors_enabled`. Фактические изменения цен остаются ручными — продукт только информирует.
 
-## Capabilities
+## Возможности
 
-- `GET /competitors/compare?position=<canonical_name>` — our price + neighborhood avg/min/max + per-competitor rows.
-- Our price resolved from the Esupl menu via [[LCOS-F11-esupl-read]] when available; manual "our price" fallback otherwise.
-- Comparison window: latest snapshot of each active competitor only (historical snapshots excluded from the current view).
-- `canonical_name` mapping at snapshot confirmation: fuzzy suggestion (`rankSkus`-style) + manual confirm; `NULL` items excluded from comparison.
-- Decision-oriented recommendations with accept/reject actions (positioning report, not a raw number grid).
-- Quarterly staleness alert for competitors older than `competitor_staleness_days` (REGISTRY default 90).
-- Mobile-first comparison screen (`/positioning`), gated by `module_competitors_enabled`.
+- `GET /competitors/compare?position=<canonical_name>` — наша цена + среднее/мин/макс по району + строки по конкурентам.
+- Наша цена берётся из меню Esupl через [[LCOS-F11-esupl-read]] при наличии; иначе fallback на ручную «нашу цену».
+- Окно сравнения: только последний снимок каждого активного конкурента (исторические снимки исключены из текущего представления).
+- Сопоставление `canonical_name` при подтверждении снимка: нечёткое предложение (в стиле `rankSkus`) + ручное подтверждение; позиции `NULL` исключены из сравнения.
+- Ориентированные на решение рекомендации с действиями принять/отклонить (отчёт позиционирования, а не сырая сетка чисел).
+- Ежеквартальный алерт устаревания для конкурентов старше `competitor_staleness_days` (REGISTRY default 90).
+- Mobile-first экран сравнения (`/positioning`), гейтится `module_competitors_enabled`.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | Views the neighborhood comparison / positioning report for their subdivision. |
-| [[admin]] | Confirms `canonical_name` mappings, reviews recommendations, accepts/rejects suggested price moves (informational). |
-| [[superadmin]] | Cross-tenant access; tunes `competitor_staleness_days` and the module gate via the config API. |
-| [[sqladmin-operator]] | Adjusts the staleness threshold / module flag in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Просматривает отчёт сравнения с районом / позиционирования для своего подразделения. |
+| [[admin]] | Подтверждает сопоставления `canonical_name`, просматривает рекомендации, принимает/отклоняет предложенные изменения цен (информационно). |
+| [[superadmin]] | Кросс-тенантный доступ; настраивает `competitor_staleness_days` и модульный гейт через config-API. |
+| [[sqladmin-operator]] | Корректирует порог устаревания / модульный флаг в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
 
-Tenant-scoped: comparison reads only the organization's own competitors and snapshots ([[multitenancy]]).
+Тенант-скоуп: сравнение читает только собственных конкурентов и снимки организации ([[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[system_settings]] — `competitor_staleness_days` (REGISTRY, default 90) and the `module_competitors_enabled` gate, resolved at runtime.
-- `competitor_menu_items` (future) — the priced positions being compared; `canonical_name` is the join key.
-- `competitor_menu_snapshots` (future) — supplies `captured_on` for the "latest / active" window and the staleness alert; entity docs created on activation.
+- [[system_settings]] — `competitor_staleness_days` (REGISTRY, default 90) и гейт `module_competitors_enabled`, разрешаемые в рантайме.
+- `competitor_menu_items` (будущая) — сравниваемые позиции с ценами; `canonical_name` — ключ джойна.
+- `competitor_menu_snapshots` (будущая) — поставляет `captured_on` для окна «последний / активный» и алерта устаревания; документы-сущности создаются при активации.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[sku-identity-resolver]] (reuse the `rankSkus` fuzzy-matching approach for `canonical_name` suggestions), [[erp-esupl-integration]] (our menu price sourced read-only from Esupl), [[multitenancy]] (org-scoped comparison).
-- **Features:** consumes snapshots from [[LCOS-F55-menu-ocr]] and cards from [[LCOS-F54-competitor-directory]]; our price via [[LCOS-F11-esupl-read]]; gated by [[LCOS-F6-module-gates]]; feeds [[LCOS-E13-menu-ideas]] and [[LCOS-E14-strategic-insights]].
-- **ADR:** [[ADR-009]] (reuse of the matching seam / provider abstraction).
+- **Requirements:** [[sku-identity-resolver]] (переиспользование подхода нечёткого матчинга `rankSkus` для предложений `canonical_name`), [[erp-esupl-integration]] (наша цена меню берётся из Esupl только на чтение), [[multitenancy]] (сравнение со скоупом org).
+- **Features:** потребляет снимки из [[LCOS-F55-menu-ocr]] и карточки из [[LCOS-F54-competitor-directory]]; наша цена через [[LCOS-F11-esupl-read]]; гейтится [[LCOS-F6-module-gates]]; питает [[LCOS-E13-menu-ideas]] и [[LCOS-E14-strategic-insights]].
+- **ADR:** [[ADR-009]] (переиспользование шва матчинга / абстракция провайдера).
 
-## Acceptance criteria
+## Критерии приёмки
 
-Acceptance criteria: TBD (Phase 2 — detailed on activation).
+Критерии приёмки: TBD (Phase 2 — детализируются при активации).
 
 ## Sources
 
-- `plan/PHASE_F7_COMPETITORS_MENU.md §1` — F7-B3 (compare endpoint, `canonical_name` mapping, quarterly staleness alert, module gate), `§2` — F7-F1 (comparison screen, mobile-first).
-- `07_PHASES.md Э8` (positioning report: own menu ↔ competitor items matching, per-position price comparison, decision-oriented recommendations, ≥60% auto-match kill-criterion).
+- `plan/PHASE_F7_COMPETITORS_MENU.md §1` — F7-B3 (эндпоинт compare, сопоставление `canonical_name`, ежеквартальный алерт устаревания, модульный гейт), `§2` — F7-F1 (экран сравнения, mobile-first).
+- `07_PHASES.md Э8` (отчёт позиционирования: матчинг собственное меню ↔ позиции конкурентов, попозиционное сравнение цен, ориентированные на решение рекомендации, критерий убийства ≥60% автоматчинга).
 - `plan/00_IMPLEMENTATION_PLAN.md F7`.

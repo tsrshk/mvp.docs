@@ -1,7 +1,7 @@
 ---
 id: OV-GLOSSARY
 type: overview
-title: LCOS glossary of terms
+title: Глоссарий терминов LCOS
 status: current
 phase: cross-cutting
 updated: 2026-07-09
@@ -13,75 +13,75 @@ sources:
   - plan/00_IMPLEMENTATION_PLAN.md §2 (Pilot-Gate), G3/G5/G6
 ---
 
-# LCOS glossary
+# Глоссарий LCOS
 
-> Product, domain, and architecture terms. Definitions are in English prose; identifiers/codes are kept verbatim (codebase convention). Authority: code + [[architecture]] > `DEC-0011/0013` > docs. Data entities in more detail are in `entities/`, requirements in `requirements/`.
+> Продуктовые, доменные и архитектурные термины. Определения — русской прозой; идентификаторы/коды сохранены дословно (соглашение кодовой базы). Авторитет: код + [[architecture]] > `DEC-0011/0013` > документы. Сущности данных подробнее — в `entities/`, требования — в `requirements/`.
 
-## Product and strategy
+## Продукт и стратегия
 
 ### moat
-**A moat / an accumulating lock-in asset.** In LCOS this is the learning-loop mapping: the [[sku_mapping]] table, where matches of "supplier invoice line → POS SKU" accumulate with every confirmed invoice. Each time there is less manual work — this is the main early switching cost (leaving for a competitor = losing the accumulated mapping). OCR is a commodity and does not protect; the moat does. See [[LCOS-E3-sku-identity]], §8 learning loop in [[architecture]], `ADR-019`/`ADR-020`.
+**Ров / накапливающийся актив lock-in.** В LCOS это маппинг обучающей петли: таблица [[sku_mapping]], где с каждой подтверждённой накладной накапливаются сопоставления «строка накладной поставщика → SKU POS». Каждый раз ручной работы меньше — это главная ранняя цена переключения (уход к конкуренту = потеря накопленного маппинга). OCR — коммодити и не защищает; moat защищает. См. [[LCOS-E3-sku-identity]], §8 learning loop в [[architecture]], `ADR-019`/`ADR-020`.
 
 ### Pilot-Gate
-**The Phase 1 → Phase 2 transition criterion** (`ADR-003`). The product has been proven on its own (pilot) business: the pilot coffee shop's owner (Customer Zero) after **4 weeks** of real use says "worse without it", with a measurable saving of **≥3 h/week**. Historically it was called **Wife-Gate** in the vision docs and `ADR-003` — the term is replaced by the neutral **Pilot-Gate** (`Wife-Gate == Pilot-Gate`). Before it is passed — no billing, no onboarding, no SaaS. See [[roadmap]], [[glossary]].
+**Критерий перехода Фаза 1 → Фаза 2** (`ADR-003`). Продукт доказан на своём (пилотном) бизнесе: владелец пилотной кофейни (Customer Zero) после **4 недель** реального использования говорит «хуже без этого», с измеримой экономией **≥3 ч/неделю**. Исторически он назывался **Wife-Gate** в vision-документах и `ADR-003` — термин заменён нейтральным **Pilot-Gate** (`Wife-Gate == Pilot-Gate`). До прохождения — ни биллинга, ни онбординга, ни SaaS. См. [[roadmap]], [[glossary]].
 
-## SKU identity and the learning loop
+## SKU identity и обучающая петля
 
 ### source_key
-**The mapping's identity key — the raw invoice line text**, normalized on the backend (`normalize_source_key`, SSOT), *not* the SKU name from the catalog. FE normalization (`normalizeSourceKey`) mirrors the backend (verified by a golden-vector parity test). The full composite key of [[sku_mapping]] (`DEC-0012` / `ADR-019`): `(scope_type, scope_id, supplier_external_id, source_key)` — the supplier in the key is mandatory, because the same text from **different suppliers** can point to different POS SKUs. See [[sku-identity-resolver]].
+**Ключ identity маппинга — сырой текст строки накладной**, нормализованный на backend (`normalize_source_key`, SSOT), *а не* имя SKU из каталога. FE-нормализация (`normalizeSourceKey`) зеркалит backend (проверено golden-vector parity-тестом). Полный составной ключ [[sku_mapping]] (`DEC-0012` / `ADR-019`): `(scope_type, scope_id, supplier_external_id, source_key)` — поставщик в ключе обязателен, потому что один и тот же текст от **разных поставщиков** может указывать на разные SKU POS. См. [[sku-identity-resolver]].
 
 ### draft-resolve vs commit-resolve
-Two different contexts of identity resolution in the invoice flow:
-- **draft-resolve** (`prepare()`, **tolerant**): builds the Esupl payload from the **local catalog**; hints — fuzzy / LLM / exact-cache — live **only here**; `pos_ingredient_id` is not touched. The goal is to help the human fill in the lines.
-- **commit-resolve** (`submit()` → `_resolve_commit_identities` → Phase-2 live validation, **fail-closed**): the durable `pos_ingredient_id` is taken **only from [[sku_mapping]]** (priority `subdivision → org`, only a confirmed identity: `method=manual` OR `confirmed_by IS NOT NULL`). Cache / fuzzy / AI **do not participate** on commit. Then a live query to the POS; no exact match → `None` → block + review.
+Два разных контекста резолвинга identity в потоке накладной:
+- **draft-resolve** (`prepare()`, **толерантный**): строит payload Esupl из **локального каталога**; подсказки — fuzzy / LLM / exact-cache — живут **только здесь**; `pos_ingredient_id` не трогается. Цель — помочь человеку заполнить строки.
+- **commit-resolve** (`submit()` → `_resolve_commit_identities` → Phase-2 live-валидация, **fail-closed**): durable `pos_ingredient_id` берётся **только из [[sku_mapping]]** (приоритет `subdivision → org`, только подтверждённая identity: `method=manual` OR `confirmed_by IS NOT NULL`). Cache / fuzzy / AI **не участвуют** на commit. Затем живой запрос к POS; нет точного совпадения → `None` → block + review.
 
-The separation is the essence of the two-context model `DEC-0011`/`DEC-0013` variant A. See [[sku-identity-resolver]], [[invoice-status-machine]], [[architecture]] §6–§7.
+Разделение — суть модели двух контекстов `DEC-0011`/`DEC-0013` вариант A. См. [[sku-identity-resolver]], [[invoice-status-machine]], [[architecture]] §6–§7.
 
 ### pos_ingredient_id
-**A str identity anchor for a POS SKU** — a durable reference to a POS item, stored in [[sku_mapping]] and on the invoice line ([[invoice_lines]]). Invariant: `pos_ingredient_id == str(esupl_item_id)` — one Esupl entity in two representations: an **int catalog copy** (`esupl_item_id`, for the payload) and a **str identity anchor** (`pos_ingredient_id`). On commit resolve it is taken only from a confirmed mapping, never from the cache/hints. The open durability gate — `VER-021` (whether the id is stable under edit/delete-recreate), owner-run, merge gated.
+**Str-якорь identity для SKU POS** — durable-ссылка на позицию POS, хранимая в [[sku_mapping]] и на строке накладной ([[invoice_lines]]). Инвариант: `pos_ingredient_id == str(esupl_item_id)` — одна сущность Esupl в двух представлениях: **int-копия каталога** (`esupl_item_id`, для payload) и **str-якорь identity** (`pos_ingredient_id`). На commit resolve берётся только из подтверждённого маппинга, никогда из кэша/подсказок. Открытый gate durability — `VER-021` (стабилен ли id при edit/delete-recreate), owner-run, merge гейтирован.
 
 ### sku_mapping
-**The moat table.** It stores `(scope, supplier_external_id, source_key) → pos_ingredient_id` + `method` / `confidence` / `confirmed_by` / `packing`. It is written by a separate client call `POST /ingredients/mappings` in the `onSend` handler (persist-then-commit, **before** sending — it survives an invoice reject by design, `ADR-020`), **not** as a side effect of the submit endpoint. It is read on commit resolve. It was migrated entirely from localStorage to the backend. Entity — [[sku_mapping]]; feature — [[LCOS-F14-learning-loop]].
+**Таблица moat.** Хранит `(scope, supplier_external_id, source_key) → pos_ingredient_id` + `method` / `confidence` / `confirmed_by` / `packing`. Записывается отдельным клиентским вызовом `POST /ingredients/mappings` в обработчике `onSend` (persist-then-commit, **перед** отправкой — переживает reject накладной by design, `ADR-020`), **а не** как побочный эффект submit-эндпоинта. Читается на commit resolve. Целиком мигрирована из localStorage на backend. Сущность — [[sku_mapping]]; фича — [[LCOS-F14-learning-loop]].
 
 ### ingredient_cache
-**A non-authoritative draft-only cache** of matches, scope-aware, **fully rebuildable without losing mappings**. It participates only in draft resolve (hints in `prepare`), and **does not participate on commit** (VER-022 — scope asymmetry — is closed: there is no cache on the commit path). Do not confuse it with [[sku_mapping]] (the moat, durable, authoritative). Entity — [[ingredient_cache]].
+**Неавторитетный draft-only кэш** сопоставлений, scope-aware, **полностью пересобираемый без потери маппингов**. Участвует только в draft resolve (подсказки в `prepare`), и **не участвует на commit** (VER-022 — асимметрия scope — закрыта: на commit-пути кэша нет). Не путать с [[sku_mapping]] (moat, durable, авторитетный). Сущность — [[ingredient_cache]].
 
-## Architecture and infrastructure
+## Архитектура и инфраструктура
 
 ### ERP_WRITE_ENABLED
-**The toggle for the real write to Esupl**, default **False (OFF)**. When OFF, `write_invoice()` does not perform a write — the invoice gets the status `prepared` and a prepared-id, the payload is built, but nothing goes to the POS. It is the single write-point in the whole application (`POST /teams/{id}/outgoing-invoices`); all other Esupl access is read-only. It embodies human-in-the-loop and fail-closed. See [[erp-esupl-integration]], [[invoice-status-machine]], `ADR-002`, `ADR-006`.
+**Тумблер реальной записи в Esupl**, по умолчанию **False (OFF)**. При OFF `write_invoice()` не выполняет запись — накладная получает статус `prepared` и prepared-id, payload построен, но в POS ничего не уходит. Это единственная точка записи во всём приложении (`POST /teams/{id}/outgoing-invoices`); весь остальной доступ к Esupl — read-only. Воплощает human-in-the-loop и fail-closed. См. [[erp-esupl-integration]], [[invoice-status-machine]], `ADR-002`, `ADR-006`.
 
 ### fail-closed
-**The principle: on an unavailable dependency or a missing secret — an explicit error, never a silent fallback/degradation** (`ADR-006`, R8). Manifestations: no POS token → Esupl 401; VPN down while `ai_vpn_enabled` → refusal, no silent direct egress to the AI; config tiers 2–3 **have no env fallback**; commit identity resolution on `None`/mismatch/POS unavailability → block + review, not "take `items[0]`". A single error envelope `{"error":{code,message,details?}}`. Requirement — [[fail-closed]]; the egress part — [[vpn-egress]].
+**Принцип: при недоступной зависимости или отсутствующем секрете — явная ошибка, никогда тихий fallback/деградация** (`ADR-006`, R8). Проявления: нет POS-токена → Esupl 401; VPN down при `ai_vpn_enabled` → отказ, без тихого direct-egress к AI; уровни конфигурации 2–3 **не имеют env-fallback**; резолвинг commit identity при `None`/mismatch/недоступности POS → block + review, а не «взять `items[0]`». Единый конверт ошибок `{"error":{code,message,details?}}`. Требование — [[fail-closed]]; часть про egress — [[vpn-egress]].
 
 ### tenant / subdivision
-**Tenant = organization** (`organization`). `organization_id` is denormalized into every operational/catalog row — a tenant query is impossible without a scope (never from client input, only from the JWT). **Subdivision = a subdivision** (a point/warehouse) within an organization; operational rows also carry `subdivision_id`. Hierarchy: `organization → subdivision → membership(user↔subdivision+role)`. Bindings: `organization ↔ exactly one Esupl team`; `subdivision ↔ Esupl warehouse` (`ADR-004`, `ADR-008`). Requirement — [[multitenancy]]; entities — [[organizations]], [[subdivisions]].
+**Тенант = organization** (`organization`). `organization_id` денормализован в каждую операционную/каталожную строку — запрос тенанта невозможен без scope (никогда из клиентского ввода, только из JWT). **Subdivision = подразделение** (точка/склад) внутри организации; операционные строки также несут `subdivision_id`. Иерархия: `organization → subdivision → membership(user↔subdivision+role)`. Привязки: `organization ↔ ровно одна команда Esupl`; `subdivision ↔ склад Esupl` (`ADR-004`, `ADR-008`). Требование — [[multitenancy]]; сущности — [[organizations]], [[subdivisions]].
 
 ### member / admin / superadmin
-**Roles of the application auth plane** (JWT), not to be confused with the admin-panel operator:
-- **member** — a basic application user, access via a `membership` to a subdivision; works with invoices/catalog within their scope. Role — [[member]].
-- **admin** — elevated rights at the subdivision level (managing the catalog, suppliers, settings of their scope). Role — [[admin]].
-- **superadmin** — a global role of the application plane. Role — [[superadmin]].
+**Роли плоскости auth приложения** (JWT), не путать с оператором админ-панели:
+- **member** — базовый пользователь приложения, доступ через `membership` к subdivision; работает с накладными/каталогом в рамках своего scope. Роль — [[member]].
+- **admin** — повышенные права на уровне subdivision (управление каталогом, поставщиками, настройками своего scope). Роль — [[admin]].
+- **superadmin** — глобальная роль плоскости приложения. Роль — [[superadmin]].
 
-A separate **second plane** is the **SQLAdmin operator** (env + bcrypt, session cookie): the `admin_system` routes (superadmin config) are gated precisely by this SQLAdmin operator plane, **not by the application JWT superadmin** (`ADR-007`). Role — [[sqladmin-operator]]. The `supplier` role is a schema placeholder for the future only ([[supplier-future]], `ADR-017`).
+Отдельная **вторая плоскость** — **SQLAdmin operator** (env + bcrypt, session-куки): routes `admin_system` (superadmin config) гейтятся именно этой плоскостью SQLAdmin operator, **а не app-JWT superadmin** (`ADR-007`). Роль — [[sqladmin-operator]]. Роль `supplier` — placeholder в схеме только на будущее ([[supplier-future]], `ADR-017`).
 
 ### ProviderContext
-**A container of cross-infrastructure dependencies** (e.g. the tenant scope, access to secrets/session), passed into providers **outside the `Protocol` signatures**. The rule (G1, `ADR-009`): services depend only on `providers/*/base.py` (the Protocol); cross-infra goes through `ProviderContext`, without polluting the domain signatures of the interface. It lets us keep "one implementation per seam" and add providers (OCR=`claude`, ERP=`esupl`) without infrastructure leaking into the contract. See [[provider-abstraction]].
+**Контейнер сквозных инфраструктурных зависимостей** (например, scope тенанта, доступ к секретам/сессии), передаваемых в провайдеры **вне сигнатур `Protocol`**. Правило (G1, `ADR-009`): сервисы зависят только от `providers/*/base.py` (Protocol); сквозная инфраструктура идёт через `ProviderContext`, не загрязняя доменные сигнатуры интерфейса. Это позволяет держать «по одной реализации на шов» и добавлять провайдеров (OCR=`claude`, ERP=`esupl`) без утечки инфраструктуры в контракт. См. [[provider-abstraction]].
 
-## Other frequent terms
+## Прочие частые термины
 
-- **Customer Zero** — the pilot coffee shop (the founder's wife's), on which the product is validated before sales.
-- **wedge** — invoices: the most frequent measurable pain, the entry point that fills the data for subsequent routines. See [[product]] §2.
-- **write-point** — LCOS as the "invoice write-point" on top of the ERP; read-only to everything else in Esupl.
-- **draft** — `InvoiceDraft`: the raw recognized lines + the supplier from the name, before prepare/submit.
-- **prepared / validated / written / rejected / failed** — invoice statuses, see [[invoice-status-machine]].
-- **module gate** — a request-time module gate (`modules/registry.py::require_module` → 404); routes are always registered.
-- **enc:v2** — the Fernet envelope format `enc:v2:<key_id>:<token>`, a versioned KEK, rotation without losing old ciphertexts. See [[secret-encryption]], `ADR-010`/`ADR-011`.
+- **Customer Zero** — пилотная кофейня (жены основателя), на которой продукт валидируется до продаж.
+- **wedge** — накладные: самая частая измеримая боль, точка входа, наполняющая данные для последующих рутин. См. [[product]] §2.
+- **write-point** — LCOS как «точка записи накладной» поверх ERP; read-only ко всему остальному в Esupl.
+- **draft** — `InvoiceDraft`: сырые распознанные строки + поставщик из названия, до prepare/submit.
+- **prepared / validated / written / rejected / failed** — статусы накладной, см. [[invoice-status-machine]].
+- **module gate** — request-time gate модуля (`modules/registry.py::require_module` → 404); routes всегда зарегистрированы.
+- **enc:v2** — формат Fernet-конверта `enc:v2:<key_id>:<token>`, версионированный KEK, ротация без потери старых шифротекстов. См. [[secret-encryption]], `ADR-010`/`ADR-011`.
 
-## Related documents
+## Связанные документы
 
 - [[product]] · [[roadmap]] · [[architecture]] · [[MOC]]
-- Requirements: [[fail-closed]] · [[multitenancy]] · [[sku-identity-resolver]] · [[invoice-status-machine]] · [[provider-abstraction]] · [[erp-esupl-integration]] · [[secret-encryption]] · [[supplier-criteria-registry]] · [[vpn-egress]] · [[config-secrets]] · [[auth]] · [[global-requirements]]
+- Требования: [[fail-closed]] · [[multitenancy]] · [[sku-identity-resolver]] · [[invoice-status-machine]] · [[provider-abstraction]] · [[erp-esupl-integration]] · [[secret-encryption]] · [[supplier-criteria-registry]] · [[vpn-egress]] · [[config-secrets]] · [[auth]] · [[global-requirements]]
 
 ## Sources
 

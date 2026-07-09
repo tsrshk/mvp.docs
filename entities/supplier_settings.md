@@ -1,7 +1,7 @@
 ---
 id: supplier_settings
 type: entity
-title: supplier_settings — per-supplier ordering terms (planned design)
+title: supplier_settings — условия заказа по каждому поставщику (planned design)
 status: planned
 scope: org
 table: supplier_settings
@@ -11,24 +11,24 @@ requirements: ["[[supplier-criteria-registry]]", "[[multitenancy]]"]
 sources: ["08_PHASE1_SPEC.md F2.1 (archived)", "APP_OVERVIEW.md §10 (archived)"]
 updated: 2026-07-09
 ---
-# supplier_settings — per-supplier ordering terms (planned design)
+# supplier_settings — условия заказа по каждому поставщику (planned design)
 
-> **Status: planned design.** ⚠️ **As-built diverged:** the shipped implementation stores per-supplier terms as `Supplier.criteria` JSONB validated by a registry (see [[supplier-criteria-registry]] and [[LCOS-F18-supplier-criteria]]), **not** a separate `supplier_settings` table. This note documents the originally-planned table (08 F2.1) for traceability; the criteria-registry supersedes it unless a dedicated table is later reintroduced for the supplier self-service portal ([[LCOS-F19-supplier-self-service]], [[ADR-017]]).
+> **Status: planned design.** ⚠️ **As-built разошёлся:** реализованная версия хранит условия по каждому поставщику как `Supplier.criteria` JSONB, валидируемый реестром (см. [[supplier-criteria-registry]] и [[LCOS-F18-supplier-criteria]]), а **не** в отдельной таблице `supplier_settings`. Эта заметка документирует изначально запланированную таблицу (08 F2.1) для трассируемости; реестр критериев замещает её, если только позже не будет заново введена выделенная таблица для портала самообслуживания поставщиков ([[LCOS-F19-supplier-self-service]], [[ADR-017]]).
 
-## Purpose (planned)
-Per-supplier terms driving the order planner: delivery weekdays, lead time, minimum order amount + free-delivery threshold, preferred contact channel. In the as-built system these live in [[suppliers]]`.criteria` (JSONB) — see [[supplier-criteria-registry]].
+## Назначение (planned)
+Условия по каждому поставщику, управляющие планировщиком заказов: дни доставки по неделе, срок поставки (lead time), минимальная сумма заказа + порог бесплатной доставки, предпочитаемый канал связи. В as-built-системе они живут в [[suppliers]]`.criteria` (JSONB) — см. [[supplier-criteria-registry]].
 
-## Scope
-Org-scoped (see [[multitenancy]]).
+## Область (scope)
+Область — org (см. [[multitenancy]]).
 
-## Relationship to as-built
+## Отношение к as-built
 | Planned (08 F2.1) | As-built |
 |---|---|
-| separate `supplier_settings` table + `extra_terms` JSONB | `Supplier.criteria` JSONB + `app/domain/supplier_criteria.py` registry |
-| — | new criteria added without migration (registry-validated, 422 on invalid) |
+| отдельная таблица `supplier_settings` + `extra_terms` JSONB | `Supplier.criteria` JSONB + реестр `app/domain/supplier_criteria.py` |
+| — | новые критерии добавляются без миграции (валидируются реестром, 422 при недопустимом) |
 
-## Used by
-[[LCOS-F18-supplier-criteria]] (as-built), [[LCOS-F19-supplier-self-service]] (future portal), [[LCOS-F39-order-message]] (contact channel), [[LCOS-F40-ai-order-proposal]] (min-order/lead-time).
+## Используется
+[[LCOS-F18-supplier-criteria]] (as-built), [[LCOS-F19-supplier-self-service]] (будущий портал), [[LCOS-F39-order-message]] (канал связи), [[LCOS-F40-ai-order-proposal]] (min-order/lead-time).
 
-## Sources
+## Источники
 `08_PHASE1_SPEC.md` F2.1 (archived), `APP_OVERVIEW.md` §10 (archived), [[ADR-017]].

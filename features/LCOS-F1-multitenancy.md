@@ -1,7 +1,7 @@
 ---
 id: LCOS-F1
 type: feature
-title: Multitenancy & tenant isolation
+title: Мультиарендность и изоляция арендаторов
 epic: "[[LCOS-E1-platform]]"
 status: built
 phase: "Phase 1"
@@ -13,81 +13,81 @@ legacy_refs: [plan/00 G2, LCOS_Conformance R5, APP_OVERVIEW §4]
 sources: ["APP_OVERVIEW.md §4 §11", "01_ARCHITECTURE.md (Data model, Auth & multi-tenancy, Cross-cutting)", "LCOS_Conformance_Alignment_GlobalRequirements.md R5", "mvp.be app/db/base.py", "mvp.be app/db/repositories.py:33", "mvp.be app/auth/dependencies.py:46"]
 updated: 2026-07-09
 ---
-# LCOS-F1 · Multitenancy & tenant isolation
-**Epic:** [[LCOS-E1-platform]] · **Status:** built · **Phase:** Phase 1
+# LCOS-F1 · Мультиарендность и изоляция арендаторов
+**Эпик:** [[LCOS-E1-platform]] · **Статус:** built · **Фаза:** Phase 1
 
-## Description
+## Описание
 
-The hard data-isolation boundary the whole platform stands on. The tenant is the **organization**; a "Slack-style" identity model nests **organization → subdivision (a physical point that maps to an Esupl warehouse) → membership (user ↔ subdivision + role)**. `organization_id` is **denormalized onto every operational and catalog row** with `ondelete=RESTRICT`, and operational rows additionally carry `subdivision_id`. `users` is the single global table — it has no `organization_id`; a user reaches a tenant only through a `membership`.
+Жёсткая граница изоляции данных, на которой стоит вся платформа. Арендатор — это **организация**; модель идентичности в стиле «Slack» вкладывает **organization → subdivision (физическая точка, которая соответствует складу Esupl) → membership (пользователь ↔ subdivision + роль)**. `organization_id` **денормализован в каждую операционную и каталожную строку** с `ondelete=RESTRICT`, а операционные строки дополнительно несут `subdivision_id`. `users` — единственная глобальная таблица: у неё нет `organization_id`; пользователь достигает арендатора только через `membership`.
 
-Isolation is enforced structurally, not by discipline: **tenant repositories require `organization_id` in their constructor**, so a tenant query is impossible without a scope, and the scope always originates from the signed access-JWT (`org` / `sub_div` claims), never from client input (see [[LCOS-F2-app-auth]]). `get_tenant_context` returns **403** when no `organization_id` is present, closing tenant data to any authenticated user who has no active org context.
+Изоляция обеспечивается структурно, а не дисциплиной: **репозитории арендатора требуют `organization_id` в конструкторе**, поэтому запрос арендатора невозможен без scope, а scope всегда происходит из подписанного access-JWT (claims `org` / `sub_div`), никогда из клиентского ввода (см. [[LCOS-F2-app-auth]]). `get_tenant_context` возвращает **403**, когда `organization_id` отсутствует, закрывая данные арендатора для любого аутентифицированного пользователя без активного контекста организации.
 
-Every operational epic ([[LCOS-E2-invoice-intake]], [[LCOS-E3-sku-identity]], [[LCOS-E4-suppliers]]) inherits this boundary for free by extending the scoped mixins. The learning-loop moat also keys its scopes (`scope_type`/`scope_id`) off this hierarchy — see [[sku-identity-resolver]].
+Каждый операционный эпик ([[LCOS-E2-invoice-intake]], [[LCOS-E3-sku-identity]], [[LCOS-E4-suppliers]]) наследует эту границу бесплатно, расширяя scoped-миксины. «Ров» цикла обучения также привязывает свои scope (`scope_type`/`scope_id`) к этой иерархии — см. [[sku-identity-resolver]].
 
-## Capabilities
+## Возможности
 
-- Org/subdivision/membership hierarchy with a single global `users` table; org is derived through the subdivision, not stored on the membership.
-- Denormalized `organization_id` on every operational/catalog table via `OrganizationScopedMixin`; `subdivision_id` added by `SubdivisionScopedMixin` (a subdivision-scoped table carries both columns).
-- Tenant-boundary FKs are `RESTRICT`; parent-child within a tenant are `CASCADE`; `refresh_sessions.active_subdivision_id` is `SET NULL`.
-- Tenant repositories (`SupplierRepository`, `IngredientRepository`, `InvoiceRepository`) take `organization_id` in the constructor — a scopeless query cannot be constructed.
-- Scope resolved from the signed JWT by `get_tenant_context`; `require_superadmin` gates god-mode routes.
-- `superadmin` is a global boolean on `User` (god-mode: sees/switches into any org/subdivision, treated as `admin` everywhere); `Role.admin` is the only membership role — no RBAC matrix (explicit non-goal).
-- Org ↔ exactly one Esupl team (`organizations.esupl_team_id`); subdivision ↔ Esupl warehouse (`subdivisions.esupl_warehouse_id`) — non-secret ID columns feeding the ERP payload.
-- Frontend projects the active scope from the `/auth/me` cache into the RxJS `activeScope$`; per-browser stores are keyed by `orgScopeToken()` to prevent cross-tenant leakage.
+- Иерархия org/subdivision/membership с единственной глобальной таблицей `users`; организация выводится через subdivision, а не хранится на membership.
+- Денормализованный `organization_id` в каждой операционной/каталожной таблице через `OrganizationScopedMixin`; `subdivision_id` добавляется `SubdivisionScopedMixin` (таблица со scope на уровне subdivision несёт оба столбца).
+- FK на границе арендатора — `RESTRICT`; родитель-потомок внутри арендатора — `CASCADE`; `refresh_sessions.active_subdivision_id` — `SET NULL`.
+- Репозитории арендатора (`SupplierRepository`, `IngredientRepository`, `InvoiceRepository`) принимают `organization_id` в конструкторе — запрос без scope сконструировать нельзя.
+- Scope разрешается из подписанного JWT через `get_tenant_context`; `require_superadmin` защищает маршруты god-mode.
+- `superadmin` — глобальный boolean на `User` (god-mode: видит/переключается в любую org/subdivision, везде трактуется как `admin`); `Role.admin` — единственная роль membership — нет RBAC-матрицы (явная не-цель).
+- Org ↔ ровно одна команда Esupl (`organizations.esupl_team_id`); subdivision ↔ склад Esupl (`subdivisions.esupl_warehouse_id`) — несекретные ID-столбцы, питающие payload ERP.
+- Фронтенд проецирует активный scope из кэша `/auth/me` в RxJS `activeScope$`; хранилища на уровне браузера ключуются по `orgScopeToken()`, чтобы предотвратить межарендаторскую утечку.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | Operates only within their own subdivision(s); tenant queries auto-scoped from JWT. Cannot reach another org's data. |
-| [[admin]] | Same isolation as member, with admin capabilities inside subdivisions where they hold an `admin` membership. |
-| [[superadmin]] | Global flag on `User`: sees and can switch into any org/subdivision regardless of membership; treated as `admin` in every subdivision. |
-| [[sqladmin-operator]] | Manages the org/subdivision/user/membership structure through SQLAdmin ModelViews (see [[LCOS-F3-sqladmin-operator]]); operates outside the tenant JWT plane. |
+| [[member]] | Работает только внутри своих subdivision(ов); запросы арендатора автоматически ограничены scope из JWT. Не может достичь данных другой организации. |
+| [[admin]] | Та же изоляция, что и member, плюс административные возможности внутри subdivision, где у него есть membership с ролью `admin`. |
+| [[superadmin]] | Глобальный флаг на `User`: видит и может переключаться в любую org/subdivision независимо от membership; трактуется как `admin` в каждой subdivision. |
+| [[sqladmin-operator]] | Управляет структурой org/subdivision/user/membership через SQLAdmin ModelViews (см. [[LCOS-F3-sqladmin-operator]]); работает вне плоскости JWT арендатора. |
 
-A user with no membership and no superadmin flag can authenticate but has **no active context** → tenant data is closed (403); the FE shows "no available subdivisions."
+Пользователь без membership и без флага superadmin может аутентифицироваться, но у него **нет активного контекста** → данные арендатора закрыты (403); FE показывает «нет доступных subdivision».
 
-## Involved entities
+## Задействованные сущности
 
-- [[organizations]] — the tenant and hard isolation boundary; `esupl_team_id` binds it to one Esupl team.
-- [[subdivisions]] — physical point inside a tenant; unique `(organization_id, name)`; maps to an Esupl warehouse.
-- [[users]] — the single global table (no `organization_id`); reaches a tenant only via a membership.
-- [[memberships]] — user ↔ subdivision + `Role`; unique `(user_id, subdivision_id)`; org derived through the subdivision.
-- [[refresh_sessions]] — holds `active_subdivision_id` (`SET NULL`) so the active context is restored on refresh.
+- [[organizations]] — арендатор и жёсткая граница изоляции; `esupl_team_id` привязывает его к одной команде Esupl.
+- [[subdivisions]] — физическая точка внутри арендатора; уникальность `(organization_id, name)`; соответствует складу Esupl.
+- [[users]] — единственная глобальная таблица (без `organization_id`); достигает арендатора только через membership.
+- [[memberships]] — пользователь ↔ subdivision + `Role`; уникальность `(user_id, subdivision_id)`; организация выводится через subdivision.
+- [[refresh_sessions]] — хранит `active_subdivision_id` (`SET NULL`), чтобы активный контекст восстанавливался при refresh.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (denormalized `organization_id`, scoped repos, scope-from-JWT), [[auth]] (scope claims originate in the signed access-JWT), [[global-requirements]] (R5).
-- **Features:** consumed by every operational feature — [[LCOS-F10-invoice-status-machine]], [[LCOS-F17-supplier-cards]], [[LCOS-F13-sku-identity-resolver]] all extend the scoped mixins; scope originates in [[LCOS-F2-app-auth]]; structure managed via [[LCOS-F3-sqladmin-operator]]; projected client-side by [[LCOS-F7-frontend-platform]].
-- **ADR:** [[ADR-008]] (multitenancy model; subdivision = Esupl warehouse), [[ADR-004]] (org ↔ one Esupl team).
+- **Требования:** [[multitenancy]] (денормализованный `organization_id`, scoped-репозитории, scope-из-JWT), [[auth]] (claims scope происходят из подписанного access-JWT), [[global-requirements]] (R5).
+- **Фичи:** потребляется каждой операционной фичей — [[LCOS-F10-invoice-status-machine]], [[LCOS-F17-supplier-cards]], [[LCOS-F13-sku-identity-resolver]] все расширяют scoped-миксины; scope происходит в [[LCOS-F2-app-auth]]; структура управляется через [[LCOS-F3-sqladmin-operator]]; проецируется на клиенте через [[LCOS-F7-frontend-platform]].
+- **ADR:** [[ADR-008]] (модель мультиарендности; subdivision = склад Esupl), [[ADR-004]] (org ↔ одна команда Esupl).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. Every operational/catalog table (`suppliers`, `invoices`, `invoice_lines`, `ingredients`, `packings`) carries `organization_id` (`OrganizationScopedMixin`, `ondelete=RESTRICT`, `nullable=False`, indexed); invoices/lines also carry `subdivision_id`.
-- [ ] AC-BE-2. `users` is the only table without `organization_id`; a user reaches tenant data solely through a `membership`.
-- [ ] AC-BE-3. Tenant repositories cannot be instantiated without `organization_id` (constructor arg) — a scopeless tenant query is structurally impossible (merge-gated test).
-- [ ] AC-BE-4. Scope is taken from the signed access-JWT (`org`, `sub_div`), never from client input; `get_tenant_context` returns 403 when `organization_id` is absent.
-- [ ] AC-BE-5. Cross-tenant access is impossible: a request scoped to org A cannot read/write org B rows (merge-gated isolation test).
-- [ ] AC-BE-6. `superadmin` is a global `User` boolean (not a role row); can switch into any org/subdivision; `require_superadmin` gates god-mode routes.
-- [ ] AC-BE-7. FK delete behavior matches the boundary rules: tenant-boundary FKs `RESTRICT`, in-tenant parent-child `CASCADE`, `refresh_sessions.active_subdivision_id` `SET NULL`.
+- [ ] AC-BE-1. Каждая операционная/каталожная таблица (`suppliers`, `invoices`, `invoice_lines`, `ingredients`, `packings`) несёт `organization_id` (`OrganizationScopedMixin`, `ondelete=RESTRICT`, `nullable=False`, индексирован); invoices/lines также несут `subdivision_id`.
+- [ ] AC-BE-2. `users` — единственная таблица без `organization_id`; пользователь достигает данных арендатора исключительно через `membership`.
+- [ ] AC-BE-3. Репозитории арендатора нельзя инстанцировать без `organization_id` (аргумент конструктора) — запрос арендатора без scope структурно невозможен (тест под merge-gate).
+- [ ] AC-BE-4. Scope берётся из подписанного access-JWT (`org`, `sub_div`), никогда из клиентского ввода; `get_tenant_context` возвращает 403, когда `organization_id` отсутствует.
+- [ ] AC-BE-5. Межарендаторский доступ невозможен: запрос со scope организации A не может читать/писать строки организации B (тест изоляции под merge-gate).
+- [ ] AC-BE-6. `superadmin` — глобальный boolean `User` (не строка роли); может переключаться в любую org/subdivision; `require_superadmin` защищает маршруты god-mode.
+- [ ] AC-BE-7. Поведение удаления FK соответствует правилам границы: FK на границе арендатора — `RESTRICT`, родитель-потомок внутри арендатора — `CASCADE`, `refresh_sessions.active_subdivision_id` — `SET NULL`.
 
 ### Frontend
-- [ ] AC-FE-1. Active scope is derived from the `/auth/me` cache (backend authoritative) and pushed into `activeScope$`; the UI never lets the client assert a scope the JWT doesn't grant.
-- [ ] AC-FE-2. Per-browser stores (learned mappings, sent-invoice ledger) are keyed by `orgScopeToken()` so two tenants can't collide; pre-auth token is `'noorg'`.
-- [ ] AC-FE-3. Login / logout / switch-context invalidate `['Me','Invoice','Supplier','Ingredient']` caches so tenant data refetches on scope change.
-- [ ] AC-FE-4. A user with no membership (and not superadmin) sees "no available subdivisions" and no tenant data.
+- [ ] AC-FE-1. Активный scope выводится из кэша `/auth/me` (авторитетен бэкенд) и проталкивается в `activeScope$`; UI никогда не позволяет клиенту заявить scope, который JWT не предоставляет.
+- [ ] AC-FE-2. Хранилища на уровне браузера (выученные маппинги, реестр отправленных инвойсов) ключуются по `orgScopeToken()`, чтобы два арендатора не могли столкнуться; преавторизационный токен — `'noorg'`.
+- [ ] AC-FE-3. Login / logout / switch-context инвалидируют кэши `['Me','Invoice','Supplier','Ingredient']`, чтобы данные арендатора перезапрашивались при смене scope.
+- [ ] AC-FE-4. Пользователь без membership (и не superadmin) видит «нет доступных subdivision» и никаких данных арендатора.
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **Invariant is merge-gated (VER-01):** the tenant-isolation suite blocks merge; its regression cannot land in main.
-- `localos.lastWarehouseId` is intentionally **not** org-scoped (low-risk UI default) — noted as a DEFER item in Conformance §2.4.
-- Phase-1 non-goals: no RBAC permission matrix, no OAuth, no self-registration, no tenancy scaling ([[LCOS-F70-tenancy-scaling]] is Phase 2).
+- **Инвариант под merge-gate (VER-01):** набор тестов изоляции арендаторов блокирует merge; его регрессия не может попасть в main.
+- `localos.lastWarehouseId` намеренно **не** ограничен scope организации (низкорисковый UI-дефолт) — отмечено как пункт DEFER в Conformance §2.4.
+- Не-цели Phase 1: нет RBAC-матрицы прав, нет OAuth, нет саморегистрации, нет масштабирования арендаторов ([[LCOS-F70-tenancy-scaling]] — это Phase 2).
 
-## Sources
+## Источники
 
-- `APP_OVERVIEW.md §4` (multitenancy & auth), `§11` (data model).
-- `01_ARCHITECTURE.md` — Data model / mixins, "Auth & multi-tenancy", "Cross-cutting → Multi-tenancy scoping".
+- `APP_OVERVIEW.md §4` (мультиарендность и auth), `§11` (модель данных).
+- `01_ARCHITECTURE.md` — Data model / mixins, «Auth & multi-tenancy», «Cross-cutting → Multi-tenancy scoping».
 - `LCOS_Conformance_Alignment_GlobalRequirements.md` R5.
-- `mvp.be/app/db/base.py` (`OrganizationScopedMixin`, `SubdivisionScopedMixin`, naming convention).
-- `mvp.be/app/db/repositories.py:33` (`SupplierRepository.__init__` requires `organization_id`), `:116`, `:185`.
+- `mvp.be/app/db/base.py` (`OrganizationScopedMixin`, `SubdivisionScopedMixin`, соглашение об именовании).
+- `mvp.be/app/db/repositories.py:33` (`SupplierRepository.__init__` требует `organization_id`), `:116`, `:185`.
 - `mvp.be/app/auth/dependencies.py:46` (`get_tenant_context` → 403), `:56` (`require_superadmin`).

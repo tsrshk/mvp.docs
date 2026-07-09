@@ -1,10 +1,10 @@
 ---
 id: role-admin
 type: role
-title: admin (per-subdivision membership role)
+title: admin (роль на уровне подразделения через membership)
 status: built
 plane: app-plane (JWT)
-identity: memberships.role = Role.admin (per-subdivision)
+identity: memberships.role = Role.admin (на уровне подразделения)
 sources:
   - 01_ARCHITECTURE.md §Auth (Roles), §Data Model (memberships)
   - APP_OVERVIEW.md §Auth
@@ -13,39 +13,39 @@ updated: 2026-07-09
 ---
 # admin
 
-**Plane:** app-plane (application, JWT) · **Identity:** `memberships.role = admin` for a specific `(user_id, subdivision_id)` · **The only value of enum `Role`** in Phase 1.
+**Plane:** app-plane (приложение, JWT) · **Identity:** `memberships.role = admin` для конкретной пары `(user_id, subdivision_id)` · **Единственное значение enum `Role`** в Phase 1.
 
-## Who this is
-An application user responsible for a specific subdivision (coffee-shop owner / manager). A row in [[users]] plus a row in [[memberships]] linking the user to a [[subdivisions]] and carrying `role=admin`. Uniqueness is `(user_id, subdivision_id)`. The organization is derived through the subdivision and is not stored in the membership. Seed account: `oter` / `oter` (admin of the coffee-shop subdivision).
+## Кто это
+Пользователь приложения, отвечающий за конкретное подразделение (владелец / управляющий кофейни). Строка в [[users]] плюс строка в [[memberships]], связывающая пользователя с [[subdivisions]] и несущая `role=admin`. Уникальность — `(user_id, subdivision_id)`. Организация выводится через подразделение и в membership не хранится. Seed-аккаунт: `oter` / `oter` (admin подразделения-кофейни).
 
-## Authentication plane
-app-plane: `POST /auth/login`, argon2 password, access-JWT (15 min, HttpOnly `lcos_access`) + refresh ([[refresh_sessions]]). The access-token payload carries `role` (= `admin`), `org`, `sub_div`. Authorization is stateless from the signed token.
+## Плоскость аутентификации
+app-plane: `POST /auth/login`, пароль argon2, access-JWT (15 мин, HttpOnly `lcos_access`) + refresh ([[refresh_sessions]]). Payload access-токена несёт `role` (= `admin`), `org`, `sub_div`. Авторизация — stateless из подписанного токена.
 
-This is NOT [[sqladmin-operator]] (env/bcrypt, session-cookie, no row in `users`) — see [[ADR-007]].
+Это НЕ [[sqladmin-operator]] (env/bcrypt, session-cookie, без строки в `users`) — см. [[ADR-007]].
 
-## Capabilities
-- **Works within its own tenant boundary.** `get_tenant_context` requires an active `organization_id`; the admin acts inside the org/subdivision of its membership. It does NOT cross the tenant boundary (unlike [[superadmin]]).
-- **Organization POS config**: `PUT /organizations/{org_id}/pos-config` — `_authorize()` admits the superadmin OR the admin of this org. Entering a plaintext Esupl token → `encrypt()` → a new active [[integration_credentials]] (scope=org, provider=esupl), deactivating the previously active one. `GET` returns `PosConfigOut { esupl_team_id, esupl_api_token: {is_set, last4} }` — plaintext is never returned.
-- **Operational work** in its subdivision: invoice intake, SKU catalog/mappings, supplier cards — everything that membership access to the subdivision's data grants (full set — see features below; at the data level admin and member differ little, there is no RBAC matrix).
+## Возможности
+- **Работает в границах собственного тенанта.** `get_tenant_context` требует активного `organization_id`; admin действует внутри org/подразделения своего membership. Он НЕ пересекает границу тенанта (в отличие от [[superadmin]]).
+- **POS-конфигурация организации**: `PUT /organizations/{org_id}/pos-config` — `_authorize()` допускает superadmin ИЛИ admin данной организации. Ввод plaintext-токена Esupl → `encrypt()` → новая активная запись [[integration_credentials]] (scope=org, provider=esupl), деактивируя ранее активную. `GET` возвращает `PosConfigOut { esupl_team_id, esupl_api_token: {is_set, last4} }` — plaintext никогда не возвращается.
+- **Операционная работа** в своём подразделении: приём накладных, каталог/маппинги SKU, карточки поставщиков — всё, что даёт доступ membership к данным подразделения (полный набор — см. features ниже; на уровне данных admin и member различаются мало, RBAC-матрицы нет).
 
-## Difference from other roles
-- **member** — any user with a membership; baseline access to the subdivision's data. The `Role` enum in Phase 1 carries **only** the value `admin`, so "member" is more like "a participant with a membership", while `admin` is an explicitly set role. See [[member]].
-- **superadmin** — a global flag, treated as admin across all subdivisions. See [[superadmin]].
-- A user **without a membership and not a superadmin** can log in but has **no active context** → tenant data is closed (`403` from `get_tenant_context`), the FE shows "no available subdivisions".
+## Отличие от других ролей
+- **member** — любой пользователь с membership; базовый доступ к данным подразделения. Enum `Role` в Phase 1 несёт **только** значение `admin`, поэтому «member» — это скорее «участник с membership», тогда как `admin` — явно заданная роль. См. [[member]].
+- **superadmin** — глобальный флаг, трактуется как admin во всех подразделениях. См. [[superadmin]].
+- Пользователь **без membership и не superadmin** может войти, но у него **нет активного контекста** → данные тенанта закрыты (`403` из `get_tenant_context`), FE показывает «нет доступных подразделений».
 
-There is no permissions matrix — an explicit non-goal. There are two authorization levels: `superadmin` (flag) and `admin` (membership role).
+Матрицы прав нет — это явный non-goal. Есть два уровня авторизации: `superadmin` (флаг) и `admin` (роль в membership).
 
-## Features granting/using the role
-- [[LCOS-F2-app-auth]] — membership → `role` in the JWT, `/auth/me` only your subdivisions.
-- [[LCOS-F1-multitenancy]] — admin as a subject inside the tenant boundary.
-- [[LCOS-F4-config-secrets]] — organization POS config (`pos-config`), org-scope Esupl secret.
-- [[LCOS-F17-supplier-cards]] — supplier cards and delivery terms within its scope.
-- Intake features of epic [[LCOS-E2-invoice-intake]] and SKU features of [[LCOS-E3-sku-identity]] run in the admin/member context.
+## Features, предоставляющие/использующие роль
+- [[LCOS-F2-app-auth]] — membership → `role` в JWT, `/auth/me` только ваши подразделения.
+- [[LCOS-F1-multitenancy]] — admin как субъект внутри границы тенанта.
+- [[LCOS-F4-config-secrets]] — POS-конфигурация организации (`pos-config`), секрет Esupl в scope org.
+- [[LCOS-F17-supplier-cards]] — карточки поставщиков и условия поставки в его scope.
+- Features приёма эпика [[LCOS-E2-invoice-intake]] и SKU-features [[LCOS-E3-sku-identity]] выполняются в контексте admin/member.
 
-## Relations / requirements
+## Связи / требования
 [[auth]] · [[multitenancy]] · [[config-secrets]] · [[ADR-007]] · [[users]] · [[memberships]] · [[subdivisions]] · [[organizations]]
 
-## Sources
-- `01_ARCHITECTURE.md` §Auth — Roles (`Role` enum single value `admin`, line ~434), §Data Model `memberships` (~245).
+## Источники
+- `01_ARCHITECTURE.md` §Auth — Roles (enum `Role` с единственным значением `admin`, строка ~434), §Data Model `memberships` (~245).
 - `APP_OVERVIEW.md` §Auth (roles: superadmin / admin).
-- Code: `db/models.py` (`Role`, `Membership.role`), `routes/organizations.py` (`_authorize`, `pos-config`), `app/auth/dependencies.py` (`get_tenant_context`).
+- Код: `db/models.py` (`Role`, `Membership.role`), `routes/organizations.py` (`_authorize`, `pos-config`), `app/auth/dependencies.py` (`get_tenant_context`).

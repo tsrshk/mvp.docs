@@ -1,7 +1,7 @@
 ---
 id: LCOS-F28
 type: feature
-title: Esupl API contracts (Э0)
+title: Контракты Esupl API (Э0)
 epic: "[[LCOS-E5-stabilization]]"
 status: planned
 phase: "Phase 1"
@@ -13,77 +13,77 @@ legacy_refs: [08 Э0 F0.1 F0.2 F0.3, plan S1, TZ__STABILIZATION S0/S1/S1-GATE, V
 sources: ["TZ__STABILIZATION_2026-07-09__ALIGNED.md S0/S1/S1-GATE/S9", "APP_OVERVIEW.md §9 §13", "VER-021_ESUPL_DURABILITY_TEST.md", "08_PHASE1_SPEC.md F0.3", "mvp.be app/providers/erp/esupl.py:4", "reference/esupl-api"]
 updated: 2026-07-09
 ---
-# LCOS-F28 · Esupl API contracts (Э0)
+# LCOS-F28 · Контракты Esupl API (Э0)
 
 **Epic:** [[LCOS-E5-stabilization]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-The whole wedge depends on the Esupl (POS) API behaving the way the commit resolver assumes. This feature is the read-only contract verification that de-risks the integration: confirm the endpoints the code relies on actually filter as expected, resolve a documented endpoint discrepancy, and formally mark the one gate that cannot be closed in a read-only session.
+Весь клин зависит от того, что Esupl (POS) API ведёт себя так, как предполагает commit-резолвер. Эта фича — read-only верификация контракта, которая снижает риск интеграции: подтвердить, что endpoint'ы, на которые опирается код, действительно фильтруют как ожидается, разрешить задокументированное расхождение endpoint'ов и формально пометить единственный гейт, который нельзя закрыть в read-only сессии.
 
-The **hard constraint is read-only**: reads are allowed; any create/edit/delete/POST is forbidden, and `ERP_WRITE_ENABLED` stays OFF. Under that constraint the doable-now work (S1) is to confirm by reading that `GET /teams/{id}/products?id=` really filters by id (does not ignore it) and that `product_name` + `operator[product_name]=like` really searches — the same `/teams/{id}/products?id=` call the commit validation uses. The known **endpoint discrepancy** must also be resolved: the commit-validation code reads `/teams/{id}/products?id=`, whereas the VER-021 probe/doc operate on `/teams/{id}/ingredients/{id}` — these are *different resources*. Either document that `products.id == ingredients.id` (so the durability evidence transfers) or measure durability on the actually-used `/products?id=`.
+**Жёсткое ограничение — read-only:** чтения разрешены; любые create/edit/delete/POST запрещены, а `ERP_WRITE_ENABLED` остаётся OFF. При этом ограничении выполнимая сейчас работа (S1) — подтвердить чтением, что `GET /teams/{id}/products?id=` действительно фильтрует по id (не игнорирует его) и что `product_name` + `operator[product_name]=like` действительно ищут — тот же вызов `/teams/{id}/products?id=`, который использует commit-валидация. Известное **расхождение endpoint'ов** также должно быть разрешено: код commit-валидации читает `/teams/{id}/products?id=`, тогда как проба/документ VER-021 оперируют `/teams/{id}/ingredients/{id}` — это *разные ресурсы*. Либо задокументировать, что `products.id == ingredients.id` (тогда свидетельство устойчивости переносится), либо измерить устойчивость на фактически используемом `/products?id=`.
 
-The **VER-021 durability gate** is blocked by the read-only constraint: the probe (`scripts/ver021_durability_probe.py`) needs create/edit/delete in the sandbox (`VER021_CONFIRM=yes-write-to-sandbox-17957`, `ERP_WRITE_ENABLED=true`), which violates read-only. It therefore **cannot be closed by an agent** — it stays OPEN, is run by the owner (Ivan) outside a read-only session, and the result table is pasted into `01_ARCHITECTURE.md`. Merge remains gated on VER-021, as before. This feature also incorporates the Э0 read fixes already landed (`F0.3`): the team-scoped `following`/`products`/`orders` reads with per-org token and fail-closed empty results.
+**Гейт устойчивости VER-021** заблокирован ограничением read-only: проба (`scripts/ver021_durability_probe.py`) нуждается в create/edit/delete в песочнице (`VER021_CONFIRM=yes-write-to-sandbox-17957`, `ERP_WRITE_ENABLED=true`), что нарушает read-only. Поэтому она **не может быть закрыта агентом** — остаётся OPEN, выполняется владельцем (Иваном) вне read-only сессии, а таблица результатов вставляется в `01_ARCHITECTURE.md`. Merge остаётся под гейтом по VER-021, как и раньше. Эта фича также включает уже приземлённые read-фиксы Э0 (`F0.3`): team-scoped чтения `following`/`products`/`orders` с per-org токеном и fail-closed пустыми результатами.
 
-## Capabilities
+## Возможности
 
-- Verified read contract: a "request → response" table (GET only) from the sandbox proving `products?id=` filters by id and `product_name`/`operator[product_name]=like` searches.
-- Resolved discrepancy: a documented statement of whether `products.id == ingredients.id`, or a decision to measure durability on `/products?id=` directly.
-- Team-scoped, authenticated reads (Э0 / `F0.3`): suppliers `GET /teams/{id}/following?is_virtual=1`, catalog `GET /teams/{id}/products` (server-side `product_name` LIKE), one item `GET /teams/{id}/products?id=` (commit validation), receipts `GET /teams/{id}/orders`; all fail-closed on a missing token (empty list + warning, never an unauthenticated request).
-- Explicit gate bookkeeping: VER-021 marked owner-run / write-gated in `01_ARCHITECTURE.md`; merge stays gated; nothing closed silently.
-- Doc alignment (S9): `01_ARCHITECTURE` records unit-authority (D2), VER-022 closed by DEC-0013, and VER-021 OPEN/write-gated.
+- Верифицированный read-контракт: таблица «request → response» (только GET) из песочницы, доказывающая, что `products?id=` фильтрует по id, а `product_name`/`operator[product_name]=like` ищет.
+- Разрешённое расхождение: задокументированное утверждение, справедливо ли `products.id == ingredients.id`, либо решение измерить устойчивость прямо на `/products?id=`.
+- Team-scoped, аутентифицированные чтения (Э0 / `F0.3`): поставщики `GET /teams/{id}/following?is_virtual=1`, каталог `GET /teams/{id}/products` (server-side `product_name` LIKE), один элемент `GET /teams/{id}/products?id=` (commit-валидация), приёмки `GET /teams/{id}/orders`; все fail-closed при отсутствующем токене (пустой список + предупреждение, никогда неаутентифицированный запрос).
+- Явный учёт гейта: VER-021 помечен как owner-run / write-gated в `01_ARCHITECTURE.md`; merge остаётся под гейтом; ничего не закрывается молча.
+- Согласование документации (S9): `01_ARCHITECTURE` фиксирует авторитет единицы измерения (D2), VER-022 закрыт через DEC-0013 и VER-021 OPEN/write-gated.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[superadmin]] | Owns the sandbox verification and pastes the evidence table; runs the write-gated VER-021 probe outside a read-only session. |
-| [[admin]] | Sets the org POS token (`PUT /organizations/{id}/pos-config`) that authenticates the team-scoped reads; benefits from confirmed contracts. |
-| [[member]] | No direct action; benefits from a validated commit path (correct `pos_ingredient_id` resolution). |
-| [[sqladmin-operator]] | May set the POS token in SQLAdmin; the write-gate (`ERP_WRITE_ENABLED`) is toggled here for the owner-run probe only. |
+| [[superadmin]] | Владеет верификацией песочницы и вставляет таблицу свидетельств; запускает write-gated пробу VER-021 вне read-only сессии. |
+| [[admin]] | Задаёт org POS-токен (`PUT /organizations/{id}/pos-config`), аутентифицирующий team-scoped чтения; выигрывает от подтверждённых контрактов. |
+| [[member]] | Прямого действия нет; выигрывает от валидированного пути коммита (корректный резолв `pos_ingredient_id`). |
+| [[sqladmin-operator]] | Может задать POS-токен в SQLAdmin; write-гейт (`ERP_WRITE_ENABLED`) переключается здесь только для owner-run пробы. |
 
-Every Esupl read carries the tenant's Bearer token (`get_esupl_access(session, org_id) → (team_id, token)`), the SSOT for POS access (4 call sites: supplier list/sync, catalog, receipts, commit).
+Каждое чтение Esupl несёт Bearer-токен тенанта (`get_esupl_access(session, org_id) → (team_id, token)`), SSOT для доступа к POS (4 места вызова: список/синхронизация поставщиков, каталог, приёмки, коммит).
 
-## Involved entities
+## Задействованные сущности
 
-- [[suppliers]] — mirror of Esupl `following`; the read fix backs supplier sync.
-- [[ingredients]] — the local catalog mirror; the `products` vs `ingredients` id relationship is the crux of the discrepancy.
-- [[invoices]] — commit validation reads `/products?id=` to confirm the resolved item before (gated) write.
-- [[sku_mapping]] — supplies the `pos_ingredient_id` that commit validates against POS; durability of that id is what VER-021 probes.
-- [[integration_credentials]] — the per-org Esupl token (Fernet) that authenticates every read; fail-closed when absent.
+- [[suppliers]] — зеркало Esupl `following`; read-фикс подкрепляет синхронизацию поставщиков.
+- [[ingredients]] — зеркало локального каталога; связь id между `products` и `ingredients` — суть расхождения.
+- [[invoices]] — commit-валидация читает `/products?id=`, чтобы подтвердить разрешённый элемент перед (gated) записью.
+- [[sku_mapping]] — поставляет `pos_ingredient_id`, который коммит валидирует против POS; устойчивость этого id — то, что зондирует VER-021.
+- [[integration_credentials]] — per-org Esupl-токен (Fernet), аутентифицирующий каждое чтение; fail-closed при отсутствии.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[erp-esupl-integration]] (read-only contract, `get_esupl_access` SSOT, the endpoint catalog), [[fail-closed]] (no exact match → `None` at commit; no unauthenticated egress; missing token → empty + warning), [[sku-identity-resolver]] (commit validation is the consumer of the confirmed contract).
-- **Features:** validates the read paths of [[LCOS-F11-esupl-read]]; underpins the commit resolver in [[LCOS-F22-sku-stabilization]]; the token it relies on is managed by [[LCOS-F4-config-secrets]]; the durability gate blocks the same merge as [[LCOS-F22-sku-stabilization]].
-- **Decisions:** [[DEC-0011]] (T2: one Esupl entity in two representations — `esupl_item_id` int payload / `pos_ingredient_id` str anchor `== str(esupl id)`), [[DEC-0013]] (VER-022 closed; VER-021 remains open).
+- **Требования:** [[erp-esupl-integration]] (read-only контракт, `get_esupl_access` SSOT, каталог endpoint'ов), [[fail-closed]] (нет точного совпадения → `None` на коммите; нет неаутентифицированного egress; отсутствующий токен → пусто + предупреждение), [[sku-identity-resolver]] (commit-валидация — потребитель подтверждённого контракта).
+- **Фичи:** валидирует пути чтения [[LCOS-F11-esupl-read]]; подкрепляет commit-резолвер в [[LCOS-F22-sku-stabilization]]; токен, на который она опирается, управляется [[LCOS-F4-config-secrets]]; гейт устойчивости блокирует тот же merge, что и [[LCOS-F22-sku-stabilization]].
+- **Решения:** [[DEC-0011]] (T2: одна сущность Esupl в двух представлениях — int payload `esupl_item_id` / str-якорь `pos_ingredient_id` `== str(esupl id)`), [[DEC-0013]] (VER-022 закрыт; VER-021 остаётся открытым).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. Read-only sandbox evidence (GET only): a "request → response" table showing `GET /teams/{id}/products?id=` filters by id (does not ignore it) and `product_name` + `operator[product_name]=like` searches; pasted into `01_ARCHITECTURE.md`.
-- [ ] AC-BE-2. The `/products?id=` (code) vs `/ingredients/{id}` (probe/doc) discrepancy is resolved in `01_ARCHITECTURE.md`: either `products.id == ingredients.id` is documented (evidence transfers) or durability is measured on `/products?id=`.
-- [ ] AC-BE-3. Team-scoped reads carry the per-org token and are fail-closed: no token → empty list + warning, never an unauthenticated request (respx tests; `F0.3` AC-1/AC-2, `grep` for old `{base}/suppliers`/`{base}/ingredients` paths is clean).
-- [ ] AC-BE-4. If `id=` is not honoured → **STOP** and open a DEC to resolve by a stable code (do not silently fall back to `items[0]`).
-- [ ] AC-BE-5. `alembic upgrade head` (incl. `0007_supplier_criteria`) with a working downgrade; `pytest -m merge_gate` + full DB-backed suite + `vitest` green (S0 infra gate).
+- [ ] AC-BE-1. Read-only свидетельство из песочницы (только GET): таблица «request → response», показывающая, что `GET /teams/{id}/products?id=` фильтрует по id (не игнорирует его) и что `product_name` + `operator[product_name]=like` ищет; вставлена в `01_ARCHITECTURE.md`.
+- [ ] AC-BE-2. Расхождение `/products?id=` (код) vs `/ingredients/{id}` (проба/документ) разрешено в `01_ARCHITECTURE.md`: либо задокументировано `products.id == ingredients.id` (свидетельство переносится), либо устойчивость измерена на `/products?id=`.
+- [ ] AC-BE-3. Team-scoped чтения несут per-org токен и fail-closed: нет токена → пустой список + предупреждение, никогда неаутентифицированный запрос (respx-тесты; `F0.3` AC-1/AC-2, `grep` по старым путям `{base}/suppliers`/`{base}/ingredients` чист).
+- [ ] AC-BE-4. Если `id=` не учитывается → **STOP** и открыть DEC для разрешения по стабильному коду (не откатываться молча к `items[0]`).
+- [ ] AC-BE-5. `alembic upgrade head` (вкл. `0007_supplier_criteria`) с рабочим downgrade; `pytest -m merge_gate` + полный DB-набор + `vitest` зелёные (S0 infra-гейт).
 
 ### Frontend
-- [ ] AC-FE-1. No FE contract change required by verification; the receipts/catalog reads consumed by the workbench and invoices list continue to work against the confirmed endpoints.
+- [ ] AC-FE-1. Верификация не требует изменения FE-контракта; чтения приёмок/каталога, потребляемые workbench и списком счетов-фактур, продолжают работать против подтверждённых endpoint'ов.
 
-### Other (gate / docs)
-- [ ] AC-OTHER-1. VER-021 durability is marked owner-run / write-gated in `01_ARCHITECTURE.md`; it is **not** closed in a read-only session; merge stays gated. See [[VER-021_ESUPL_DURABILITY_TEST]].
-- [ ] AC-OTHER-2. S9 doc alignment: `01_ARCHITECTURE` records unit-authority (D2), VER-022 closed by DEC-0013, VER-021 OPEN/write-gated; `04_DECISIONS` notes D1 (variant C) vetoed and S2 closed via DEC-0011 T2.
+### Прочее (гейт / docs)
+- [ ] AC-OTHER-1. Устойчивость VER-021 помечена как owner-run / write-gated в `01_ARCHITECTURE.md`; она **не** закрывается в read-only сессии; merge остаётся под гейтом. См. [[VER-021_ESUPL_DURABILITY_TEST]].
+- [ ] AC-OTHER-2. Согласование документации S9: `01_ARCHITECTURE` фиксирует авторитет единицы измерения (D2), VER-022 закрыт через DEC-0013, VER-021 OPEN/write-gated; `04_DECISIONS` отмечает D1 (вариант C) отклонён вето и S2 закрыт через DEC-0011 T2.
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **VER-021 (OPEN, owner-run):** is `pos_ingredient_id` durable under edit / delete-recreate? Empirically unconfirmed; probe requires sandbox writes → owner-run. Merge remains gated (`[[VER-021_ESUPL_DURABILITY_TEST]]`).
-- **S1 (OPEN, read-only):** confirm `products?id=` / `product_name` filters are honoured; if not, STOP and open a DEC.
-- **Endpoint identity:** whether `products.id == ingredients.id` — the answer decides whether existing VER-021 evidence transfers.
+- **VER-021 (OPEN, owner-run):** устойчив ли `pos_ingredient_id` при edit / delete-recreate? Эмпирически не подтверждено; проба требует записей в песочницу → owner-run. Merge остаётся под гейтом (`[[VER-021_ESUPL_DURABILITY_TEST]]`).
+- **S1 (OPEN, read-only):** подтвердить, что фильтры `products?id=` / `product_name` учитываются; если нет — STOP и открыть DEC.
+- **Идентичность endpoint'ов:** справедливо ли `products.id == ingredients.id` — ответ решает, переносится ли существующее свидетельство VER-021.
 
-## Sources
+## Источники
 
-- `TZ__STABILIZATION_2026-07-09__ALIGNED.md` — S0 (infra gate: live Postgres+pgvector, `0007` up/down), S1 (read-only contract + endpoint discrepancy), S1-GATE (VER-021 blocked by read-only, owner-run), S9 (doc alignment), confirmed data-flow SSOT.
-- `APP_OVERVIEW.md §9` (real endpoints, `get_esupl_access` SSOT), `§13` (VER-021 owner-run, S1 open).
-- `VER-021_ESUPL_DURABILITY_TEST.md` (probe scenarios, sandbox-only guard, PASS/FAIL matrix, owner-run note).
-- `08_PHASE1_SPEC.md F0.3` (team-scoped read paths, fail-closed empty + warning, respx tests, AC-1/AC-2/AC-3).
-- `mvp.be/app/providers/erp/esupl.py:4-9` (endpoint docstring), `:80` (`list_suppliers`), `:104/:116/:139` (`list_ingredients` / `products` / `products?id=`), `:242` (`orders`); `reference/esupl-api/` (contract mirror).
+- `TZ__STABILIZATION_2026-07-09__ALIGNED.md` — S0 (infra-гейт: живой Postgres+pgvector, `0007` up/down), S1 (read-only контракт + расхождение endpoint'ов), S1-GATE (VER-021 заблокирован read-only, owner-run), S9 (согласование документации), подтверждённый SSOT потока данных.
+- `APP_OVERVIEW.md §9` (реальные endpoint'ы, `get_esupl_access` SSOT), `§13` (VER-021 owner-run, S1 открыт).
+- `VER-021_ESUPL_DURABILITY_TEST.md` (сценарии пробы, sandbox-only guard, PASS/FAIL матрица, пометка owner-run).
+- `08_PHASE1_SPEC.md F0.3` (team-scoped пути чтения, fail-closed пусто + предупреждение, respx-тесты, AC-1/AC-2/AC-3).
+- `mvp.be/app/providers/erp/esupl.py:4-9` (docstring endpoint'ов), `:80` (`list_suppliers`), `:104/:116/:139` (`list_ingredients` / `products` / `products?id=`), `:242` (`orders`); `reference/esupl-api/` (зеркало контракта).

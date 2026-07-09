@@ -1,7 +1,7 @@
 ---
 id: LCOS-F52
 type: feature
-title: Local events (manual entry)
+title: Локальные события (ручной ввод)
 epic: "[[LCOS-E10-local-context]]"
 status: future
 phase: "Phase 2"
@@ -13,48 +13,48 @@ legacy_refs: [plan F6, "plan F6-B3", "plan F6-F1"]
 sources: ["plan/PHASE_F6_LOCAL_CONTEXT.md §1 (F6-B3), §2 (F6-F1)", "plan/00_IMPLEMENTATION_PLAN.md F6"]
 updated: 2026-07-09
 ---
-# LCOS-F52 · Local events (manual entry)
+# LCOS-F52 · Локальные события (ручной ввод)
 **Epic:** [[LCOS-E10-local-context]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-Lets the owner record neighborhood events (a festival, a nearby concert, road works) that move foot traffic, so the digest can explain sales anomalies and warn about upcoming ones. For the MVP this is deliberately **manual entry** — an automatic poster/listing parser (relax.by and similar) is out of scope until the value of manual entry is validated (plan §3, Q4).
+Позволяет владельцу фиксировать события района (фестиваль, концерт неподалёку, дорожные работы), которые сдвигают пеший трафик, чтобы дайджест мог объяснять аномалии продаж и предупреждать о грядущих. Для MVP это намеренно **ручной ввод** — автоматический парсер афиш/листингов (relax.by и подобные) вне объёма, пока ценность ручного ввода не подтверждена (plan §3, Q4).
 
-Events are stored in a subdivision-scoped `local_events` table: `title`, `starts_on`, optional `ends_on`, `expected_impact` (`traffic_up | traffic_down | unknown`), optional `note` and `source`. They are exposed via CRUD endpoints under `/api/v1/context/events...` and surfaced alongside weather in [[LCOS-F53-digest-enrichment]]. A mock provider supplies demo events for development.
+События хранятся в таблице `local_events` со скоупом подразделения: `title`, `starts_on`, опциональный `ends_on`, `expected_impact` (`traffic_up | traffic_down | unknown`), опциональные `note` и `source`. Они экспонируются через CRUD-эндпоинты под `/api/v1/context/events...` и отображаются рядом с погодой в [[LCOS-F53-digest-enrichment]]. Mock-провайдер поставляет демо-события для разработки.
 
-## Capabilities
+## Возможности
 
-- `local_events` storage (subdivision-scoped): `title`, `starts_on`, `ends_on?`, `expected_impact` enum, `note?`, `source?`.
+- Хранилище `local_events` (скоуп подразделения): `title`, `starts_on`, `ends_on?`, enum `expected_impact`, `note?`, `source?`.
 - CRUD API: `POST/PATCH/DELETE /api/v1/context/events...`.
-- Events section (inside the Digest or Settings page): list of future/past events + a mobile-friendly add form.
-- Mock provider with demo events for dev.
+- Секция событий (внутри страницы дайджеста или настроек): список будущих/прошлых событий + удобная на мобильных форма добавления.
+- Mock-провайдер с демо-событиями для разработки.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | Adds/edits events for their own subdivision via the Events form. |
-| [[admin]] | Same, within their subdivision/organization. |
-| [[superadmin]] | Manages events across tenants. |
-| [[sqladmin-operator]] | Not involved in this flow. |
+| [[member]] | Добавляет/редактирует события своего подразделения через форму событий. |
+| [[admin]] | То же, в рамках своего подразделения/организации. |
+| [[superadmin]] | Управляет событиями по тенантам. |
+| [[sqladmin-operator]] | Не участвует в этом потоке. |
 
-Tenant-scoped: events are isolated per subdivision ([[multitenancy]]).
+Тенант-скоуп: события изолированы по подразделению ([[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[subdivisions]] — scope owner for each event (`SubdivisionScopedMixin`).
-- `local_events` (future subdivision-scoped table) — the manual-entry event store; entity doc to be created on activation.
+- [[subdivisions]] — владелец скоупа каждого события (`SubdivisionScopedMixin`).
+- `local_events` (будущая таблица со скоупом подразделения) — хранилище событий ручного ввода; документ-сущность создаётся при активации.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (events isolated per subdivision).
-- **Features:** consumed by [[LCOS-F53-digest-enrichment]] (upcoming-events block + anomaly context); surfaced next to weather from [[LCOS-F50-weather]].
+- **Requirements:** [[multitenancy]] (события изолированы по подразделению).
+- **Features:** потребляется [[LCOS-F53-digest-enrichment]] (блок предстоящих событий + контекст аномалий); отображается рядом с погодой из [[LCOS-F50-weather]].
 
-## Acceptance criteria
+## Критерии приёмки
 
-Acceptance criteria: TBD (Phase 2 — detailed on activation).
+Критерии приёмки: TBD (Phase 2 — детализируются при активации).
 
 ## Sources
 
-- `plan/PHASE_F6_LOCAL_CONTEXT.md §1` — F6-B3 (`local_events` schema, manual entry), `§2` — F6-F1 (Events section + add form + mock provider), `§3` (parser out of scope, Q4).
+- `plan/PHASE_F6_LOCAL_CONTEXT.md §1` — F6-B3 (схема `local_events`, ручной ввод), `§2` — F6-F1 (секция событий + форма добавления + mock-провайдер), `§3` (парсер вне объёма, Q4).
 - `plan/00_IMPLEMENTATION_PLAN.md F6`.

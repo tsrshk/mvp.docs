@@ -1,7 +1,7 @@
 ---
 id: LCOS-F19
 type: feature
-title: Supplier self-service seam (schema door, no portal)
+title: Шов self-service поставщика (дверь в схеме, без портала)
 epic: "[[LCOS-E4-suppliers]]"
 status: planned
 phase: "Phase 1"
@@ -13,70 +13,70 @@ legacy_refs: ["08 F2.3", "07 Э2", "plan F3"]
 sources: ["04_DECISIONS.md ADR-017", "08_PHASE1_SPEC.md F2.3", "APP_OVERVIEW.md §13 (non-goals)", "mvp.be app/db/models.py:45"]
 updated: 2026-07-09
 ---
-# LCOS-F19 · Supplier self-service seam (schema door, no portal)
+# LCOS-F19 · Шов self-service поставщика (дверь в схеме, без портала)
 
-**Epic:** [[LCOS-E4-suppliers]] · **Status:** planned · **Phase:** Phase 1
+**Эпик:** [[LCOS-E4-suppliers]] · **Статус:** planned · **Фаза:** Phase 1
 
-## Description
+## Описание
 
-In the future a supplier fills in their own conditions themselves — delivery schedule, minimum order amount, price list — instead of the owner transcribing them. Building that portal in Phase 1 would scatter a solo developer's focus ("one routine at a time"), so the decision ([[ADR-017]], accepted) is to lay only a cheap **schema door**, not behaviour: the migration to add the enum value and the FK is cheap now and expensive later.
+В будущем поставщик сам заполняет свои условия — расписание поставки, минимальную сумму заказа, прайс-лист — вместо того чтобы владелец их переписывал. Строить этот портал в Phase 1 распылило бы фокус соло-разработчика («одна рутина за раз»), поэтому решение ([[ADR-017]], принято) — заложить только дешёвую **дверь в схеме**, а не поведение: миграция для добавления значения enum и FK дёшева сейчас и дорога позже.
 
-The planned seam is minimal: a `supplier` value in the `Role` enum, and a nullable `suppliers.portal_user_id → users.id` FK (the account that would later log in as that supplier). No routes, no UI, no branches in auth. Deferred explicitly: a global supplier user, invite tokens, and the "own settings only" access scope. Target behaviour belongs to Phase 2 self-service onboarding ([[LCOS-F67-onboarding]]).
+Запланированный шов минимален: значение `supplier` в enum `Role` и nullable FK `suppliers.portal_user_id → users.id` (аккаунт, который позже логинился бы как этот поставщик). Нет маршрутов, нет UI, нет ветвлений в auth. Явно отложено: глобальный пользователь-поставщик, invite-токены и scope доступа «только собственные настройки». Целевое поведение принадлежит self-service онбордингу Phase 2 ([[LCOS-F67-onboarding]]).
 
-**Doc ↔ code correction:** as of the current codebase the seam is **not yet migrated** — `Role` (`app/db/models.py:45`) carries only the active roles, and `suppliers` has **no `portal_user_id`** column. So F19 is genuinely planned: even the schema door is a backlog migration, not built. Note also that ADR-017 anticipated a separate `supplier_settings` table as the thing a supplier would later edit; the as-built path instead keeps flexible conditions on `suppliers.criteria` (see [[LCOS-F18-supplier-criteria]]), so when the portal is built the editable surface is the supplier card + its `criteria`, not a separate settings table.
+**Коррекция doc ↔ code:** на момент текущей кодовой базы шов **ещё не мигрирован** — `Role` (`app/db/models.py:45`) несёт только активные роли, а у `suppliers` **нет столбца `portal_user_id`**. Так что F19 действительно planned: даже дверь в схеме — это backlog-миграция, не построено. Отметьте также, что ADR-017 предполагал отдельную таблицу `supplier_settings` как то, что поставщик позже редактировал бы; as-built путь вместо этого держит гибкие условия на `suppliers.criteria` (см. [[LCOS-F18-supplier-criteria]]), так что когда портал будет построен, редактируемая поверхность — это карточка поставщика + её `criteria`, а не отдельная таблица настроек.
 
-## Capabilities
+## Возможности
 
-- (Planned) `supplier` value in the `Role` enum — schema seam only, never assigned or gated in Phase 1.
-- (Planned) Nullable FK `suppliers.portal_user_id → users.id` (`ON DELETE SET NULL`) on the supplier card.
-- ADR-017 recorded as the accepted decision defining what is deferred (global supplier user, invite tokens, "own settings only" scope).
-- **Not** built: no supplier-facing routes, no UI, no auth branches for `supplier`.
+- (Запланировано) Значение `supplier` в enum `Role` — только шов схемы, никогда не назначается и не гейтируется в Phase 1.
+- (Запланировано) Nullable FK `suppliers.portal_user_id → users.id` (`ON DELETE SET NULL`) на карточке поставщика.
+- ADR-017 зафиксирован как принятое решение, определяющее, что отложено (глобальный пользователь-поставщик, invite-токены, scope «только собственные настройки»).
+- **Не** построено: нет обращённых к поставщику маршрутов, нет UI, нет ветвлений auth для `supplier`.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[supplier-future]] | Nothing in Phase 1 — the role grants no capability and is assigned to no one. The seam exists to fix the boundary, not to grant access. |
-| [[admin]] | Would, in a future increment, link a supplier card to a portal user (`portal_user_id`); not available in Phase 1. |
-| [[superadmin]] | Same, cross-tenant, in the future. |
-| [[sqladmin-operator]] | Not involved. |
+| [[supplier-future]] | Ничего в Phase 1 — роль не даёт возможностей и никому не назначена. Шов существует, чтобы зафиксировать границу, а не дать доступ. |
+| [[admin]] | В будущем инкременте связал бы карточку поставщика с пользователем портала (`portal_user_id`); недоступно в Phase 1. |
+| [[superadmin]] | То же, межарендаторски, в будущем. |
+| [[sqladmin-operator]] | Не участвует. |
 
-The target authentication plane is the **app plane** (a distinct application user class, application login, scope "own settings only") — NOT the SQLAdmin operator plane and not a full tenant [[admin]]/[[member]] (see [[auth]]).
+Целевая плоскость аутентификации — **плоскость приложения** (отдельный класс пользователя приложения, логин приложения, scope «только собственные настройки») — НЕ плоскость оператора SQLAdmin и не полноценный арендаторский [[admin]]/[[member]] (см. [[auth]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[suppliers]] — would gain the nullable `portal_user_id` FK (the linked portal account); the card + its `criteria` are the editable surface a supplier would later own.
-- [[users]] — the global user table; a future "supplier" user would be a row here, referenced by `suppliers.portal_user_id` (`SET NULL` on delete).
+- [[suppliers]] — получил бы nullable FK `portal_user_id` (связанный аккаунт портала); карточка + её `criteria` — редактируемая поверхность, которой поставщик позже владел бы.
+- [[users]] — глобальная таблица пользователей; будущий пользователь-«поставщик» был бы строкой здесь, на которую ссылается `suppliers.portal_user_id` (`SET NULL` при удалении).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (a future supplier user's scope would be "own settings only", narrower than a tenant member), [[auth]] (target app-plane login; the seam must not add auth branches in Phase 1).
-- **Features:** [[LCOS-F18-supplier-criteria]] / [[LCOS-F17-supplier-cards]] (the card + `criteria` that a supplier would edit), [[LCOS-F67-onboarding]] (Phase 2 self-service onboarding where the portal may be completed).
-- **ADR:** [[ADR-017]] (accepted — door open, portal not built; enumerates deferred items).
+- **Требования:** [[multitenancy]] (scope будущего пользователя-поставщика был бы «только собственные настройки», уже, чем у арендаторского member), [[auth]] (целевой логин плоскости приложения; шов не должен добавлять ветвлений auth в Phase 1).
+- **Фичи:** [[LCOS-F18-supplier-criteria]] / [[LCOS-F17-supplier-cards]] (карточка + `criteria`, которые поставщик редактировал бы), [[LCOS-F67-onboarding]] (self-service онбординг Phase 2, где портал может быть завершён).
+- **ADR:** [[ADR-017]] (принято — дверь открыта, портал не построен; перечисляет отложенные пункты).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. A migration adds the `supplier` value to the `Role` PG enum via manual `op.execute("ALTER TYPE role ADD VALUE IF NOT EXISTS 'supplier'")` (autogenerate does not detect enum-value additions); `downgrade()` is a no-op with a comment (removing a PG-enum value is unsafe).
-- [ ] AC-BE-2. The same migration adds nullable `suppliers.portal_user_id` (FK → `users.id`, `ON DELETE SET NULL`).
-- [ ] AC-BE-3. No routes, no UI, no auth branches are added for `supplier` — schema only.
-- [ ] AC-BE-4. Migration applies and downgrades cleanly; after it the enum contains `supplier` and the column exists; the full pytest suite stays green (behaviour unchanged).
+- [ ] AC-BE-1. Миграция добавляет значение `supplier` в PG-enum `Role` через ручной `op.execute("ALTER TYPE role ADD VALUE IF NOT EXISTS 'supplier'")` (autogenerate не обнаруживает добавления значений enum); `downgrade()` — no-op с комментарием (удаление значения PG-enum небезопасно).
+- [ ] AC-BE-2. Та же миграция добавляет nullable `suppliers.portal_user_id` (FK → `users.id`, `ON DELETE SET NULL`).
+- [ ] AC-BE-3. Не добавляется ни маршрутов, ни UI, ни ветвлений auth для `supplier` — только схема.
+- [ ] AC-BE-4. Миграция применяется и откатывается чисто; после неё enum содержит `supplier`, а столбец существует; полный набор pytest остаётся зелёным (поведение не изменено).
 
 ### Frontend
-- [ ] AC-FE-1. No frontend work in Phase 1 (no supplier portal, no login branch, no UI surface).
+- [ ] AC-FE-1. Нет работы на фронтенде в Phase 1 (нет портала поставщика, нет ветки логина, нет UI-поверхности).
 
-### Other
-- [ ] AC-OTHER-1. ADR-017 section exists and enumerates the deferred scope (global supplier user, invite tokens, "own settings only").
+### Прочее
+- [ ] AC-OTHER-1. Секция ADR-017 существует и перечисляет отложенный scope (глобальный пользователь-поставщик, invite-токены, «только собственные настройки»).
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **Seam not yet in code:** the enum value and `portal_user_id` are a backlog migration, not present today — closing AC-BE-1/2 is the remaining Phase-1 work for this feature.
-- **Editable surface divergence:** ADR-017 named a `supplier_settings` table; as-built conditions live on `suppliers.criteria`. A future portal edits the card + `criteria`; reconcile the ADR wording when the portal is built.
-- **Target behaviour is Phase 2** — full self-service onboarding is [[LCOS-F67-onboarding]] ([[LCOS-E15-saas]]).
+- **Шов ещё не в коде:** значение enum и `portal_user_id` — это backlog-миграция, сегодня не присутствуют — закрытие AC-BE-1/2 — оставшаяся работа Phase 1 для этой фичи.
+- **Расхождение редактируемой поверхности:** ADR-017 назвал таблицу `supplier_settings`; as-built условия живут на `suppliers.criteria`. Будущий портал редактирует карточку + `criteria`; согласовать формулировку ADR, когда портал будет построен.
+- **Целевое поведение — Phase 2** — полный self-service онбординг — это [[LCOS-F67-onboarding]] ([[LCOS-E15-saas]]).
 
-## Sources
+## Источники
 
-- `04_DECISIONS.md ADR-017` (accepted; door open, portal not built; deferred items) → folded into `adr/ADR-017.md`.
-- `08_PHASE1_SPEC.md F2.3` (schema seam: enum value + `portal_user_id`; manual `ALTER TYPE`; no routes/UI/auth; ADR requirement).
-- `APP_OVERVIEW.md §13` (Phase-1 non-goals: supplier portal is schema seam only, ADR-017).
-- `mvp.be/app/db/models.py:45` (`Role` enum — `supplier` value not yet present), `:198` (`Supplier` model — no `portal_user_id` yet).
+- `04_DECISIONS.md ADR-017` (принято; дверь открыта, портал не построен; отложенные пункты) → свёрнуто в `adr/ADR-017.md`.
+- `08_PHASE1_SPEC.md F2.3` (шов схемы: значение enum + `portal_user_id`; ручной `ALTER TYPE`; нет маршрутов/UI/auth; требование ADR).
+- `APP_OVERVIEW.md §13` (не-цели Phase 1: портал поставщика — только шов схемы, ADR-017).
+- `mvp.be/app/db/models.py:45` (enum `Role` — значение `supplier` ещё не присутствует), `:198` (модель `Supplier` — пока нет `portal_user_id`).

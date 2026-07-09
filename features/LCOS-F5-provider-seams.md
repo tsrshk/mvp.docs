@@ -1,7 +1,7 @@
 ---
 id: LCOS-F5
 type: feature
-title: Provider seams + fail-closed egress
+title: Швы провайдеров + fail-closed egress
 epic: "[[LCOS-E1-platform]]"
 status: built
 phase: "Phase 1"
@@ -13,72 +13,72 @@ legacy_refs: [plan/00 G1 G5, LCOS_Conformance R7 R8, APP_OVERVIEW §3 §5]
 sources: ["APP_OVERVIEW.md §3 §5", "01_ARCHITECTURE.md (Provider abstraction, Failure handling)", "LCOS_Conformance_Alignment_GlobalRequirements.md R7 R8", "mvp.be app/providers/base.py:16", "mvp.be app/providers/context.py", "mvp.be app/providers/http.py:42", "mvp.be app/providers/ai.py", "mvp.be app/services/invoice_service.py"]
 updated: 2026-07-09
 ---
-# LCOS-F5 · Provider seams + fail-closed egress
-**Epic:** [[LCOS-E1-platform]] · **Status:** built · **Phase:** Phase 1
+# LCOS-F5 · Швы провайдеров + fail-closed egress
+**Эпик:** [[LCOS-E1-platform]] · **Статус:** built · **Фаза:** Phase 1
 
-## Description
+## Описание
 
-The abstraction and egress layer that isolates every external-service integration (OCR/LLM, ERP) behind `Protocol` interfaces + a decorator registry, and routes all outbound traffic fail-closed. The design rule: **`services` depend only on `providers/*/base.py`, never on concrete classes**; exactly **one real implementation per seam** today (OCR = `claude`, ERP = `esupl`), with seams present but alternatives not written unless triggered ([[ADR-009]]).
+Слой абстракции и egress, который изолирует каждую интеграцию с внешним сервисом (OCR/LLM, ERP) за интерфейсами `Protocol` + реестром на декораторах и маршрутизирует весь исходящий трафик fail-closed. Правило дизайна: **`services` зависят только от `providers/*/base.py`, никогда от конкретных классов**; сегодня ровно **одна реальная реализация на шов** (OCR = `claude`, ERP = `esupl`), швы присутствуют, но альтернативы не пишутся, пока не будет триггера ([[ADR-009]]).
 
-Selection is deliberately split across two config planes: **ERP provider is static** deploy config (`settings.erp_provider`, env `ERP_PROVIDER`), while **OCR/AI provider is a runtime DB setting** (`system_settings.ai_provider`, default `claude`) that a superadmin can flip with no redeploy. Shared cross-cutting infra (the two long-lived httpx clients, the VPN toggle, the session factory) is injected through the process-global **`ProviderContext`** so it never pollutes `Protocol` signatures and providers never import the `services` layer.
+Выбор намеренно разделён между двумя плоскостями конфига: **ERP-провайдер — статический** deploy-конфиг (`settings.erp_provider`, env `ERP_PROVIDER`), тогда как **OCR/AI-провайдер — runtime-настройка в БД** (`system_settings.ai_provider`, дефолт `claude`), которую superadmin может переключить без редеплоя. Общая сквозная инфраструктура (два долгоживущих httpx-клиента, VPN-тумблер, фабрика сессий) внедряется через процесс-глобальный **`ProviderContext`**, так что она никогда не засоряет сигнатуры `Protocol`, а провайдеры никогда не импортируют слой `services`.
 
-Egress is fail-closed on two axes. **AI calls** (OCR + matching) route through the gluetun VPN sidecar when `ai_vpn_enabled` (default on): `get_client(via_vpn=True)` raises `VpnUnavailableError` if there is no VPN client — **never a silent fallback to direct** — and `guard_vpn` converts transport failures into that same error. Missing AI key → `AiUnavailableError` (503). **ERP writes** go to Esupl and are gated off by default (`erp_write_enabled=False`): while off, `write_invoice` returns a synthetic `esupl-prepared-<number>` without contacting Esupl; the same code path becomes a real write when flipped on. No secret ever reaches the browser — provider live-paths run backend-side only ([[ADR-012]]).
+Egress fail-closed по двум осям. **AI-вызовы** (OCR + матчинг) маршрутизируются через VPN-сайдкар gluetun, когда `ai_vpn_enabled` (дефолт on): `get_client(via_vpn=True)` бросает `VpnUnavailableError`, если VPN-клиента нет — **никогда молчаливый фолбэк на прямой**, — а `guard_vpn` конвертирует сбои транспорта в ту же ошибку. Отсутствующий AI-ключ → `AiUnavailableError` (503). **Записи ERP** идут в Esupl и по умолчанию отключены (`erp_write_enabled=False`): пока отключено, `write_invoice` возвращает синтетический `esupl-prepared-<number>` без обращения к Esupl; тот же путь кода становится реальной записью при включении. Ни один секрет никогда не достигает браузера — живые пути провайдеров работают только на стороне бэкенда ([[ADR-012]]).
 
-## Capabilities
+## Возможности
 
-- `@runtime_checkable` `Protocol`s: `OcrProvider.extract_invoice(...)`, `ErpProvider.{list_suppliers,list_ingredients,write_invoice}`; structural typing — impls need not inherit.
-- Decorator registry (`@register_ocr`, `@register_erp`) → `get_ocr_provider`/`get_erp_provider` do zero-arg `cls()`, raise a descriptive `ValueError` listing registered names on a miss; `import_providers()` triggers decorator registration in lifespan.
-- Split selection: **ERP static** from env (`ERP_PROVIDER=esupl`); **OCR/AI runtime** from `system_settings.ai_provider` (default `claude`), resolved lazily so write paths don't pay for the OCR-provider DB read.
-- `ProviderContext` (module-global `_CTX`) injects `egress` (direct + VPN httpx clients), `ai_vpn` toggle, and `session_scope`; set in lifespan, cleared on shutdown; tests swap in fakes.
-- Single LLM transport entrypoint `ai_complete()` (`claude`/`gemini` dispatch) — deliberately **not** behind a Protocol; OCR providers are thin adapters over it.
-- **Fail-closed egress:** `get_client(via_vpn=True)` with no VPN client → `VpnUnavailableError`; `guard_vpn` maps `ProxyError`/`ConnectError`/`TimeoutException` to it; missing AI key → `AiUnavailableError`; both map to 503 in the unified error envelope.
-- **ERP write gate:** `erp_write_enabled` default False → `write_invoice` short-circuits to `esupl-prepared-<number>` with no egress; ON → real POST to `/teams/{id}/outgoing-invoices` with per-org token — same code path.
+- `@runtime_checkable` `Protocol`ы: `OcrProvider.extract_invoice(...)`, `ErpProvider.{list_suppliers,list_ingredients,write_invoice}`; структурная типизация — реализациям не нужно наследоваться.
+- Реестр на декораторах (`@register_ocr`, `@register_erp`) → `get_ocr_provider`/`get_erp_provider` делают `cls()` без аргументов, бросают описательный `ValueError` со списком зарегистрированных имён при промахе; `import_providers()` запускает регистрацию декораторов в lifespan.
+- Раздельный выбор: **ERP статически** из env (`ERP_PROVIDER=esupl`); **OCR/AI в runtime** из `system_settings.ai_provider` (дефолт `claude`), разрешается лениво, чтобы пути записи не платили за чтение выбора OCR-провайдера из БД.
+- `ProviderContext` (модуль-глобальный `_CTX`) внедряет `egress` (прямой + VPN httpx-клиенты), тумблер `ai_vpn` и `session_scope`; устанавливается в lifespan, очищается при завершении; тесты подменяют fake-объекты.
+- Единая точка входа транспорта LLM `ai_complete()` (диспетчеризация `claude`/`gemini`) — намеренно **не** за Protocol; OCR-провайдеры — тонкие адаптеры над ней.
+- **Fail-closed egress:** `get_client(via_vpn=True)` без VPN-клиента → `VpnUnavailableError`; `guard_vpn` отображает `ProxyError`/`ConnectError`/`TimeoutException` в неё; отсутствующий AI-ключ → `AiUnavailableError`; оба отображаются в 503 в едином конверте ошибок.
+- **Гейт записи ERP:** `erp_write_enabled` дефолт False → `write_invoice` короткозамыкается на `esupl-prepared-<number>` без egress; ON → реальный POST на `/teams/{id}/outgoing-invoices` с per-org токеном — тот же путь кода.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[superadmin]] | Flip the active OCR/AI provider (`ai_provider`), the VPN toggle (`ai_vpn_enabled`), and `erp_write_enabled` at runtime via config API / SQLAdmin — no redeploy. |
-| [[sqladmin-operator]] | Same runtime settings via SQLAdmin ModelViews; sets the AI key / POS token that these seams consume. |
-| [[admin]] / [[member]] | Do not select providers; they consume the resolved seams transparently through the invoice flow. |
+| [[superadmin]] | Переключает активный OCR/AI-провайдер (`ai_provider`), VPN-тумблер (`ai_vpn_enabled`) и `erp_write_enabled` в runtime через config API / SQLAdmin — без редеплоя. |
+| [[sqladmin-operator]] | Те же runtime-настройки через SQLAdmin ModelViews; устанавливает AI-ключ / POS-токен, которые потребляют эти швы. |
+| [[admin]] / [[member]] | Не выбирают провайдеров; прозрачно потребляют разрешённые швы через поток инвойсов. |
 
-## Involved entities
+## Задействованные сущности
 
-- [[system_settings]] — runtime selection/toggles: `ai_provider`, `ai_vpn_enabled`, `erp_write_enabled`, model names.
-- [[integration_credentials]] — the AI key (`scope=platform`) and per-org Esupl token consumed at call time (no cache).
-- [[invoices]] — the ERP-write gate acts on submit; `esupl_payload`/status reflect the gated outcome (detail in [[LCOS-F10-invoice-status-machine]]).
+- [[system_settings]] — runtime-выбор/тумблеры: `ai_provider`, `ai_vpn_enabled`, `erp_write_enabled`, имена моделей.
+- [[integration_credentials]] — AI-ключ (`scope=platform`) и per-org токен Esupl, потребляемые во время вызова (без кэша).
+- [[invoices]] — гейт записи ERP срабатывает при submit; `esupl_payload`/status отражают результат гейтинга (детали в [[LCOS-F10-invoice-status-machine]]).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[provider-abstraction]] (Protocol + registry, one impl per seam, `ProviderContext`), [[fail-closed]] (VPN/key/write-gate behaviors), [[vpn-egress]] (gluetun routing, no silent direct fallback), [[erp-esupl-integration]] (Esupl read-only + gated write), [[global-requirements]] (R7/R8).
-- **Features:** provider selection/keys come from [[LCOS-F4-config-secrets]]; the OCR seam powers [[LCOS-F8-ocr-recognition]]; the ERP seam + write gate power [[LCOS-F10-invoice-status-machine]] and [[LCOS-F11-esupl-read]]; FE mirror of the seam pattern is [[LCOS-F7-frontend-platform]].
-- **ADR:** [[ADR-009]] (one implementation per seam), [[ADR-006]] (fail-closed egress), [[ADR-012]] (provider live-paths backend-only, no browser secrets).
+- **Требования:** [[provider-abstraction]] (Protocol + реестр, одна реализация на шов, `ProviderContext`), [[fail-closed]] (поведение VPN/ключа/гейта записи), [[vpn-egress]] (маршрутизация gluetun, нет молчаливого прямого фолбэка), [[erp-esupl-integration]] (Esupl read-only + гейтированная запись), [[global-requirements]] (R7/R8).
+- **Фичи:** выбор провайдера/ключи приходят из [[LCOS-F4-config-secrets]]; OCR-шов питает [[LCOS-F8-ocr-recognition]]; ERP-шов + гейт записи питают [[LCOS-F10-invoice-status-machine]] и [[LCOS-F11-esupl-read]]; зеркало паттерна шва на FE — [[LCOS-F7-frontend-platform]].
+- **ADR:** [[ADR-009]] (одна реализация на шов), [[ADR-006]] (fail-closed egress), [[ADR-012]] (живые пути провайдеров только на бэкенде, нет секретов в браузере).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. `services` reference only `providers/*/base.py` Protocols; the dependency direction `api → services → providers/repositories` holds (no service imports a concrete provider class).
-- [ ] AC-BE-2. `get_ocr_provider`/`get_erp_provider` resolve via the decorator registry and raise a descriptive `ValueError` (listing registered names) on an unknown name.
-- [ ] AC-BE-3. ERP provider is selected statically from `ERP_PROVIDER`; OCR/AI provider from `system_settings.ai_provider` (default `claude`), resolved lazily (write paths do not read it).
-- [ ] AC-BE-4. Cross-cutting infra is injected via `ProviderContext`; provider `Protocol` signatures carry no egress/VPN/session args; `get_provider_context()` raises if unset.
-- [ ] AC-BE-5. **Fail-closed VPN:** with `ai_vpn_enabled=ON` and no/dead VPN client, the AI call raises `VpnUnavailableError` (503) — no silent direct egress (merge-gated non-negotiable).
-- [ ] AC-BE-6. Missing AI key → `AiUnavailableError` (503) with no env fallback; missing Esupl token → unauthenticated call → Esupl 401.
-- [ ] AC-BE-7. **ERP write gate:** `erp_write_enabled=False` → `write_invoice` returns `esupl-prepared-<number>` without contacting Esupl; ON → real POST via the same code path (merge-gated).
-- [ ] AC-BE-8. New implementations on a seam are not written without an explicit trigger (R7.5); exactly one active impl per seam.
+- [ ] AC-BE-1. `services` ссылаются только на `Protocol`ы из `providers/*/base.py`; направление зависимостей `api → services → providers/repositories` соблюдается (ни один сервис не импортирует конкретный класс провайдера).
+- [ ] AC-BE-2. `get_ocr_provider`/`get_erp_provider` разрешаются через реестр на декораторах и бросают описательный `ValueError` (со списком зарегистрированных имён) на неизвестном имени.
+- [ ] AC-BE-3. ERP-провайдер выбирается статически из `ERP_PROVIDER`; OCR/AI-провайдер из `system_settings.ai_provider` (дефолт `claude`), разрешается лениво (пути записи его не читают).
+- [ ] AC-BE-4. Сквозная инфраструктура внедряется через `ProviderContext`; сигнатуры `Protocol` провайдеров не несут аргументов egress/VPN/session; `get_provider_context()` бросает исключение, если не установлен.
+- [ ] AC-BE-5. **Fail-closed VPN:** при `ai_vpn_enabled=ON` и отсутствующем/мёртвом VPN-клиенте AI-вызов бросает `VpnUnavailableError` (503) — нет молчаливого прямого egress (незыблемое требование под merge-gate).
+- [ ] AC-BE-6. Отсутствующий AI-ключ → `AiUnavailableError` (503) без env-фолбэка; отсутствующий токен Esupl → неаутентифицированный вызов → Esupl 401.
+- [ ] AC-BE-7. **Гейт записи ERP:** `erp_write_enabled=False` → `write_invoice` возвращает `esupl-prepared-<number>` без обращения к Esupl; ON → реальный POST через тот же путь кода (под merge-gate).
+- [ ] AC-BE-8. Новые реализации на шве не пишутся без явного триггера (R7.5); ровно одна активная реализация на шов.
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **D-a (decide):** `gemini` is registered as a second OCR/AI impl and the LLM transport is module functions (not a Protocol). Recommendation = **claude-only** (drop gemini + the dual-role resolver) to honor "one impl per seam"; alternative = put LLM behind a Protocol+registry and test the "OCR name ≡ `ai_provider` enum" invariant. Tracked in [[LCOS-E5-stabilization]].
-- **V-c:** confirm no OCR name can be registered that isn't a valid `ai_provider` enum value (resolver double-duty).
-- **D-f:** `esupl.list_suppliers`/`list_ingredients` call `_auth_headers()` with no token (off critical path) — close/guard as unreachable in Phase 1 so no unauthenticated egress path survives.
-- **VER-021 (open, owner-run):** the durable-id model behind ERP writes assumes `pos_ingredient_id` survives Esupl edit — not yet confirmed (needs write access); merge stays gated. See [[LCOS-E3-sku-identity]].
+- **D-a (решить):** `gemini` зарегистрирован как вторая OCR/AI-реализация, а транспорт LLM — это функции модуля (не Protocol). Рекомендация = **только-claude** (удалить gemini + резолвер двойной роли), чтобы соблюсти «одна реализация на шов»; альтернатива = поместить LLM за Protocol+реестр и протестировать инвариант «имя OCR ≡ enum `ai_provider`». Отслеживается в [[LCOS-E5-stabilization]].
+- **V-c:** подтвердить, что нельзя зарегистрировать имя OCR, которое не является валидным значением enum `ai_provider` (двойное назначение резолвера).
+- **D-f:** `esupl.list_suppliers`/`list_ingredients` вызывают `_auth_headers()` без токена (вне критического пути) — закрыть/защитить как недостижимые в Phase 1, чтобы не выжил ни один неаутентифицированный путь egress.
+- **VER-021 (открыто, запуск владельцем):** модель долговечных id за записями ERP предполагает, что `pos_ingredient_id` переживает правку в Esupl — пока не подтверждено (нужен доступ на запись); merge остаётся гейтированным. См. [[LCOS-E3-sku-identity]].
 
-## Sources
+## Источники
 
-- `APP_OVERVIEW.md §3` (layers, provider selection), `§5` (fail-closed, backend-only providers).
-- `01_ARCHITECTURE.md` — "Backend provider abstraction", "Failure handling (fail-closed VPN, error mapping)".
+- `APP_OVERVIEW.md §3` (слои, выбор провайдера), `§5` (fail-closed, провайдеры только на бэкенде).
+- `01_ARCHITECTURE.md` — «Backend provider abstraction», «Failure handling (fail-closed VPN, error mapping)».
 - `LCOS_Conformance_Alignment_GlobalRequirements.md` R7/R8 + Part 2 D-a/D-f.
 - `mvp.be/app/providers/base.py:16` (`register_ocr`), `:24` (`register_erp`), `:32`/`:42` (`get_*_provider`), `:52` (`import_providers`).
 - `mvp.be/app/providers/context.py` (`ProviderContext`, `_CTX`, `get_provider_context`).
 - `mvp.be/app/providers/http.py:42` (`Egress.get_client`), `:26` (`VpnUnavailableError`), `guard_vpn`.
-- `mvp.be/app/providers/ai.py` (`ai_complete`, `claude_complete`, `_resolve_via_vpn`), `mvp.be/app/services/invoice_service.py` (ERP write gate).
+- `mvp.be/app/providers/ai.py` (`ai_complete`, `claude_complete`, `_resolve_via_vpn`), `mvp.be/app/services/invoice_service.py` (гейт записи ERP).

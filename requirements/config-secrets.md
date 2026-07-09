@@ -1,7 +1,7 @@
 ---
 id: REQ-CONFIG-SECRETS
 type: requirement
-title: Three-level separation of configuration and secrets (no env fallback)
+title: Трёхуровневое разделение конфигурации и секретов (без env fallback)
 status: built
 scope: cross-cutting
 roles: [superadmin, admin, sqladmin-operator]
@@ -13,45 +13,45 @@ sources: [01_ARCHITECTURE.md "Keys, Secrets & Credential Management", APP_OVERVI
 updated: 2026-07-09
 ---
 
-# REQ-CONFIG-SECRETS · Three levels of configuration and secrets
+# REQ-CONFIG-SECRETS · Три уровня конфигурации и секретов
 
-**Type:** cross-cutting SSOT · **Status:** built. A central architectural theme: **one source of truth per value, with no env fallback** for runtime settings and secrets. Secret encryption is factored out into [[secret-encryption]].
+**Type:** cross-cutting SSOT · **Status:** built. Центральная архитектурная тема: **один источник истины на значение, без env fallback** для runtime-настроек и секретов. Шифрование секретов вынесено в [[secret-encryption]].
 
-## Normative statement
+## Нормативное положение
 
-Three stores, each with its own owner and resolution rule:
+Три хранилища, у каждого свой владелец и правило разрешения:
 
-- **N1. Level 1 — `.env` (via `Settings`/pydantic-settings) — the ONLY reader of the environment.** Contains only: DB connection, KEK (`SECRETS_ENC_KEY`+`_KEY_ID`+`_KEYS_OLD`), `JWT_SECRET`, `SESSION_SECRET`, `ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH`, the static `ERP_PROVIDER`, provider URLs, cookie flags, ports, the declarative gluetun VPN config.
-- **N2. Level 2 — [[system_settings]] (DB, KV + whitelist `REGISTRY`)** — non-secret runtime settings: `ai_provider`, models (`anthropic_model`/`gemini_model`), `ai_vpn_enabled`, `module_*`, `erp_write_enabled`. Resolution is strictly **DB(validated) → registry default**. Keys are chosen from `SettingSpec`, not freely entered. No secrets here (invariant).
-- **N3. Level 3 — [[integration_credentials]] (DB, Fernet)** — **all** integration secrets (AI keys, POS/ERP tokens). Resolution **active row → decrypt → otherwise None**.
-- **N4. No value from N2/N3 is read from env** — "NO ENV FALLBACK" in `effective_config.py`/`credentials.py`. Verifiable by grep: absence of env keys for these values.
-- **N5. Resolver (`core/effective_config.py`):** `resolve(session, key) → Resolved(value, source, valid)`; an invalid DB value → warning + `spec.default` (never lets garbage through). Precedence **strictly DB → registry default**, no env. There is `resolve_with_context()` — it opens its own session via the [[provider-abstraction]] `ProviderContext`.
-- **N6. Secrets are read without a cache** (`get_active_credential` decrypts on every call) — rotation in SQLAdmin is instant ([[ADR-011]]).
-- **N7. Write planes:** level 2/3 is edited **only** by the superadmin via SQLAdmin ([[sqladmin-operator]]); the exception is the POS token: an org-admin can set it via `PUT /organizations/{id}/pos-config` (write-only, response `{is_set,last4}`). The front-end stores no secrets ([[ADR-012]]): `VITE_*` are only non-secret toggles.
+- **N1. Уровень 1 — `.env` (через `Settings`/pydantic-settings) — ЕДИНСТВЕННЫЙ читатель окружения.** Содержит только: подключение к БД, KEK (`SECRETS_ENC_KEY`+`_KEY_ID`+`_KEYS_OLD`), `JWT_SECRET`, `SESSION_SECRET`, `ADMIN_USERNAME`/`ADMIN_PASSWORD_HASH`, статический `ERP_PROVIDER`, URL провайдеров, флаги cookie, порты, декларативный VPN-конфиг gluetun.
+- **N2. Уровень 2 — [[system_settings]] (БД, KV + whitelist `REGISTRY`)** — несекретные runtime-настройки: `ai_provider`, модели (`anthropic_model`/`gemini_model`), `ai_vpn_enabled`, `module_*`, `erp_write_enabled`. Разрешение строго **DB(validated) → registry default**. Ключи выбираются из `SettingSpec`, не вводятся свободно. Секретов здесь нет (инвариант).
+- **N3. Уровень 3 — [[integration_credentials]] (БД, Fernet)** — **все** интеграционные секреты (AI-ключи, POS/ERP-токены). Разрешение **active row → decrypt → иначе None**.
+- **N4. Никакое значение из N2/N3 не читается из env** — "NO ENV FALLBACK" в `effective_config.py`/`credentials.py`. Проверяемо grep-ом: отсутствие env-ключей для этих значений.
+- **N5. Resolver (`core/effective_config.py`):** `resolve(session, key) → Resolved(value, source, valid)`; невалидное значение из БД → warning + `spec.default` (никогда не пропускает мусор). Приоритет **строго DB → registry default**, без env. Есть `resolve_with_context()` — он открывает свою сессию через `ProviderContext` из [[provider-abstraction]].
+- **N6. Секреты читаются без кэша** (`get_active_credential` дешифрует при каждом вызове) — ротация в SQLAdmin мгновенна ([[ADR-011]]).
+- **N7. Плоскости записи:** уровень 2/3 редактирует **только** superadmin через SQLAdmin ([[sqladmin-operator]]); исключение — POS-токен: org-admin может задать его через `PUT /organizations/{id}/pos-config` (write-only, ответ `{is_set,last4}`). Front-end не хранит секретов ([[ADR-012]]): `VITE_*` — только несекретные toggles.
 
-## Rationale
+## Обоснование
 
-Secrets in env require a redeploy to rotate a key and leak into dumps/config snapshots. Moving AI keys, the POS token, provider choice, models and all `MODULE_*`/`ERP_WRITE`/`AI_VPN` toggles into the DB gives runtime control from the super-admin panel without a redeploy, while `.env` keeps only the boot/trust-root. The absence of an env fallback guarantees a single source per value — otherwise a "silent second source" makes behavior nondeterministic.
+Секреты в env требуют redeploy для ротации ключа и утекают в дампы/снапшоты конфигурации. Перенос AI-ключей, POS-токена, выбора провайдера, моделей и всех toggles `MODULE_*`/`ERP_WRITE`/`AI_VPN` в БД даёт runtime-контроль из панели суперадмина без redeploy, тогда как `.env` хранит только boot/trust-root. Отсутствие env fallback гарантирует единый источник на значение — иначе «тихий второй источник» делает поведение недетерминированным.
 
-## Failure modes
+## Режимы отказа
 
-- **An invalid DB setting value** → warning + registry default (no garbage at runtime).
-- **Absence of an active secret** → `None` → fail-closed at the consumer level (AI → `AiUnavailableError`; POS → Esupl 401; see [[fail-closed]]).
-- **An attempt to put a secret into `system_settings`** — prohibited by convention/comment; secrets live only in `integration_credentials`.
-- **Debt:** `encrypt()` writes plaintext with an empty keyring (BACKLOG A1) — the operational path when `SECRETS_ENC_KEY` is unset locally; to be eliminated (see [[secret-encryption]] R2.2, [[fail-closed]] R8.4).
+- **Невалидное значение настройки в БД** → warning + registry default (никакого мусора в runtime).
+- **Отсутствие активного секрета** → `None` → fail-closed на уровне потребителя (AI → `AiUnavailableError`; POS → Esupl 401; см. [[fail-closed]]).
+- **Попытка положить секрет в `system_settings`** — запрещена конвенцией/комментарием; секреты живут только в `integration_credentials`.
+- **Долг:** `encrypt()` пишет plaintext при пустом keyring (BACKLOG A1) — операционный путь, когда `SECRETS_ENC_KEY` локально не задан; подлежит устранению (см. [[secret-encryption]] R2.2, [[fail-closed]] R8.4).
 
-## Relations
+## Связи
 
-- ADR: [[ADR-005]] (three levels), [[ADR-011]] (no cache), [[ADR-012]] (front-end without secrets), [[ADR-010]] (encryption — in [[secret-encryption]]).
-- Entities: [[system_settings]], [[integration_credentials]].
-- Requirements: [[secret-encryption]], [[fail-closed]], [[global-requirements]] R1/R6.
+- ADR: [[ADR-005]] (три уровня), [[ADR-011]] (без кэша), [[ADR-012]] (front-end без секретов), [[ADR-010]] (шифрование — в [[secret-encryption]]).
+- Сущности: [[system_settings]], [[integration_credentials]].
+- Требования: [[secret-encryption]], [[fail-closed]], [[global-requirements]] R1/R6.
 
-## Referenced by
+## На это ссылаются
 
-`LCOS-F3` (SQLAdmin operator plane + config API), `LCOS-F4` (Three-level config & secret encryption), `LCOS-F5` (provider seams), any feature reading a setting/secret (OCR, ERP-write, VPN).
+`LCOS-F3` (плоскость SQLAdmin operator + config API), `LCOS-F4` (Three-level config & secret encryption), `LCOS-F5` (provider seams), любая feature, читающая настройку/секрет (OCR, ERP-write, VPN).
 
-## Sources
+## Источники
 
 - 01_ARCHITECTURE.md → "Keys, Secrets & Credential Management", "Resolution order (the definitive table)", "Typed registry + resolver".
 - APP_OVERVIEW.md §5, §3; LCOS_Conformance R1, R6.
-- Code: `app/core/{config,system_settings,effective_config,credentials}.py`.
+- Код: `app/core/{config,system_settings,effective_config,credentials}.py`.

@@ -1,7 +1,7 @@
 ---
 id: LCOS-F27
 type: feature
-title: Frontend entities/order → receipts rename
+title: Frontend-переименование entities/order → receipts
 epic: "[[LCOS-E5-stabilization]]"
 status: planned
 phase: "Phase 1"
@@ -13,63 +13,63 @@ legacy_refs: [08 F1.6, plan S1]
 sources: ["08_PHASE1_SPEC.md F1.6", "APP_OVERVIEW.md §9", "mvp.fe src/entities/order", "mvp.fe src/pages/invoices-list/ui/InvoicesListPage.tsx:4"]
 updated: 2026-07-09
 ---
-# LCOS-F27 · Frontend entities/order → receipts rename
+# LCOS-F27 · Frontend-переименование entities/order → receipts
 
 **Epic:** [[LCOS-E5-stabilization]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-The frontend has an FSD slice named `entities/order` that models **incoming Esupl receipts** (`GET /teams/{id}/orders`, exposed as `useGetOrdersQuery` / `PosOrder`). This name will collide with the *purchase order draft* concept coming in the purchasing epic ([[LCOS-E8-purchasing]], `entities/purchase-draft`). To avoid an ambiguous "order" meaning two different things, this feature renames the slice `entities/order → entities/receipts` **before** purchase orders arrive.
+На frontend есть FSD-слайс с именем `entities/order`, моделирующий **входящие Esupl-приёмки** (`GET /teams/{id}/orders`, экспонируемые как `useGetOrdersQuery` / `PosOrder`). Это имя столкнётся с концепцией *черновика заказа на закупку*, приходящей в эпик закупок ([[LCOS-E8-purchasing]], `entities/purchase-draft`). Чтобы избежать неоднозначного «order», означающего две разные вещи, эта фича переименовывает слайс `entities/order → entities/receipts` **до** прихода заказов на закупку.
 
-The scope is intentionally tiny: the slice is imported from exactly one place outside itself — `pages/invoices-list/ui/InvoicesListPage.tsx` (`useGetOrdersQuery`, `PosOrder`). It is a pure rename with no behaviour change: the same Esupl read endpoint, the same query hook semantics, the same list rendering. This is bookkeeping debt paid down during stabilization so the later purchasing work starts on unambiguous names.
+Scope намеренно крохотный: слайс импортируется ровно из одного места помимо себя самого — `pages/invoices-list/ui/InvoicesListPage.tsx` (`useGetOrdersQuery`, `PosOrder`). Это чистое переименование без изменения поведения: тот же Esupl read-endpoint, та же семантика query-хука, тот же рендер списка. Это бухгалтерский долг, выплаченный во время стабилизации, чтобы более поздняя работа по закупкам стартовала на однозначных именах.
 
-## Capabilities
+## Возможности
 
-- The FSD slice is renamed `entities/order` → `entities/receipts` (directory, module barrel, and internal symbol names as appropriate).
-- The single external import site is updated; no other consumer exists.
-- Behaviour is byte-for-byte unchanged: the invoices list still reads Esupl receipts via the same endpoint and renders identically.
-- Name collision with the future `entities/purchase-draft` is pre-empted.
+- FSD-слайс переименован `entities/order` → `entities/receipts` (директория, барель модуля и внутренние имена символов по необходимости).
+- Единственное место внешнего импорта обновлено; других потребителей нет.
+- Поведение побайтово неизменно: список счетов-фактур по-прежнему читает Esupl-приёмки через тот же endpoint и рендерит идентично.
+- Коллизия имени с будущим `entities/purchase-draft` предупреждена.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[member]] | No change in what they can do: the invoices/receipts list behaves identically after the rename. |
-| [[admin]] | Same within their subdivision. |
-| [[superadmin]] | Same across tenants. |
+| [[member]] | Никаких изменений в возможностях: список счетов-фактур/приёмок ведёт себя идентично после переименования. |
+| [[admin]] | То же в пределах своего subdivision. |
+| [[superadmin]] | То же по всем тенантам. |
 
-This is an internal refactor; there is no change to roles, scope, or any endpoint.
+Это внутренний рефакторинг; нет изменений ролей, scope или какого-либо endpoint.
 
-## Involved entities
+## Задействованные сущности
 
-- [[invoices]] — the receipts list (Esupl `orders`) is the read-side view over incoming documents; the renamed slice is its FE representation. No data-model or table change is involved.
+- [[invoices]] — список приёмок (Esupl `orders`) — это read-представление над входящими документами; переименованный слайс — его FE-представление. Изменений модели данных или таблицы нет.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[global-requirements]] (`R9`: clean, non-colliding module structure), [[erp-esupl-integration]] (the slice wraps the read-only `GET /teams/{id}/orders` receipts endpoint).
-- **Features:** clears the naming runway for [[LCOS-E8-purchasing]] (`entities/purchase-draft`); the read endpoint it wraps is [[LCOS-F11-esupl-read]]; the list screen it feeds is part of [[LCOS-F10-invoice-status-machine]]'s surface.
-- **Decisions:** none (pure rename).
+- **Требования:** [[global-requirements]] (`R9`: чистая, неколлизийная структура модулей), [[erp-esupl-integration]] (слайс оборачивает read-only endpoint приёмок `GET /teams/{id}/orders`).
+- **Фичи:** расчищает именную взлётную полосу для [[LCOS-E8-purchasing]] (`entities/purchase-draft`); read-endpoint, который он оборачивает — [[LCOS-F11-esupl-read]]; экран списка, который он питает — часть поверхности [[LCOS-F10-invoice-status-machine]].
+- **Решения:** нет (чистое переименование).
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. No backend change: the Esupl `GET /teams/{id}/orders` receipts endpoint and its wiring are untouched.
+- [ ] AC-BE-1. Изменений на бэкенде нет: Esupl endpoint приёмок `GET /teams/{id}/orders` и его обвязка не тронуты.
 
 ### Frontend
-- [ ] AC-FE-1. `src/entities/order` no longer exists; the slice lives at `src/entities/receipts`.
-- [ ] AC-FE-2. The single external import in `pages/invoices-list/ui/InvoicesListPage.tsx` is updated (query hook + `PosOrder`/renamed type); no dangling references to `entities/order` remain (`grep` clean).
-- [ ] AC-FE-3. `npm run build` green; behaviour unchanged (the invoices/receipts list renders and queries exactly as before).
+- [ ] AC-FE-1. `src/entities/order` больше не существует; слайс живёт в `src/entities/receipts`.
+- [ ] AC-FE-2. Единственный внешний импорт в `pages/invoices-list/ui/InvoicesListPage.tsx` обновлён (query-хук + `PosOrder`/переименованный тип); не осталось висячих ссылок на `entities/order` (`grep` чист).
+- [ ] AC-FE-3. `npm run build` зелёный; поведение неизменно (список счетов-фактур/приёмок рендерит и запрашивает ровно как раньше).
 
-### Other
-- [ ] AC-OTHER-1. The rename is a no-op for tests beyond import-path updates; the FE suite stays green.
+### Прочее
+- [ ] AC-OTHER-1. Переименование — no-op для тестов помимо обновления путей импорта; FE-набор остаётся зелёным.
 
-## Open questions / gates
+## Открытые вопросы / гейты
 
-- **Symbol renaming depth:** whether to rename `useGetOrdersQuery`/`PosOrder` to receipts-flavoured names or keep them for minimal churn — owner choice; the directory/slice rename is the required part.
-- Sequencing: land this before starting [[LCOS-E8-purchasing]] to avoid a double-rename.
+- **Глубина переименования символов:** переименовывать ли `useGetOrdersQuery`/`PosOrder` в receipts-ориентированные имена или сохранить их для минимального churn — выбор владельца; переименование директории/слайса — обязательная часть.
+- Последовательность: приземлить это до старта [[LCOS-E8-purchasing]], чтобы избежать двойного переименования.
 
-## Sources
+## Источники
 
-- `08_PHASE1_SPEC.md F1.6` (rename rationale — pre-empt `entities/purchase-draft` collision; single external import; AC-1).
-- `APP_OVERVIEW.md §9` (Esupl receipts read: `GET /teams/{id}/orders`).
-- Current state: `mvp.fe/src/entities/order` still present; imported by `mvp.fe/src/pages/invoices-list/ui/InvoicesListPage.tsx:4` (`useGetOrdersQuery`, `PosOrder`).
+- `08_PHASE1_SPEC.md F1.6` (обоснование переименования — предупредить коллизию `entities/purchase-draft`; единственный внешний импорт; AC-1).
+- `APP_OVERVIEW.md §9` (чтение Esupl-приёмок: `GET /teams/{id}/orders`).
+- Текущее состояние: `mvp.fe/src/entities/order` всё ещё присутствует; импортируется из `mvp.fe/src/pages/invoices-list/ui/InvoicesListPage.tsx:4` (`useGetOrdersQuery`, `PosOrder`).

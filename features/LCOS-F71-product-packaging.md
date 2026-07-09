@@ -1,7 +1,7 @@
 ---
 id: LCOS-F71
 type: feature
-title: Product packaging
+title: Упаковка продукта
 epic: "[[LCOS-E15-saas]]"
 status: future
 phase: "Phase 2"
@@ -13,50 +13,50 @@ legacy_refs: [plan P2-F]
 sources: ["plan/PHASE_P2_SAAS_OUTLINE.md §2 P2-F", "plan/PHASE_P2_SAAS_OUTLINE.md §3", "Local_OS_About.md Phase 2"]
 updated: 2026-07-09
 ---
-# LCOS-F71 · Product packaging
+# LCOS-F71 · Упаковка продукта
 
 **Epic:** [[LCOS-E15-saas]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The go-to-market wrapper around the working product: a landing page, owner-facing documentation for a coffee-shop owner (not developer docs), a support channel, and per-tenant usage analytics (retention and time-saved / economy metrics). The usage analytics are not just vanity numbers — they are the raw material for case studies and for evaluating the Phase-2 exit gate (10 paying customers, MRR $1K+, retention ≥80%; if not reached by month 12, the project closes without regret).
+Go-to-market обёртка вокруг работающего продукта: лендинг, документация для владельца, обращённая к владельцу кофейни (не документация для разработчиков), канал поддержки и пер-тенантная аналитика использования (метрики удержания и сэкономленного времени / экономии). Аналитика использования — не просто тщеславные числа: это сырьё для кейсов и для оценки выходного гейта Phase 2 (10 платящих клиентов, MRR $1K+, удержание ≥80%; если не достигнуто к 12-му месяцу, проект закрывается без сожалений).
 
-This is the lowest-urgency Phase-2 block, built on demand once the product itself and billing are proven; it introduces no new domain logic, only presentation, support and measurement around the existing platform.
+Это блок Phase 2 с наименьшей срочностью, строящийся по спросу, как только сам продукт и биллинг доказаны; он не вводит новой доменной логики, только презентацию, поддержку и измерение вокруг существующей платформы.
 
-## Capabilities
+## Возможности
 
-- Marketing landing page.
-- Owner-oriented documentation (coffee-shop owner audience, not engineers).
-- Support channel for customers.
-- Per-tenant usage analytics: retention and time-saved / economy metrics feeding case studies and the exit gate.
+- Маркетинговый лендинг.
+- Документация, ориентированная на владельца (аудитория — владелец кофейни, не инженеры).
+- Канал поддержки для клиентов.
+- Пер-тенантная аналитика использования: метрики удержания и сэкономленного времени / экономии, питающие кейсы и выходной гейт.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[admin]] | Reads owner documentation, reaches support; sees their own usage/value metrics. |
-| [[superadmin]] | Views cross-tenant retention/economy analytics; curates case studies and gate evidence. |
-| [[member]] | Consumes owner docs and support. |
-| [[sqladmin-operator]] | Not involved (no operator-plane surface). |
+| [[admin]] | Читает документацию владельца, обращается в поддержку; видит собственные метрики использования/ценности. |
+| [[superadmin]] | Просматривает кросс-тенантную аналитику удержания/экономии; курирует кейсы и доказательства для гейта. |
+| [[member]] | Потребляет документацию владельца и поддержку. |
+| [[sqladmin-operator]] | Не участвует (нет поверхности операторской плоскости). |
 
-## Involved entities
+## Задействованные сущности
 
-- [[organizations]] — the unit for retention and per-tenant value metrics.
-- [[subdivisions]] — granularity for usage/economy measurement.
-- [[system_settings]] — flags controlling analytics collection.
+- [[organizations]] — единица для удержания и пер-тенантных метрик ценности.
+- [[subdivisions]] — гранулярность для измерения использования/экономии.
+- [[system_settings]] — флаги, управляющие сбором аналитики.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (usage analytics aggregated strictly per tenant, no cross-customer data mixing — consistent with the "no price aggregation between clients" privacy stance), [[global-requirements]] (Phase-2 success metrics as the exit gate).
-- **Features:** presents and measures the product delivered across [[LCOS-E15-saas]]; usage metrics draw on the value delivered by the Phase-1 wedge ([[LCOS-E2-invoice-intake]]).
-- **Epics:** final, demand-driven block of [[LCOS-E15-saas]]; feeds the month-12 kill/scale decision.
+- **Requirements:** [[multitenancy]] (аналитика использования агрегируется строго по тенанту, без смешивания данных между клиентами — согласуется с позицией приватности «нет агрегации цен между клиентами»), [[global-requirements]] (метрики успеха Phase 2 как выходной гейт).
+- **Features:** презентует и измеряет продукт, поставленный по всему [[LCOS-E15-saas]]; метрики использования опираются на ценность, поставленную клином Phase 1 ([[LCOS-E2-invoice-intake]]).
+- **Epics:** финальный, управляемый спросом блок [[LCOS-E15-saas]]; питает решение kill/scale на 12-м месяце.
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). Decomposed into a dedicated `PHASE_P2_F` file; success is measured against the Phase-2 exit gate (10 paying customers, MRR $1K+, retention ≥80%).
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Раскладываются в выделенный файл `PHASE_P2_F`; успех измеряется против выходного гейта Phase 2 (10 платящих клиентов, MRR $1K+, удержание ≥80%).
 
 ## Sources
 
-- `plan/PHASE_P2_SAAS_OUTLINE.md §2 P2-F` (landing, owner docs, support channel, per-tenant usage/retention/economy analytics).
-- `plan/PHASE_P2_SAAS_OUTLINE.md §3` and front-matter (exit gate: 10 paying, MRR $1K+, retention ≥80%).
-- `Local_OS_About.md` Phase 2 (packaging for the market; success metrics; month-12 kill criterion).
+- `plan/PHASE_P2_SAAS_OUTLINE.md §2 P2-F` (лендинг, документация владельца, канал поддержки, пер-тенантная аналитика использования/удержания/экономии).
+- `plan/PHASE_P2_SAAS_OUTLINE.md §3` и front-matter (выходной гейт: 10 платящих, MRR $1K+, удержание ≥80%).
+- `Local_OS_About.md` Phase 2 (упаковка для рынка; метрики успеха; критерий убийства на 12-м месяце).

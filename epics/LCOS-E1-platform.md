@@ -1,7 +1,7 @@
 ---
 id: LCOS-E1
 type: epic
-title: Platform and foundations
+title: Платформа и фундамент
 status: built
 phase: "Phase 1"
 features: ["[[LCOS-F1-multitenancy]]", "[[LCOS-F2-app-auth]]", "[[LCOS-F3-sqladmin-operator]]", "[[LCOS-F4-config-secrets]]", "[[LCOS-F5-provider-seams]]", "[[LCOS-F6-module-gates]]", "[[LCOS-F7-frontend-platform]]"]
@@ -10,51 +10,51 @@ sources: [APP_OVERVIEW.md §2–§5 §11, 01_ARCHITECTURE.md, LCOS_Conformance_A
 updated: 2026-07-09
 ---
 
-# LCOS-E1 · Platform and foundations
+# LCOS-E1 · Платформа и фундамент
 
-**Status:** built · **Phase:** Phase 1 · **Type:** cross-cutting
+**Статус:** built · **Фаза:** Phase 1 · **Тип:** сквозной
 
-## Description
+## Описание
 
-The load-bearing framework on which every other epic stands: multitenancy, two independent authentication planes, three-level configuration with secret encryption, provider seams behind interfaces, request-time module gates, and the frontend platform (FSD/RTK/PWA). This is not a "user-facing feature" but a set of architectural invariants; breaking any one of them breaks tenant isolation, secret security, or fail-closed behavior.
+Несущий каркас, на котором держится каждый другой эпик: мультиарендность, две независимые плоскости аутентификации, трёхуровневая конфигурация с шифрованием секретов, провайдерские швы за интерфейсами, гейты модулей на этапе запроса и фронтенд-платформа (FSD/RTK/PWA). Это не «пользовательская фича», а набор архитектурных инвариантов; нарушение любого из них ломает изоляцию арендаторов, безопасность секретов или fail-closed-поведение.
 
-Tenant = organization; `organization_id` is denormalized into every operational row — a tenant query without a scope is impossible by design. Operational rows also carry `subdivision_id`. Providers (OCR, ERP) are hidden behind a `Protocol` + registry; services depend only on interfaces. See the as-built SSOT in [[architecture]].
+Арендатор = организация; `organization_id` денормализован в каждую операционную строку — запрос арендатора без скоупа невозможен by design. Операционные строки также несут `subdivision_id`. Провайдеры (OCR, ERP) скрыты за `Protocol` + реестром; сервисы зависят только от интерфейсов. Актуальный as-built SSOT см. в [[architecture]].
 
-## Goal / value
+## Цель / ценность
 
-Give every product feature a secure, isolated, configurable foundation that will not need rewriting when moving to SaaS ([[LCOS-E15-saas]]). Platform invariants (isolation, fail-closed, separation of auth planes) are covered by merge-blocking tests — their regression physically cannot land in main.
+Дать каждой продуктовой фиче безопасный, изолированный, конфигурируемый фундамент, который не придётся переписывать при переходе на SaaS ([[LCOS-E15-saas]]). Инварианты платформы (изоляция, fail-closed, разделение плоскостей аутентификации) покрыты merge-блокирующими тестами — их регрессия физически не может попасть в main.
 
-## Features
+## Фичи
 
-| ID | Name | Status | Link |
+| ID | Название | Статус | Ссылка |
 |---|---|---|---|
-| LCOS-F1 | Multitenancy and tenant isolation | ✅ built | [[LCOS-F1-multitenancy]] |
-| LCOS-F2 | Application authentication (JWT + refresh) | ✅ built | [[LCOS-F2-app-auth]] |
-| LCOS-F3 | SQLAdmin operator plane + config API | ✅ built | [[LCOS-F3-sqladmin-operator]] |
-| LCOS-F4 | Three-level configuration and secret encryption | ✅ built | [[LCOS-F4-config-secrets]] |
-| LCOS-F5 | Provider seams + fail-closed egress | ✅ built | [[LCOS-F5-provider-seams]] |
-| LCOS-F6 | Module gates | ✅ built | [[LCOS-F6-module-gates]] |
-| LCOS-F7 | Frontend platform (FSD/RTK/PWA) | ✅ built | [[LCOS-F7-frontend-platform]] |
+| LCOS-F1 | Мультиарендность и изоляция арендаторов | ✅ built | [[LCOS-F1-multitenancy]] |
+| LCOS-F2 | Аутентификация приложения (JWT + refresh) | ✅ built | [[LCOS-F2-app-auth]] |
+| LCOS-F3 | Операторская плоскость SQLAdmin + config API | ✅ built | [[LCOS-F3-sqladmin-operator]] |
+| LCOS-F4 | Трёхуровневая конфигурация и шифрование секретов | ✅ built | [[LCOS-F4-config-secrets]] |
+| LCOS-F5 | Провайдерские швы + fail-closed egress | ✅ built | [[LCOS-F5-provider-seams]] |
+| LCOS-F6 | Гейты модулей | ✅ built | [[LCOS-F6-module-gates]] |
+| LCOS-F7 | Фронтенд-платформа (FSD/RTK/PWA) | ✅ built | [[LCOS-F7-frontend-platform]] |
 
-## Key entities / requirements
+## Ключевые сущности / требования
 
-- Entities: [[organizations]], [[subdivisions]], [[users]], [[memberships]], [[integration_credentials]], [[system_settings]].
-- Requirements: [[multitenancy]], [[auth]], [[config-secrets]], [[secret-encryption]], [[fail-closed]], [[vpn-egress]], [[provider-abstraction]], [[global-requirements]].
-- Roles: [[superadmin]], [[admin]], [[member]], [[sqladmin-operator]].
+- Сущности: [[organizations]], [[subdivisions]], [[users]], [[memberships]], [[integration_credentials]], [[system_settings]].
+- Требования: [[multitenancy]], [[auth]], [[config-secrets]], [[secret-encryption]], [[fail-closed]], [[vpn-egress]], [[provider-abstraction]], [[global-requirements]].
+- Роли: [[superadmin]], [[admin]], [[member]], [[sqladmin-operator]].
 
-## Gates
+## Гейты
 
-- **Invariants covered by tests (VER-01):** tenant isolation, fail-closed VPN, admin-auth — covered and **merge-blocking**. A regression cannot land in main.
-- **DEC-0011/0013:** the two-context identity model stands on the platform's scopes (`scope_type/scope_id`) — see [[LCOS-E3-sku-identity]].
-- **Kill-criteria (Pilot-Gate / ADR-003):** the platform exists so that Customer Zero uses the invoice pipeline daily; if the foundation gets in the way of feature velocity — simplify, do not grow it (Phase 1 non-goals: Celery, cloud, RBAC matrix, OAuth).
+- **Инварианты, покрытые тестами (VER-01):** изоляция арендаторов, fail-closed VPN, admin-auth — покрыты и **merge-блокирующие**. Регрессия не может попасть в main.
+- **DEC-0011/0013:** двухконтекстная модель идентичности опирается на скоупы платформы (`scope_type/scope_id`) — см. [[LCOS-E3-sku-identity]].
+- **Kill-критерии (Pilot-Gate / ADR-003):** платформа существует, чтобы Customer Zero ежедневно пользовался конвейером накладных; если фундамент мешает скорости разработки фич — упрощать, а не наращивать его (не-цели Phase 1: Celery, cloud, RBAC-матрица, OAuth).
 
 ## legacy_refs
 
-plan/00 global requirements G1–G11; LCOS_Conformance normative R1–R9 (consolidated into [[global-requirements]]).
+plan/00 глобальные требования G1–G11; нормативные R1–R9 из LCOS_Conformance (консолидированы в [[global-requirements]]).
 
-## Sources
+## Источники
 
-- APP_OVERVIEW.md §2 (stack), §3 (architecture), §4 (multitenancy/auth), §5 (secrets/fail-closed), §11 (data model)
-- 01_ARCHITECTURE.md (normative architecture)
+- APP_OVERVIEW.md §2 (стек), §3 (архитектура), §4 (мультиарендность/аутентификация), §5 (секреты/fail-closed), §11 (модель данных)
+- 01_ARCHITECTURE.md (нормативная архитектура)
 - LCOS_Conformance_Alignment_GlobalRequirements.md (R1–R9)
 - ADR: [[ADR-004]], [[ADR-005]], [[ADR-006]], [[ADR-007]], [[ADR-008]], [[ADR-009]], [[ADR-010]], [[ADR-011]], [[ADR-012]]

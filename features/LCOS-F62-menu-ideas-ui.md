@@ -1,7 +1,7 @@
 ---
 id: LCOS-F62
 type: feature
-title: Menu ideas UI + statuses
+title: UI идей для меню + статусы
 epic: "[[LCOS-E13-menu-ideas]]"
 status: future
 phase: "Phase 2"
@@ -13,53 +13,53 @@ legacy_refs: [plan F9, "plan F9-F1"]
 sources: ["plan/PHASE_F9_CROSS_RECIPE.md §2 (F9-F1 Menu Ideas page)", "plan/00_IMPLEMENTATION_PLAN.md §4"]
 updated: 2026-07-09
 ---
-# LCOS-F62 · Menu ideas UI + statuses
+# LCOS-F62 · UI идей для меню + статусы
 **Epic:** [[LCOS-E13-menu-ideas]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The frontend of the cross-recipe epic: a "Menu ideas" page where the owner triggers generation and reviews the proposals produced by [[LCOS-F61-menu-idea-generation]] as idea cards. Each card shows the composition (which SKUs are already on hand ✓ vs. what must be bought, with a price estimate), the code-computed cost of on-hand ingredients, the suggested selling price, the rationale, and — when [[LCOS-E11-competitor-menu]] data exists — a neighborhood price benchmark. The page keeps the "idea ≠ action" discipline (Gate G7): it presents proposals, and the owner decides what actually enters the menu.
+Фронтенд эпика кросс-рецептов: страница «Идеи для меню», где владелец запускает генерацию и просматривает предложения, произведённые [[LCOS-F61-menu-idea-generation]], в виде карточек идей. Каждая карточка показывает состав (какие SKU уже есть в наличии ✓ vs. что нужно докупить, с оценкой цены), вычисленную в коде стоимость имеющихся ингредиентов, предлагаемую цену продажи, обоснование и — когда есть данные [[LCOS-E11-competitor-menu]] — бенчмарк цен района. Страница держит дисциплину «идея ≠ действие» (Gate G7): она представляет предложения, а владелец решает, что действительно попадёт в меню.
 
-Each idea carries a lifecycle status the user drives from the card: 👍 liked, hide (dismissed), or "added to the menu" (adopted). These statuses persist via `PATCH /api/v1/menu-ideas/{id}` and feed the epic's stage metric (≥3 ideas a month with rationale; ≥1 position actually adopted per quarter). Generation is only ever launched by an explicit button press — no automatic refresh — and a mock provider supplies demo ideas so the page can be built without a live LLM.
+Каждая идея несёт статус жизненного цикла, которым пользователь управляет с карточки: 👍 понравилось, скрыть (dismissed) или «добавлено в меню» (adopted). Эти статусы сохраняются через `PATCH /api/v1/menu-ideas/{id}` и питают метрику этапа эпика (≥3 идей в месяц с обоснованием; ≥1 позиция фактически принята за квартал). Генерация запускается только явным нажатием кнопки — без автообновления, — а mock-провайдер поставляет демо-идеи, чтобы страницу можно было строить без живого LLM.
 
-## Capabilities
+## Возможности
 
-- "Menu ideas" page with a "Propose ideas" button plus optional `season` / `focus` selectors.
-- Idea cards rendering composition (on-hand ✓ vs. to-buy + estimate), computed cost, suggested price, rationale, and neighborhood benchmark when available.
-- Per-card status actions: 👍 (liked) / hide (dismissed) / "added to menu" (adopted), persisted via `PATCH /api/v1/menu-ideas/{id}`.
-- Status-filtered list backed by `GET /api/v1/menu-ideas?status=`.
-- Section hidden when `module_menu_ideas_enabled` is off; clear error surface when the AI is unavailable / VPN down (`503`) while previously generated ideas remain readable.
-- Over-limit generation (daily cap) shown as an explicit message rather than a silent failure.
-- Mock provider renders demo ideas for development without a real backend LLM call.
+- Страница «Идеи для меню» с кнопкой «Предложить идеи» плюс опциональные селекторы `season` / `focus`.
+- Карточки идей, отображающие состав (в наличии ✓ vs. докупить + оценка), вычисленную стоимость, предлагаемую цену, обоснование и бенчмарк района при наличии.
+- Действия статуса по карточке: 👍 (liked) / скрыть (dismissed) / «добавлено в меню» (adopted), сохраняемые через `PATCH /api/v1/menu-ideas/{id}`.
+- Список с фильтром по статусу на основе `GET /api/v1/menu-ideas?status=`.
+- Секция скрыта, когда `module_menu_ideas_enabled` выключен; понятная поверхность ошибки, когда AI недоступен / VPN лежит (`503`), при этом ранее сгенерированные идеи остаются читаемыми.
+- Превышение лимита генерации (суточный кап) показывается явным сообщением, а не тихим сбоем.
+- Mock-провайдер рендерит демо-идеи для разработки без реального бэкенд-вызова LLM.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[member]] | Open the page, trigger generation, and view ideas within their subdivision/organization. |
-| [[admin]] | Drives idea lifecycle: marks liked / dismissed / adopted; primary owner of the page. |
-| [[superadmin]] | Cross-tenant access; controls the module gate / daily limit via the config API. |
-| [[sqladmin-operator]] | Not involved in the UI; only flips the gate in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[member]] | Открывает страницу, запускает генерацию и просматривает идеи в рамках своего подразделения/организации. |
+| [[admin]] | Ведёт жизненный цикл идей: помечает liked / dismissed / adopted; основной владелец страницы. |
+| [[superadmin]] | Кросс-тенантный доступ; управляет модульным гейтом / суточным лимитом через config-API. |
+| [[sqladmin-operator]] | Не участвует в UI; только переключает гейт в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
 
-Tenant-scoped: ideas shown belong to the active organization; the scope comes from the JWT context ([[auth]], [[multitenancy]]).
+Тенант-скоуп: показываемые идеи принадлежат активной организации; скоуп берётся из контекста JWT ([[auth]], [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[ingredients]] — cards reference on-hand SKUs; the ✓ / to-buy split is derived from the catalog.
-- [[packings]] — packing granularity behind the displayed cost figures.
-- `menu_ideas` (future organization-scoped table) — the source of card content and the `status` mutated by the UI actions; entity doc created on activation.
+- [[ingredients]] — карточки ссылаются на имеющиеся SKU; разбиение ✓ / докупить выводится из каталога.
+- [[packings]] — гранулярность фасовки за отображаемыми цифрами стоимости.
+- `menu_ideas` (будущая таблица со скоупом организации) — источник содержимого карточек и `status`, мутируемого действиями UI; документ-сущность создаётся при активации.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (org-scoped ideas), [[provider-abstraction]] (backend/mock provider behind the "Propose ideas" action).
-- **Features:** renders the output of [[LCOS-F61-menu-idea-generation]]; benchmark column depends on [[LCOS-F56-positioning]]; gated by [[LCOS-F6-module-gates]]; built on the [[LCOS-F7-frontend-platform]] (FSD/RTK/PWA) foundation.
-- **Epic siblings:** part of [[LCOS-E13-menu-ideas]]; status metric feeds strategic review in [[LCOS-E14-strategic-insights]].
+- **Requirements:** [[multitenancy]] (идеи со скоупом org), [[provider-abstraction]] (бэкенд/mock-провайдер за действием «Предложить идеи»).
+- **Features:** рендерит вывод [[LCOS-F61-menu-idea-generation]]; колонка бенчмарка зависит от [[LCOS-F56-positioning]]; гейтится [[LCOS-F6-module-gates]]; построен на основе [[LCOS-F7-frontend-platform]] (FSD/RTK/PWA).
+- **Epic siblings:** часть [[LCOS-E13-menu-ideas]]; метрика статусов питает стратегический обзор в [[LCOS-E14-strategic-insights]].
 
-## Acceptance criteria
+## Критерии приёмки
 
-Acceptance criteria: TBD (Phase 2 — detailed on activation). On activation, drafts cover: card composition/cost/benchmark rendering; status change persistence (test + browser verification); over-limit and `503` error surfaces; generation only on user click; and tenant-scoped listing.
+Критерии приёмки: TBD (Phase 2 — детализируются при активации). При активации черновики покрывают: рендер состава/стоимости/бенчмарка карточки; персистентность смены статуса (тест + проверка в браузере); поверхности ошибок превышения лимита и `503`; генерацию только по клику пользователя; и список со скоупом тенанта.
 
 ## Sources
 
-- `plan/PHASE_F9_CROSS_RECIPE.md §2` — F9-F1 (Menu Ideas page: propose button, idea cards with composition/cost/price/rationale/benchmark, liked/dismissed/adopted statuses feeding the stage metric, mock provider).
-- `plan/00_IMPLEMENTATION_PLAN.md §4` (human-triggered AI, module gates, fail-closed envelope).
+- `plan/PHASE_F9_CROSS_RECIPE.md §2` — F9-F1 (страница Menu Ideas: кнопка предложить, карточки идей с составом/стоимостью/ценой/обоснованием/бенчмарком, статусы liked/dismissed/adopted, питающие метрику этапа, mock-провайдер).
+- `plan/00_IMPLEMENTATION_PLAN.md §4` (запускаемый человеком AI, модульные гейты, fail-closed конверт).

@@ -1,7 +1,7 @@
 ---
 id: LCOS-F66
 type: feature
-title: Production hardening & deploy
+title: Production-упрочнение и деплой
 epic: "[[LCOS-E15-saas]]"
 status: future
 phase: "Phase 2"
@@ -13,56 +13,56 @@ legacy_refs: [plan P2-A, "DEFER-01", "DEFER-02", "DEFER-04", "DEC-04", R-Deploy]
 sources: ["plan/PHASE_P2_SAAS_OUTLINE.md §2 P2-A", "plan/PHASE_P2_SAAS_OUTLINE.md §3", "Local_OS_About.md Phase 2"]
 updated: 2026-07-09
 ---
-# LCOS-F66 · Production hardening & deploy
+# LCOS-F66 · Production-упрочнение и деплой
 
 **Epic:** [[LCOS-E15-saas]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The first Phase-2 work item and a hard prerequisite for every other one: nobody outside Customer Zero may touch the product until production hardening is complete. It moves LCOS off the local Docker Compose setup onto a hosted deployment (Hetzner target) and closes the security/operations gaps deliberately deferred during Phase 1 (the `DEFER-*` backlog items and the R-Deploy conformance checklist).
+Первый рабочий элемент Phase 2 и жёсткое предусловие для каждого из остальных: никто вне Customer Zero не может касаться продукта, пока не завершено production-упрочнение. Оно переводит LCOS с локальной установки Docker Compose на хостинговый деплой (цель — Hetzner) и закрывает пробелы безопасности/эксплуатации, намеренно отложенные в течение Phase 1 (элементы бэклога `DEFER-*` и чек-лист соответствия R-Deploy).
 
-Scope covers a multi-stage `Dockerfile.prod`, infrastructure/deploy for backend + static frontend hosting, real production secrets (`SECRETS_ENC_KEY` with rotation, `JWT_SECRET`, `SESSION_SECRET`), transport hardening (`COOKIE_SECURE=true`, `CSRF_ENABLED=true` with the `backendRequest.ts` change that reads the `lcos_csrf` cookie into an `X-CSRF-Token` header — DEC-04), abuse controls (rate-limiting `/auth/login`, server-side invoice-send idempotency replacing the per-browser `sentRegistry` — DEFER-04), a CI pipeline (pytest merge-gate non-negotiables, ruff, frontend build), Postgres backups, and minimum observability (structured logs + uptime check + error alerting).
+Объём охватывает многостадийный `Dockerfile.prod`, инфраструктуру/деплой для бэкенда + хостинг статического фронтенда, реальные production-секреты (`SECRETS_ENC_KEY` с ротацией, `JWT_SECRET`, `SESSION_SECRET`), упрочнение транспорта (`COOKIE_SECURE=true`, `CSRF_ENABLED=true` с изменением `backendRequest.ts`, читающим cookie `lcos_csrf` в заголовок `X-CSRF-Token` — DEC-04), контроль злоупотреблений (rate-limiting `/auth/login`, серверная идемпотентность отправки накладной, заменяющая пер-браузерный `sentRegistry` — DEFER-04), CI-пайплайн (непреложные merge-gate pytest, ruff, сборка фронтенда), бэкапы Postgres и минимальную наблюдаемость (структурированные логи + проверка uptime + алертинг об ошибках).
 
-The multi-tenant, secret-encryption and split auth-plane foundations already exist from day one ([[LCOS-E1-platform]]); this feature does not redesign them, it makes them production-safe.
+Мультитенантность, шифрование секретов и разделённые основы плоскости auth уже существуют с первого дня ([[LCOS-E1-platform]]); эта фича не перепроектирует их, она делает их безопасными для production.
 
-## Capabilities
+## Возможности
 
-- Production container/build (`Dockerfile.prod`, multi-stage) and hosted deploy for backend + static frontend.
-- Real production secrets with rotation for the Fernet KEK (`SECRETS_ENC_KEY`), `JWT_SECRET`, `SESSION_SECRET`.
-- Secure cookies + CSRF end to end (`COOKIE_SECURE`, `CSRF_ENABLED`, `lcos_csrf` → `X-CSRF-Token`).
-- Login rate-limiting and server-side invoice-send idempotency (replacing the per-browser guard).
-- CI: pytest (merge-gate non-negotiables), ruff, frontend build; automated Postgres backups.
-- Minimum monitoring: structured logs, uptime check, error alerting.
+- Production-контейнер/сборка (`Dockerfile.prod`, многостадийный) и хостинговый деплой для бэкенда + статического фронтенда.
+- Реальные production-секреты с ротацией для Fernet KEK (`SECRETS_ENC_KEY`), `JWT_SECRET`, `SESSION_SECRET`.
+- Защищённые cookie + CSRF от начала до конца (`COOKIE_SECURE`, `CSRF_ENABLED`, `lcos_csrf` → `X-CSRF-Token`).
+- Rate-limiting логина и серверная идемпотентность отправки накладной (заменяющая пер-браузерную защиту).
+- CI: pytest (непреложные merge-gate), ruff, сборка фронтенда; автоматические бэкапы Postgres.
+- Минимальный мониторинг: структурированные логи, проверка uptime, алертинг об ошибках.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[superadmin]] | Owns deploy/secret rotation and reads the production R-Deploy checklist; no new end-user surface. |
-| [[sqladmin-operator]] | Operates the deployed instance via the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]); manages runtime config/secrets. |
-| [[admin]] | No direct interaction; benefits from the hardened, hosted platform. |
-| [[member]] | No direct interaction. |
+| [[superadmin]] | Владеет деплоем/ротацией секретов и читает production-чек-лист R-Deploy; новой поверхности для конечного пользователя нет. |
+| [[sqladmin-operator]] | Эксплуатирует развёрнутый инстанс через плоскость SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]); управляет рантайм-конфигом/секретами. |
+| [[admin]] | Прямого взаимодействия нет; выигрывает от упрочнённой хостинговой платформы. |
+| [[member]] | Прямого взаимодействия нет. |
 
-## Involved entities
+## Задействованные сущности
 
-- [[integration_credentials]] — encrypted secrets whose production KEK rotation is part of hardening.
-- [[system_settings]] — runtime config/flags that must be production-set (not dev defaults).
-- [[refresh_sessions]] — auth sessions affected by secure-cookie / CSRF hardening.
-- [[invoices]] — the send path that gains server-side idempotency (DEFER-04).
+- [[integration_credentials]] — зашифрованные секреты, чья production-ротация KEK является частью упрочнения.
+- [[system_settings]] — рантайм-конфиг/флаги, которые должны быть выставлены для production (не dev-дефолты).
+- [[refresh_sessions]] — auth-сессии, затрагиваемые упрочнением защищённых cookie / CSRF.
+- [[invoices]] — путь отправки, получающий серверную идемпотентность (DEFER-04).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[secret-encryption]] and [[config-secrets]] (production KEK + rotation, real secrets), [[fail-closed]] (egress stays fail-closed in production), [[auth]] (secure cookies, CSRF, login rate-limit), [[global-requirements]] (R-Deploy checklist must be fully green).
-- **Features:** hardens the platform built in [[LCOS-E1-platform]] ([[LCOS-F2-app-auth]], [[LCOS-F4-config-secrets]], [[LCOS-F3-sqladmin-operator]]); gates [[LCOS-F67-onboarding]] (no external users before this lands).
-- **Epics:** first work block of [[LCOS-E15-saas]]; blocks all sibling Phase-2 features.
-- **ADR:** [[ADR-008]] (multi-tenant-ready foundations reused), [[ADR-009]] (no speculative build before the gate).
+- **Requirements:** [[secret-encryption]] и [[config-secrets]] (production KEK + ротация, реальные секреты), [[fail-closed]] (egress остаётся fail-closed в production), [[auth]] (защищённые cookie, CSRF, rate-limit логина), [[global-requirements]] (чек-лист R-Deploy должен быть полностью зелёным).
+- **Features:** упрочняет платформу, построенную в [[LCOS-E1-platform]] ([[LCOS-F2-app-auth]], [[LCOS-F4-config-secrets]], [[LCOS-F3-sqladmin-operator]]); открывает [[LCOS-F67-onboarding]] (нет внешних пользователей до его завершения).
+- **Epics:** первый рабочий блок [[LCOS-E15-saas]]; блокирует все родственные фичи Phase 2.
+- **ADR:** [[ADR-008]] (переиспользование multi-tenant-ready основ), [[ADR-009]] (никакой спекулятивной сборки до гейта).
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). Decomposed into a dedicated `PHASE_P2_A` file with its own AC when Phase 2 starts; the R-Deploy production checklist must be fully green before the first external user.
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Раскладываются в выделенный файл `PHASE_P2_A` со своими AC при старте Phase 2; production-чек-лист R-Deploy должен быть полностью зелёным до первого внешнего пользователя.
 
 ## Sources
 
-- `plan/PHASE_P2_SAAS_OUTLINE.md §2 P2-A` (Dockerfile.prod, IaC, secrets, cookies/CSRF, rate-limiting, idempotency, CI, backups, monitoring).
-- `plan/PHASE_P2_SAAS_OUTLINE.md §3` (ordering: Pilot-Gate → P2-A first), `§4 AC-3` (P2-A complete before first external user).
-- `Local_OS_About.md` Phase 2 (Docker Compose local → Hetzner on Phase 2).
+- `plan/PHASE_P2_SAAS_OUTLINE.md §2 P2-A` (Dockerfile.prod, IaC, секреты, cookie/CSRF, rate-limiting, идемпотентность, CI, бэкапы, мониторинг).
+- `plan/PHASE_P2_SAAS_OUTLINE.md §3` (порядок: Pilot-Gate → P2-A первым), `§4 AC-3` (P2-A завершён до первого внешнего пользователя).
+- `Local_OS_About.md` Phase 2 (Docker Compose локально → Hetzner в Phase 2).

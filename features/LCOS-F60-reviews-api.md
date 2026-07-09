@@ -1,7 +1,7 @@
 ---
 id: LCOS-F60
 type: feature
-title: Reviews API + digest section + negative alert
+title: API отзывов + секция дайджеста + алерт о негативе
 epic: "[[LCOS-E12-competitor-reviews]]"
 status: future
 phase: "Phase 2"
@@ -13,54 +13,54 @@ legacy_refs: [plan F8, "plan F8-B4", "plan F8-F1"]
 sources: ["plan/PHASE_F8_COMPETITORS_REVIEWS.md §1 F8-B4", "plan/PHASE_F8_COMPETITORS_REVIEWS.md §2 F8-F1", "plan/PHASE_F8_COMPETITORS_REVIEWS.md §3"]
 updated: 2026-07-09
 ---
-# LCOS-F60 · Reviews API + digest section + negative alert
+# LCOS-F60 · API отзывов + секция дайджеста + алерт о негативе
 **Epic:** [[LCOS-E12-competitor-reviews]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The read/surface layer of the reviews epic. Exposes `GET /api/v1/reviews?subject=&competitor_id=&sentiment=` (paginated) and `GET /api/v1/reviews/trends?weeks=8`, and adds a "Reviews" section to the weekly digest ([[LCOS-F48-weekly-digest]]): new own reviews this week (count, average rating, negatives listed out), trends, and mentioned menu items for competitors. To hit the "react in <48 h" goal, a negative **own** review raises an alert immediately on import/analysis — it does not wait for the digest.
+Слой чтения/отображения эпика отзывов. Экспонирует `GET /api/v1/reviews?subject=&competitor_id=&sentiment=` (с пагинацией) и `GET /api/v1/reviews/trends?weeks=8`, и добавляет секцию «Reviews» в еженедельный дайджест ([[LCOS-F48-weekly-digest]]): новые собственные отзывы за эту неделю (количество, средний рейтинг, перечень негативных), тренды и упомянутые позиции меню для конкурентов. Чтобы достичь цели «реагировать за <48 ч», негативный **собственный** отзыв поднимает алерт сразу при импорте/анализе — он не ждёт дайджеста.
 
-On the frontend, a "Reviews" tab under the Competitors section shows own/competitor reviews with sentiment badges and filters, a simple weekly trends screen (plain bars/counters, no heavy chart libraries), and a manual import form (paste text/JSON) with a preview of the parsed records. Negative-review alerts flow through the shared alert mechanism. The section is module-gated (`module_competitors_enabled`, shared with [[LCOS-E11-competitor-menu]], or a separate `module_reviews_enabled` — implementer's choice, recorded).
+На фронтенде вкладка «Reviews» под секцией конкурентов показывает собственные/конкурентские отзывы с бейджами тональности и фильтрами, простой экран еженедельных трендов (обычные столбики/счётчики, без тяжёлых chart-библиотек) и форму ручного импорта (вставить текст/JSON) с предпросмотром распарсенных записей. Алерты о негативных отзывах идут через общий механизм алертов. Секция закрыта модульным гейтом (`module_competitors_enabled`, общий с [[LCOS-E11-competitor-menu]], или отдельный `module_reviews_enabled` — выбор реализующего, фиксируется).
 
-**Out of scope:** automated replies to reviews (never without a human — G7), social networks (Instagram/VK/TikTok), and scraping competitor Google Maps.
+**Вне объёма:** автоматические ответы на отзывы (никогда без человека — G7), соцсети (Instagram/VK/TikTok) и скрейпинг Google Maps конкурентов.
 
-## Capabilities
+## Возможности
 
-- `GET /reviews` (filters: `subject`, `competitor_id`, `sentiment`; paginated) and `GET /reviews/trends?weeks=8`.
-- "Reviews" digest section: weekly new own reviews (count, average rating, negatives listed), trends, competitor menu-item mentions.
-- Immediate alert on a negative own review at import/analysis time (does not wait for the digest) — supports the <48 h reaction goal.
-- Frontend "Reviews" tab (own/competitor lists, sentiment badges, filters), lightweight weekly trends view, manual import form with parsed-record preview.
-- Module gate (`module_competitors_enabled` shared with menu, or dedicated `module_reviews_enabled`).
+- `GET /reviews` (фильтры: `subject`, `competitor_id`, `sentiment`; с пагинацией) и `GET /reviews/trends?weeks=8`.
+- Секция дайджеста «Reviews»: еженедельные новые собственные отзывы (количество, средний рейтинг, перечень негативных), тренды, упоминания позиций меню конкурентов.
+- Немедленный алерт по негативному собственному отзыву во время импорта/анализа (не ждёт дайджеста) — поддерживает цель реакции <48 ч.
+- Фронтенд-вкладка «Reviews» (списки собственных/конкурентских, бейджи тональности, фильтры), лёгкое представление еженедельных трендов, форма ручного импорта с предпросмотром распарсенных записей.
+- Модульный гейт (`module_competitors_enabled`, общий с меню, или выделенный `module_reviews_enabled`).
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[admin]] | Views reviews and trends, receives negative-review alerts, uses the import form for their subdivision. |
-| [[member]] | Views reviews/trends and receives alerts within their subdivision. |
-| [[superadmin]] | Same across all tenants; toggles the reviews/competitors module gate. |
-| [[sqladmin-operator]] | Sets the module gate flag in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[admin]] | Просматривает отзывы и тренды, получает алерты о негативных отзывах, использует форму импорта для своего подразделения. |
+| [[member]] | Просматривает отзывы/тренды и получает алерты в рамках своего подразделения. |
+| [[superadmin]] | То же по всем тенантам; переключает модульный гейт отзывов/конкурентов. |
+| [[sqladmin-operator]] | Задаёт флаг модульного гейта в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
 
-## Involved entities
+## Задействованные сущности
 
-- Future `reviews` and `review_analyses` tables — the read source for the API, digest section and alerts; owned by [[LCOS-F58-review-storage]] and [[LCOS-F59-review-analysis]].
-- [[subdivisions]] — tenant scope of every query and of the digest section.
-- [[system_settings]] — REGISTRY-backed module gate (`module_competitors_enabled` / `module_reviews_enabled`).
-- Competitor rows (for `competitor_id` filtering and mentions) live in the directory of [[LCOS-E11-competitor-menu]] ([[LCOS-F54-competitor-directory]]).
+- Будущие таблицы `reviews` и `review_analyses` — источник чтения для API, секции дайджеста и алертов; принадлежат [[LCOS-F58-review-storage]] и [[LCOS-F59-review-analysis]].
+- [[subdivisions]] — тенант-скоуп каждого запроса и секции дайджеста.
+- [[system_settings]] — подкреплённый REGISTRY модульный гейт (`module_competitors_enabled` / `module_reviews_enabled`).
+- Строки конкурентов (для фильтрации по `competitor_id` и упоминаний) живут в справочнике [[LCOS-E11-competitor-menu]] ([[LCOS-F54-competitor-directory]]).
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[multitenancy]] (every read tenant-scoped and gated), [[fail-closed]] (the digest section only appears when data exists; absent digest infra defers the section, no silent partials), [[provider-abstraction]] (alerts and digest reuse the shared mechanisms, not a bespoke egress).
-- **Features:** depends on [[LCOS-F58-review-storage]] (data) and [[LCOS-F59-review-analysis]] (sentiment/trends); the digest section plugs into [[LCOS-F48-weekly-digest]] (if the digest is absent, the section is deferred).
-- **Epics:** part of [[LCOS-E12-competitor-reviews]]; the Competitors UI is shared with [[LCOS-E11-competitor-menu]].
-- **ADR:** [[ADR-012]] (live provider paths / secrets backend-only; the frontend renders results only).
+- **Requirements:** [[multitenancy]] (каждое чтение со скоупом тенанта и закрыто гейтом), [[fail-closed]] (секция дайджеста появляется только при наличии данных; отсутствующая инфра дайджеста откладывает секцию, без тихих частичных результатов), [[provider-abstraction]] (алерты и дайджест переиспользуют общие механизмы, а не кастомный egress).
+- **Features:** зависит от [[LCOS-F58-review-storage]] (данные) и [[LCOS-F59-review-analysis]] (тональность/тренды); секция дайджеста встраивается в [[LCOS-F48-weekly-digest]] (если дайджест отсутствует, секция откладывается).
+- **Epics:** часть [[LCOS-E12-competitor-reviews]]; UI конкурентов общий с [[LCOS-E11-competitor-menu]].
+- **ADR:** [[ADR-012]] (пути живого провайдера / секреты только на бэкенде; фронтенд только рендерит результаты).
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). API/pagination, digest-section, immediate negative-alert, module-gate and tenant-isolation criteria are drafted when the epic is activated (digest section depends on [[LCOS-F48-weekly-digest]] being live).
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Критерии API/пагинации, секции дайджеста, немедленного алерта о негативе, модульного гейта и тенант-изоляции прорабатываются при активации эпика (секция дайджеста зависит от того, что [[LCOS-F48-weekly-digest]] запущен).
 
 ## Sources
 
-- `plan/PHASE_F8_COMPETITORS_REVIEWS.md §1 F8-B4` (API endpoints, digest section, negative-review alert, module gate).
-- `plan/PHASE_F8_COMPETITORS_REVIEWS.md §2 F8-F1` (Reviews tab, sentiment badges/filters, trends screen, import form).
-- `plan/PHASE_F8_COMPETITORS_REVIEWS.md §3` (out of scope: auto-replies, social networks, competitor scraping).
+- `plan/PHASE_F8_COMPETITORS_REVIEWS.md §1 F8-B4` (эндпоинты API, секция дайджеста, алерт о негативном отзыве, модульный гейт).
+- `plan/PHASE_F8_COMPETITORS_REVIEWS.md §2 F8-F1` (вкладка Reviews, бейджи/фильтры тональности, экран трендов, форма импорта).
+- `plan/PHASE_F8_COMPETITORS_REVIEWS.md §3` (вне объёма: авто-ответы, соцсети, скрейпинг конкурентов).

@@ -1,7 +1,7 @@
 ---
 id: LCOS-F64
 type: feature
-title: Weekly "3 questions" session
+title: Еженедельная сессия «3 вопроса»
 epic: "[[LCOS-E14-strategic-insights]]"
 status: future
 phase: "Phase 2"
@@ -13,55 +13,55 @@ legacy_refs: [plan F10, "plan F10-B2", "plan F10-B4", "plan F10-F1"]
 sources: ["plan/PHASE_F10_STRATEGIC_INSIGHTS.md §1 F10-B2", "plan/PHASE_F10_STRATEGIC_INSIGHTS.md §1 F10-B4", "plan/PHASE_F10_STRATEGIC_INSIGHTS.md §2 F10-F1"]
 updated: 2026-07-09
 ---
-# LCOS-F64 · Weekly "3 questions" session
+# LCOS-F64 · Еженедельная сессия «3 вопроса»
 **Epic:** [[LCOS-E14-strategic-insights]] · **Status:** future · **Phase:** Phase 2
 
-## Description
+## Описание
 
-The flagship feature of the AI-manager: once a week the product opens a strategic conversation by asking the owner exactly **three questions** — not a report. A scheduler job (schedule in the config registry, by default aligned with the sales digest) takes the snapshot from [[LCOS-F63-insight-context]], calls `ai_complete` on the **primary** model, and enforces strict JSON: `questions[{question, why_now, data_refs[], suggested_angles[]}]`, exactly three items.
+Флагманская фича AI-управляющего: раз в неделю продукт открывает стратегический разговор, задавая владельцу ровно **три вопроса** — а не отчёт. Задание планировщика (расписание в config-реестре, по умолчанию выровнено с дайджестом продаж) берёт снимок из [[LCOS-F63-insight-context]], вызывает `ai_complete` на **основной** модели и требует строгий JSON: `questions[{question, why_now, data_refs[], suggested_angles[]}]`, ровно три элемента.
 
-The prompt rule is firm: questions and their reasoning may cite **only** the passed-in data, and are framed as discussion prompts, never directives ("Should we raise the price?" — not "Raise the price"). Each question's `data_refs` must point at real elements of the snapshot, so answers stay grounded. The session is stored in a future `insight_sessions` table (subdivision-scoped, uuid pk) with `week_start`, `context_snapshot` (exactly what the LLM saw, for audit), `questions`, `created_at`, `read_at?`, and a unique `(subdivision_id, week_start)`.
+Правило промпта твёрдое: вопросы и их обоснование могут ссылаться **только** на переданные данные и формулируются как темы для обсуждения, никогда как директивы («Стоит ли поднять цену?» — не «Поднимите цену»). `data_refs` каждого вопроса должны указывать на реальные элементы снимка, чтобы ответы оставались обоснованными. Сессия хранится в будущей таблице `insight_sessions` (скоуп подразделения, uuid pk) с `week_start`, `context_snapshot` (ровно то, что видел LLM, для аудита), `questions`, `created_at`, `read_at?` и уникальным `(subdivision_id, week_start)`.
 
-The frontend renders a mobile-first "Conversation of the week" page: a weekly card with the three questions, each carrying its "why now" and its supporting data, plus an unread badge and a history list of past weeks. If the AI/VPN is unavailable when the job runs, the session is **not** created and the error surfaces in the sync run; manual generation via `POST /api/v1/insights/generate` is always available and fails loudly rather than silently.
+Фронтенд рендерит mobile-first страницу «Разговор недели»: еженедельная карточка с тремя вопросами, каждый несёт своё «почему сейчас» и подкрепляющие данные, плюс бейдж непрочитанного и список истории прошлых недель. Если AI/VPN недоступен на момент прогона задания, сессия **не** создаётся, а ошибка отображается в прогоне синхронизации; ручная генерация через `POST /api/v1/insights/generate` доступна всегда и падает громко, а не тихо.
 
-## Capabilities
+## Возможности
 
-- Scheduled weekly job (registry schedule, default co-scheduled with the digest) → context → primary-model `ai_complete`.
-- Strict JSON contract: exactly 3 `questions`, each with `why_now`, `data_refs[]`, `suggested_angles[]`.
-- Grounding rule: cite only passed-in data; discussion-question framing, never a directive.
-- Persistence in `insight_sessions` with `context_snapshot` for "what the model saw" audit; unique `(subdivision_id, week_start)`.
-- Manual, always-available generation `POST /api/v1/insights/generate` (fail-closed on AI/VPN down).
-- Session API: `GET /insights` (list), `GET /insights/{id}` (questions + messages), `POST /insights/{id}/read`.
-- Mobile-first "Conversation of the week" page with unread badge and past-weeks history; mock provider serves a demo session.
+- Плановое еженедельное задание (расписание в реестре, по умолчанию co-scheduled с дайджестом) → контекст → `ai_complete` на основной модели.
+- Строгий JSON-контракт: ровно 3 `questions`, каждый с `why_now`, `data_refs[]`, `suggested_angles[]`.
+- Правило обоснованности: ссылаться только на переданные данные; формулировка вопроса для обсуждения, никогда не директива.
+- Персистентность в `insight_sessions` с `context_snapshot` для аудита «что видела модель»; уникально `(subdivision_id, week_start)`.
+- Ручная, всегда доступная генерация `POST /api/v1/insights/generate` (fail-closed при недоступности AI/VPN).
+- API сессий: `GET /insights` (список), `GET /insights/{id}` (вопросы + сообщения), `POST /insights/{id}/read`.
+- Mobile-first страница «Разговор недели» с бейджем непрочитанного и историей прошлых недель; mock-провайдер отдаёт демо-сессию.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что может делать |
 |---|---|
-| [[admin]] | Read the weekly session for their subdivision, mark it read, trigger manual generation. |
-| [[superadmin]] | Same across all tenants; configures schedule, model, prompt, and the `module_insights_enabled` gate. |
-| [[member]] | Not a target user of the strategic conversation in Phase 2. |
-| [[sqladmin-operator]] | Sets schedule / model / limits / module gate in the SQLAdmin plane (see [[LCOS-F3-sqladmin-operator]]). |
+| [[admin]] | Читает еженедельную сессию своего подразделения, помечает прочитанной, запускает ручную генерацию. |
+| [[superadmin]] | То же по всем тенантам; настраивает расписание, модель, промпт и гейт `module_insights_enabled`. |
+| [[member]] | Не является целевым пользователем стратегического разговора в Phase 2. |
+| [[sqladmin-operator]] | Задаёт расписание / модель / лимиты / модульный гейт в плоскости SQLAdmin (см. [[LCOS-F3-sqladmin-operator]]). |
 
-## Involved entities
+## Задействованные сущности
 
-- [[subdivisions]] — every session is scoped to one subdivision (the `SubdivisionScopedMixin` tenant boundary).
-- [[system_settings]] — runtime AI provider/model selection and the insight prompt, edited without a redeploy.
-- [[integration_credentials]] — Fernet-encrypted AI key read by the backend; egress via VPN, never exposed to the frontend.
-- Future tables `insight_sessions` (this feature) and `insight_messages` (owned by [[LCOS-F65-freeform-dialog]]) are introduced in Phase 2; they are not part of the frozen entity set.
+- [[subdivisions]] — каждая сессия имеет скоуп одного подразделения (граница тенанта `SubdivisionScopedMixin`).
+- [[system_settings]] — рантайм-выбор AI-провайдера/модели и промпт инсайтов, редактируемые без редеплоя.
+- [[integration_credentials]] — зашифрованный Fernet AI-ключ, читаемый бэкендом; egress через VPN, никогда не экспонируется фронтенду.
+- Будущие таблицы `insight_sessions` (эта фича) и `insight_messages` (принадлежит [[LCOS-F65-freeform-dialog]]) вводятся в Phase 2; они не входят в замороженный набор сущностей.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[provider-abstraction]] (primary model behind the LLM seam), [[fail-closed]] + [[vpn-egress]] (AI/VPN down → explicit failure/503, session not created, no silent direct egress), [[multitenancy]] (tenant isolation of sessions), [[config-secrets]] (schedule, model, prompt, limits, gate via three-level config).
-- **Features:** consumes [[LCOS-F63-insight-context]]; the same session is the anchor for [[LCOS-F65-freeform-dialog]]; gated by [[LCOS-F6-module-gates]] (`module_insights_enabled`).
-- **Epics / gates:** part of [[LCOS-E14-strategic-insights]]; success feeds the Pilot-Gate check ([[ADR-003]]) — ≥1 strategic decision/month from the conversation.
+- **Requirements:** [[provider-abstraction]] (основная модель за LLM-швом), [[fail-closed]] + [[vpn-egress]] (AI/VPN лежит → явный сбой/503, сессия не создаётся, без тихого прямого egress), [[multitenancy]] (тенант-изоляция сессий), [[config-secrets]] (расписание, модель, промпт, лимиты, гейт через трёхуровневый конфиг).
+- **Features:** потребляет [[LCOS-F63-insight-context]]; та же сессия — якорь для [[LCOS-F65-freeform-dialog]]; гейтится [[LCOS-F6-module-gates]] (`module_insights_enabled`).
+- **Epics / gates:** часть [[LCOS-E14-strategic-insights]]; успех питает проверку Pilot-Gate ([[ADR-003]]) — ≥1 стратегическое решение/месяц из разговора.
 
-## Acceptance criteria
+## Критерии приёмки
 
-- Acceptance criteria: TBD (Phase 2 — detailed on activation). Draft direction: the job produces exactly 3 questions with `data_refs` into a real `context_snapshot`; invalid LLM JSON → no session + logged error; `context_snapshot` persisted for audit; tenant isolation and the module gate hold; AI/VPN down → explicit 503 on generate.
+- Критерии приёмки: TBD (Phase 2 — детализируются при активации). Направление черновика: задание производит ровно 3 вопроса с `data_refs` в реальный `context_snapshot`; невалидный LLM JSON → нет сессии + залогированная ошибка; `context_snapshot` сохранён для аудита; тенант-изоляция и модульный гейт держатся; AI/VPN лежит → явный 503 на generate.
 
 ## Sources
 
-- `plan/PHASE_F10_STRATEGIC_INSIGHTS.md §1 F10-B2` (scheduler job, primary model, strict 3-question JSON, prompt grounding rule, `insight_sessions` schema, fail-closed generation).
-- `plan/PHASE_F10_STRATEGIC_INSIGHTS.md §1 F10-B4` (insights API endpoints).
-- `plan/PHASE_F10_STRATEGIC_INSIGHTS.md §2 F10-F1` (mobile-first "Conversation of the week" page, unread badge, history, mock demo session).
+- `plan/PHASE_F10_STRATEGIC_INSIGHTS.md §1 F10-B2` (задание планировщика, основная модель, строгий JSON из 3 вопросов, правило обоснованности промпта, схема `insight_sessions`, fail-closed генерация).
+- `plan/PHASE_F10_STRATEGIC_INSIGHTS.md §1 F10-B4` (эндпоинты API инсайтов).
+- `plan/PHASE_F10_STRATEGIC_INSIGHTS.md §2 F10-F1` (mobile-first страница «Разговор недели», бейдж непрочитанного, история, mock демо-сессия).

@@ -1,7 +1,7 @@
 ---
 id: LCOS-F42
 type: feature
-title: Receipt ↔ order reconciliation
+title: Сверка приёмка ↔ заказ
 epic: "[[LCOS-E8-purchasing]]"
 status: planned
 phase: "Phase 1"
@@ -13,64 +13,64 @@ legacy_refs: ["08 F5.1", "07 Э5"]
 sources: ["08_PHASE1_SPEC.md F5.1", "07_PHASES.md Э5", "mvp.be app/services/invoice_service.py:177-238", "mvp.fe src/widgets/invoice-workbench/ui/InvoiceWorkbench.tsx"]
 updated: 2026-07-09
 ---
-# LCOS-F42 · Receipt ↔ order reconciliation
+# LCOS-F42 · Сверка приёмка ↔ заказ
 **Epic:** [[LCOS-E8-purchasing]] · **Status:** planned · **Phase:** Phase 1
 
-## Description
+## Описание
 
-Closes the purchasing loop: when a receipt (invoice, [[LCOS-E2-invoice-intake]]) arrives, LCOS matches it to the open purchase order it fulfils and shows the discrepancies. A new `invoices.purchase_order_id` (FK uuid, nullable, `SET NULL`) links the two. On submit the backend **auto-matches**: the open PO (`confirmed` / `sent_manually`) of the same supplier closest in date. Zero candidates → the invoice has no PO; exactly one → linked; more than one → the UI asks the human to choose (never guesses). The integration point is `InvoiceService.submit`.
+Закрывает петлю закупок: когда приходит приёмка (счёт-фактура, [[LCOS-E2-invoice-intake]]), LCOS сопоставляет её с открытым заказом на закупку, который она исполняет, и показывает расхождения. Новый `invoices.purchase_order_id` (FK uuid, nullable, `SET NULL`) связывает эти двое. На submit бэкенд **авто-матчит**: открытый PO (`confirmed` / `sent_manually`) того же поставщика, ближайший по дате. Ноль кандидатов → у счёта-фактуры нет PO; ровно один → связан; более одного → UI просит человека выбрать (никогда не гадает). Точка интеграции — `InvoiceService.submit`.
 
-Before sending, a **discrepancy section** inside the invoice workbench compares "ordered N — received M", price differences, positions outside the order, and short deliveries. It is **informational, not blocking** — it never prevents a receipt from being submitted. Confirming with a link transitions the PO to `received`, and any shortfall is written as auto-text into the PO's `notes`. This is the step that turns a set of features into a closed "order → arrival → discrepancies → received" loop and gives an honest Phase-1 close criterion.
+Перед отправкой **секция расхождений** внутри workbench счёта-фактуры сравнивает «заказано N — получено M», разницы цен, позиции вне заказа и недопоставки. Она **информационная, не блокирующая** — никогда не мешает отправить приёмку. Подтверждение со связью переводит PO в `received`, а любой недобор пишется как авто-текст в `notes` PO. Это шаг, превращающий набор фич в замкнутую петлю «заказ → приход → расхождения → received» и дающий честный критерий закрытия Phase 1.
 
-## Capabilities
+## Возможности
 
-- `invoices.purchase_order_id` (FK uuid, nullable, `SET NULL`) links a receipt to its order.
-- Auto-match on submit: open PO (`confirmed`/`sent_manually`) of the same supplier, closest by date — inside `InvoiceService.submit`.
-- Multiple candidates → UI selection (no guessing); zero → no PO link; one → auto-linked.
-- Discrepancy section in `InvoiceWorkbench` (embedded before send): "ordered N — received M", price differences, off-order positions, short deliveries — informational, non-blocking.
-- Confirm-with-link → PO `received`; shortfall auto-written to PO `notes`.
+- `invoices.purchase_order_id` (FK uuid, nullable, `SET NULL`) связывает приёмку с её заказом.
+- Авто-матч на submit: открытый PO (`confirmed`/`sent_manually`) того же поставщика, ближайший по дате — внутри `InvoiceService.submit`.
+- Несколько кандидатов → выбор в UI (без гадания); ноль → нет связи с PO; один → авто-связан.
+- Секция расхождений в `InvoiceWorkbench` (встроена перед отправкой): «заказано N — получено M», разницы цен, позиции вне заказа, недопоставки — информационная, не блокирующая.
+- Подтверждение-со-связью → PO `received`; недобор авто-записывается в `notes` PO.
 
-## Access by role
+## Доступ по ролям
 
-| Role | What they can do |
+| Роль | Что можно делать |
 |---|---|
-| [[member]] | Review the discrepancy section on receipt, pick the PO when ambiguous, confirm the link (PO → `received`). |
-| [[admin]] | Same, within their subdivision. |
-| [[superadmin]] | Cross-tenant access. |
-| [[sqladmin-operator]] | Not involved. |
+| [[member]] | Отревьюить секцию расхождений на приёмке, выбрать PO при неоднозначности, подтвердить связь (PO → `received`). |
+| [[admin]] | То же, в пределах своего subdivision. |
+| [[superadmin]] | Межтенантный доступ. |
+| [[sqladmin-operator]] | Не участвует. |
 
-Scope from active JWT context; only the caller's own invoices and POs participate (see [[multitenancy]]).
+Scope из активного JWT-контекста; участвуют только собственные счета-фактуры и PO вызывающего (см. [[multitenancy]]).
 
-## Involved entities
+## Задействованные сущности
 
-- [[invoices]] — gains `purchase_order_id` (nullable FK, `SET NULL`); the link is set at submit.
-- [[invoice_lines]] — the received quantities/prices compared against the order.
-- [[purchase_orders]] — the matched order; transitions to `received`; shortfall recorded in `notes`.
-- [[purchase_order_lines]] — the ordered quantities/prices the receipt is compared against.
+- [[invoices]] — получает `purchase_order_id` (nullable FK, `SET NULL`); связь устанавливается на submit.
+- [[invoice_lines]] — полученные количества/цены, сравниваемые с заказом.
+- [[purchase_orders]] — сматченный заказ; переходит в `received`; недобор записан в `notes`.
+- [[purchase_order_lines]] — заказанные количества/цены, с которыми сравнивается приёмка.
 
-## Dependencies / links
+## Зависимости / связи
 
-- **Requirements:** [[invoice-status-machine]] (matching hooks into `InvoiceService.submit`, the same submit path that drives invoice status; PO transition `→ received` obeys the [[LCOS-F37-purchase-orders]] status machine), [[multitenancy]] (same-org supplier matching only).
-- **Features:** hooks into submit from [[LCOS-F10-invoice-status-machine]] ([[LCOS-E2-invoice-intake]]); matches POs from [[LCOS-F37-purchase-orders]] that were sent via [[LCOS-F39-order-message]]; the discrepancy UI extends `InvoiceWorkbench`, the same widget used by [[LCOS-F9-line-matching]]; results feed the close-out cycle [[LCOS-F44-live-closeout]].
+- **Требования:** [[invoice-status-machine]] (матчинг цепляется в `InvoiceService.submit`, тот же путь submit, что управляет статусом счёта-фактуры; переход PO `→ received` подчиняется машине статусов [[LCOS-F37-purchase-orders]]), [[multitenancy]] (матчинг только по поставщику той же org).
+- **Фичи:** цепляется в submit из [[LCOS-F10-invoice-status-machine]] ([[LCOS-E2-invoice-intake]]); матчит PO из [[LCOS-F37-purchase-orders]], которые были отправлены через [[LCOS-F39-order-message]]; UI расхождений расширяет `InvoiceWorkbench`, тот же виджет, что использует [[LCOS-F9-line-matching]]; результаты питают close-out цикл [[LCOS-F44-live-closeout]].
 
-## Acceptance Criteria (AC)
+## Критерии приёмки (AC)
 
 ### Backend
-- [ ] AC-BE-1. `invoices.purchase_order_id` migration (nullable FK, `SET NULL`) applies/rolls back cleanly.
-- [ ] AC-BE-2. Matcher on submit: one candidate → linked; zero → invoice without PO; two+ → requires UI selection (tested for each case).
-- [ ] AC-BE-3. Auto-match considers only open (`confirmed`/`sent_manually`) POs of the same supplier within the org, closest by date.
-- [ ] AC-BE-4. Confirm-with-link transitions the PO to `received`; short delivery is auto-written into PO `notes`.
+- [ ] AC-BE-1. Миграция `invoices.purchase_order_id` (nullable FK, `SET NULL`) применяется/откатывается чисто.
+- [ ] AC-BE-2. Матчер на submit: один кандидат → связан; ноль → счёт-фактура без PO; два+ → требует выбора в UI (протестировано для каждого случая).
+- [ ] AC-BE-3. Авто-матч рассматривает только открытые (`confirmed`/`sent_manually`) PO того же поставщика в пределах org, ближайшие по дате.
+- [ ] AC-BE-4. Подтверждение-со-связью переводит PO в `received`; недопоставка авто-записывается в `notes` PO.
 
 ### Frontend
-- [ ] AC-FE-1. Scenario "10 ordered → 8 received, 1 price higher": the section shows 2 short deliveries + 1 price discrepancy; the PO ends `received` with notes.
-- [ ] AC-FE-2. Discrepancy section is informational (never blocks submit) and embedded before send in `InvoiceWorkbench`.
-- [ ] AC-FE-3. When more than one PO matches, the UI asks the user to choose (no silent guess).
+- [ ] AC-FE-1. Сценарий «10 заказано → 8 получено, 1 дороже по цене»: секция показывает 2 недопоставки + 1 расхождение цены; PO заканчивается `received` с заметками.
+- [ ] AC-FE-2. Секция расхождений информационная (никогда не блокирует submit) и встроена перед отправкой в `InvoiceWorkbench`.
+- [ ] AC-FE-3. Когда совпадает более одного PO, UI просит пользователя выбрать (без молчаливого гадания).
 
-## Open questions / gates
-- Owner acceptance (whole Э5): full cycle order → send → photo receipt with warehouse pick → discrepancies → `received` → invoice auto-written to Esupl, run for two weeks without a notebook.
+## Открытые вопросы / гейты
+- Приёмка владельцем (весь Э5): полный цикл заказ → отправка → фото приёмки с выбором склада → расхождения → `received` → счёт-фактура авто-записана в Esupl, в течение двух недель без блокнота.
 
-## Sources
-- `08_PHASE1_SPEC.md F5.1` (FK, auto-match rules, discrepancy screen, `received` + notes, AC).
-- `07_PHASES.md Э5` ("Связь `invoices.purchase_order_id`; авто-матч; экран расхождений; PO → received").
-- `mvp.be/app/services/invoice_service.py:177-238` — `submit` (the integration point for auto-match).
-- `mvp.fe/src/widgets/invoice-workbench/ui/InvoiceWorkbench.tsx` — single-file widget; discrepancy section embedded before send.
+## Источники
+- `08_PHASE1_SPEC.md F5.1` (FK, правила авто-матча, экран расхождений, `received` + заметки, AC).
+- `07_PHASES.md Э5` («Связь `invoices.purchase_order_id`; авто-матч; экран расхождений; PO → received»).
+- `mvp.be/app/services/invoice_service.py:177-238` — `submit` (точка интеграции для авто-матча).
+- `mvp.fe/src/widgets/invoice-workbench/ui/InvoiceWorkbench.tsx` — однофайловый виджет; секция расхождений встроена перед отправкой.

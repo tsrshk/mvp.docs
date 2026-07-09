@@ -12,47 +12,47 @@ updated: 2026-07-09
 
 # LCOS-E15 · SaaS (Phase 2)
 
-**Status:** 🔭 future · **Phase:** Phase 2 (after Pilot-Gate + first niche customers)
+**Статус:** 🔭 future · **Фаза:** Phase 2 (после Pilot-Gate + первых нишевых клиентов)
 
-## Description
+## Описание
 
-Turning the product validated on Customer Zero into a sellable SaaS: production hardening and deploy (moving off local Docker to the cloud), self-service onboarding, billing, a second ERP connector (iiko) on top of the existing provider seam ([[LCOS-F5-provider-seams]]), multitenancy scaling ([[LCOS-F1-multitenancy]]), and product packaging. This epic, not anything earlier, is what implements "Phase 2 = SaaS" from the old planning docs (collision-resolution #2).
+Превращение продукта, валидированного на Customer Zero, в продаваемый SaaS: production hardening и деплой (уход с локального Docker в облако), self-service-онбординг, биллинг, второй ERP-коннектор (iiko) поверх существующего провайдерского шва ([[LCOS-F5-provider-seams]]), масштабирование мультиарендности ([[LCOS-F1-multitenancy]]) и упаковка продукта. Именно этот эпик, а не что-либо более раннее, реализует «Phase 2 = SaaS» из старых планов (разрешение коллизии #2).
 
-The strategy explicitly forbids building this before the Pilot-Gate: attempting to go "straight for the exponential" (global market, self-service, billing) before validation is a way to lose a year (06_STRATEGY §roadmap).
+Стратегия прямо запрещает строить это до Pilot-Gate: попытка пойти «сразу за экспонентой» (глобальный рынок, self-service, биллинг) до валидации — способ потерять год (06_STRATEGY §roadmap).
 
-## Goal / value
+## Цель / ценность
 
-Reaching a growing stream of users and a decent founder income ($3–8k/month: 30–80 paying × $99–149/month at a "manager" price point). The scaling channel is the Poster marketplace after the Pilot-Gate + 5–10 niche customers.
+Выход на растущий поток пользователей и приличный доход основателя ($3–8k/месяц: 30–80 платящих × $99–149/месяц в ценовой точке «управляющий»). Канал масштабирования — маркетплейс Poster после Pilot-Gate + 5–10 нишевых клиентов.
 
-## Features
+## Фичи
 
-| ID | Name | Status | Link |
+| ID | Название | Статус | Ссылка |
 |---|---|---|---|
-| LCOS-F66 | Production hardening and deploy | 🔭 future | [[LCOS-F66-prod-hardening]] |
-| LCOS-F67 | Self-service onboarding | 🔭 future | [[LCOS-F67-onboarding]] |
-| LCOS-F68 | Billing | 🔭 future | [[LCOS-F68-billing]] |
-| LCOS-F69 | Second ERP connector (iiko) | 🔭 future | [[LCOS-F69-iiko-connector]] |
-| LCOS-F70 | Multitenancy scaling | 🔭 future | [[LCOS-F70-tenancy-scaling]] |
-| LCOS-F71 | Product packaging | 🔭 future | [[LCOS-F71-product-packaging]] |
+| LCOS-F66 | Production hardening и деплой | 🔭 future | [[LCOS-F66-prod-hardening]] |
+| LCOS-F67 | Self-service-онбординг | 🔭 future | [[LCOS-F67-onboarding]] |
+| LCOS-F68 | Биллинг | 🔭 future | [[LCOS-F68-billing]] |
+| LCOS-F69 | Второй ERP-коннектор (iiko) | 🔭 future | [[LCOS-F69-iiko-connector]] |
+| LCOS-F70 | Масштабирование мультиарендности | 🔭 future | [[LCOS-F70-tenancy-scaling]] |
+| LCOS-F71 | Упаковка продукта | 🔭 future | [[LCOS-F71-product-packaging]] |
 
-## Key entities / requirements
+## Ключевые сущности / требования
 
-- Entities: [[organizations]], [[subdivisions]], [[users]], [[memberships]], [[integration_credentials]] (scaling the existing tenant hierarchy).
-- Requirements: [[multitenancy]], [[auth]], [[config-secrets]], [[secret-encryption]], [[provider-abstraction]], [[erp-esupl-integration]].
-- Roles: [[superadmin]], [[admin]], [[sqladmin-operator]], [[supplier-future]] (supplier self-service is activated here).
+- Сущности: [[organizations]], [[subdivisions]], [[users]], [[memberships]], [[integration_credentials]] (масштабирование существующей иерархии арендаторов).
+- Требования: [[multitenancy]], [[auth]], [[config-secrets]], [[secret-encryption]], [[provider-abstraction]], [[erp-esupl-integration]].
+- Роли: [[superadmin]], [[admin]], [[sqladmin-operator]], [[supplier-future]] (self-service поставщика активируется здесь).
 
-## Gates
+## Гейты
 
-- **Pilot-Gate first ([[ADR-003]]):** SaaS does not start until the Pilot-Gate is passed and the first paying niche customers exist — a hard strategic gate.
-- **Second ERP through a seam:** the iiko connector implements the existing `Protocol` without rewriting services ([[ADR-009]]).
-- **Supplier self-service:** activates the [[ADR-017]] placeholder (the `supplier` role, `portal_user_id`).
+- **Сначала Pilot-Gate ([[ADR-003]]):** SaaS не стартует, пока не пройден Pilot-Gate и не появились первые платящие нишевые клиенты — жёсткий стратегический гейт.
+- **Второй ERP через шов:** коннектор iiko реализует существующий `Protocol` без переписывания сервисов ([[ADR-009]]).
+- **Self-service поставщика:** активирует заглушку [[ADR-017]] (роль `supplier`, `portal_user_id`).
 - AC: TBD (Phase 2).
 
 ## legacy_refs
 
-plan P2 (SaaS phase); 06_STRATEGY roadmap and market options A/B/C.
+plan P2 (SaaS-фаза); 06_STRATEGY roadmap и рыночные опции A/B/C.
 
-## Sources
+## Источники
 
-- 06_STRATEGY.md (roadmap, revenue, channel), plan/00_IMPLEMENTATION_PLAN.md P2, 07_PHASES.md
+- 06_STRATEGY.md (roadmap, выручка, канал), plan/00_IMPLEMENTATION_PLAN.md P2, 07_PHASES.md
 - ADR: [[ADR-003]], [[ADR-009]], [[ADR-017]]
