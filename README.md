@@ -1,197 +1,52 @@
 ---
 doc: README
-title: LCOS Docs — домашняя страница и регламент
-version: 1.1.0
+title: LCOS documentation vault — map & conventions
+version: 2.0.0
 status: current
-updated: 2026-07-03
+updated: 2026-07-09
 owner: Ivan
 trust_tier: 0
-ssot_for: [doc-governance, trust-order, doc-registry, versioning-convention]
 ---
 
-# LCOS Documentation Space
+# LCOS documentation vault
 
-Локальный, упрощённый аналог Confluence: несколько **живых** документов, каждый — единственный источник истины по своей теме, с явной версией, датой и статусом. Цель — чтобы человек и AI-агент читали только актуальное и не тратили силы на устаревшие пивоты.
+A Confluence/Jira-style knowledge base in Markdown, designed to be opened as an **Obsidian vault**. Cross-references use Obsidian wiki-links — double square brackets around a file basename. Requirements follow **SSOT**: each capability/requirement is written once and linked, never duplicated.
 
-> **Если ты AI-агент:** прочитай этот README первым. Работай только с документами `status: current` из реестра ниже, в порядке доверия. **Никогда не читай `archive/`.** Для поведения системы истина — код и `mvp.be/CLAUDE.md`, а не продуктовые доки.
+Start here: **[[MOC]]** (Map of Content) — the linked index to everything.
 
----
+## Structure
 
-## 1. Порядок доверия (при конфликте выигрывает верхний)
+| Folder | What lives here |
+|---|---|
+| `00-overview/` | [[product]] (vision/strategy), [[architecture]] (as-built SSOT), [[roadmap]] (phases), [[glossary]], [[MOC]] |
+| `epics/` | `LCOS-E1..E15` — epic docs, each linking its features |
+| `features/` | `LCOS-F1..F71` — feature docs (parent epic, description, capabilities, role access, entities, **AC split by Backend / Frontend / other**) |
+| `entities/` | Data-model docs, one per table (SSOT for the schema) |
+| `roles/` | `superadmin`, `admin`, `member`, `sqladmin-operator`, `supplier-future` |
+| `requirements/` | Cross-cutting SSOT: auth, multitenancy, config-secrets, fail-closed, vpn-egress, provider-abstraction, erp-esupl-integration, sku-identity-resolver, invoice-status-machine, secret-encryption, supplier-criteria-registry, global-requirements (R1–R9) |
+| `adr/` | Architecture Decision Records `ADR-001..020` + `DEC-0011`/`DEC-0013` + [[index]] |
+| `reference/` | External integration reference (`esupl-api/`) |
+| `work/` | Live process docs (aligned TZ, fix journals, open gates, per-phase specs `work/plan/`, backlog, tasks) |
+| `archive/` | Inert historical & superseded docs — never read as current, never revived |
 
-| Tier | Источник | Для чего авторитетен |
-|---|---|---|
-| 1 | **Код + `mvp.be/CLAUDE.md`** | Что система делает и как построена (поведение, конвенции). Код всегда побеждает описательные доки. |
-| 2 | **`02_REQUIREMENTS.md` + `04_DECISIONS.md`** | Что система **должна** делать и **почему** так (нормативный контракт). |
-| 3 | **`01_ARCHITECTURE.md`** | Текущее устройство (as-built). Описательный. Если расходится с кодом — код прав, документ устарел → чинить. |
-| 4 | **`00_PRODUCT.md` + `03_ROADMAP.md`** | Видение, границы продукта, порядок стадий. |
-| 5 | **`work/*`** | Рабочие журналы фич. Могут быть неактуальны в середине работы. |
-| 6 | **`archive/*`** | Историческое. **Не использовать.** Хранится только для аудита. |
+## Numbering & IDs
+- **Epics** `LCOS-E#`, **features** `LCOS-F#` (grouped-typed, project key `LCOS`). Every feature declares its parent epic in front-matter and links back.
+- Phase 1 (`E1–E8`) is documented fully with AC. Phase 2 (`E9–E15`) is documented as stubs (activated on demand). The boundary is the **Pilot-Gate** (see [[glossary]], [[ADR-003]]).
+- Legacy codes from the old plans (Э0–Э8 / S1–S2 / F3–F10 / P2) are preserved in each doc's `legacy_refs` and mapped in [[roadmap]].
 
-Правило разрешения конфликтов: описательный документ (Tier 3) не может переопределить код (Tier 1); нормативный (Tier 2) описывает целевое состояние, и если код ему не соответствует — это запись в `05_BACKLOG.md`, а не «правда кода».
+## Conventions
+- **Language:** English (prose and identifiers).
+- **Front-matter:** every doc opens with YAML (`id`/`type`/`title`/`status`/`sources`/…).
+- **Wikilinks by basename:** `[[sku_mapping]]`, `[[fail-closed]]`, `[[ADR-018]]`, `[[LCOS-F8-ocr-recognition]]`.
+- **Trust order (on conflict):** code + `CLAUDE.md` > `adr/` (decisions) > requirements/architecture > overview/product. When docs disagree with code, code wins and the doc is corrected.
+- **Append-only decisions:** ADRs are never rewritten; supersede with a new ADR.
 
----
-
-## 2. Реестр документов (единственный список «что живое»)
-
-| Файл | Роль | Статус | Версия | Обновлён | Верифиц. с кодом | SSOT по |
-|---|---|---|---|---|---|---|
-| `00_PRODUCT.md` | Видение, фазы, границы, wife-gate | current | — | — | n/a | продукт, позиционирование, фазы |
-| `01_ARCHITECTURE.md` | Устройство as-built | current | — | — | *дата* | архитектура, модель данных, провайдеры, auth-внутренности |
-| `02_REQUIREMENTS.md` | Нормативные требования | current | — | — | n/a | инварианты, требования R*, критерии приёмки |
-| `03_ROADMAP.md` | Стадии F0–F10, текущая точка | current | — | — | n/a | последовательность работ, что сделано/дальше |
-| `04_DECISIONS.md` | ADR-лог | current | 1.0.0 | 2026-07-02 | n/a | зафиксированные архитектурные/продуктовые решения |
-| `05_BACKLOG.md` | Открытые задачи/решения/проверки | current | 1.0.0 | 2026-07-02 | n/a | выравнивание, незакрытые решения, отложенное |
-| `README.md` | Регламент + индекс | current | 1.1.0 | 2026-07-03 | n/a | governance, порядок доверия, конвенции |
-| `plan/00_IMPLEMENTATION_PLAN.md` | Общий план реализации (фазы, сквозные требования G1–G11) | current | 1.0.0 | 2026-07-03 | n/a | состав/порядок фаз, сквозные требования имплементации |
-| `plan/PHASE_*.md` (S1, S2, F3–F10, P2) | Требования + AC каждой фазы имплементации | current | 1.0.0 | 2026-07-03 | n/a | требования и критерии приёмки своей фазы |
-| `OBSOLETE_DOCS.md` | Список устаревших доков — кандидатов на удаление/архив | current | 1.0.0 | 2026-07-03 | n/a | что устарело и куда перенесена истина |
-
-Прочерки в колонках версии/даты 00–03 = слоты созданы, но контент ещё переносится (см. §6). При создании файла заполнить front-matter и обновить строку реестра.
-
-Документы `plan/*` — нормативные (trust tier 2, уровень 02_REQUIREMENTS): контракт для агента-исполнителя на каждую фазу. По завершении фазы её durable-итог вносится в `01_ARCHITECTURE`/`03_ROADMAP`, а PHASE-файл помечается `superseded` и уходит в `archive/`.
-
----
-
-## 3. Конвенция front-matter (в начале каждого файла)
-
-```yaml
----
-doc: 01_ARCHITECTURE            # slug = имя файла без .md
-title: LCOS — Архитектура (as-built)
-version: 1.3.0                  # MAJOR.MINOR.PATCH (см. §4)
-status: current                 # draft | current | superseded | archived
-updated: 2026-07-02             # дата последнего изменения (обязательно бампать)
-verified_against_code: 2026-07-02   # ТОЛЬКО для описательных доков; иначе n/a
-owner: Ivan
-supersedes: [PROJECT_ANALYSIS_HANDOFF.md]   # что этот документ заменил
-superseded_by: none             # slug заменившего, если статус superseded
-trust_tier: 3
-ssot_for: [architecture, data-model, providers, auth-internals]
----
-```
-
-`verified_against_code` отделён от `updated` намеренно: описательный документ можно править, но важен вопрос «когда его последний раз сверяли с кодом». Для нормативных/продуктовых доков — `n/a`.
-
----
-
-## 4. Версионность
-
-Формат `MAJOR.MINOR.PATCH`:
-- **PATCH** (`x.y.Z`) — опечатки, уточнения формулировок, без смысловых изменений.
-- **MINOR** (`x.Y.0`) — добавления/правки содержания при неизменной структуре.
-- **MAJOR** (`X.0.0`) — структурная переработка, пивот, или событие вытеснения (supersede).
-
-Правила:
-- Поле `updated` бампается при **любом** изменении.
-- Внизу файла — раздел `## Журнал изменений`, новые записи сверху: `- 2026-07-02 v1.3.0 — что изменилось`.
-- Дата — ISO `YYYY-MM-DD`. Никаких «недавно»/«вчера».
-
----
-
-## 5. Жизненный цикл статуса
-
-```
-draft ──► current ──► superseded ──► archived
-                │
-                └─ (описательный) при расхождении с кодом остаётся current,
-                   но заводится тикет в 05_BACKLOG и обновляется verified_against_code
-```
-
-- В каждом каноническом слоте (00–05) ровно **один** документ `current`.
-- Вытеснение: у старого `status: superseded` + `superseded_by: <slug>`; затем файл переносится в `archive/`. Реестр (§2) — единственное место, где видно «что живое».
-- Рабочий журнал (`work/*`): когда фича закрыта — durable-итог вносится в канонический документ (ARCHITECTURE/ROADMAP), журнал переносится в `archive/`.
-
----
-
-## 6. Правила ведения (governance)
-
-1. **Один факт — один владелец.** Каждая тема имеет один SSOT-документ (см. `ssot_for`). Остальные **ссылаются**, не дублируют. (Тот же принцип «единый источник истины», что и в конфигурации кода.)
-2. **Решения append-only.** Прошлую ADR-запись не переписывают: её помечают `superseded` и добавляют новую со ссылкой на старую (`04_DECISIONS.md`).
-3. **Описательное сверяется с кодом.** `01_ARCHITECTURE` несёт `verified_against_code`. Разошлось с кодом → код прав, документ устарел → правка + бамп + новая дата сверки.
-4. **Изменение поведения = бамп доков в том же шаге.** Любая работа, меняющая поведение, обновляет версию+дату затронутого документа. (CI это не проверяет на текущей стадии — дисциплина ручная; вынесено в `05_BACKLOG`/прод-чеклист.)
-5. **Архив инертен.** Ничто не читает `archive/`. Туда только переносят, оттуда не «воскрешают» — при необходимости создаётся новый current-документ.
-6. **Граница с `CLAUDE.md`.** `mvp.be/CLAUDE.md` остаётся SSOT по код-конвенциям и non-negotiables для агента-исполнителя. Доки его **не дублируют**: `01_ARCHITECTURE` описывает устройство, `CLAUDE.md` предписывает как писать код. При конфликте по коду — `CLAUDE.md`/код.
-
----
-
-## 7. Карта миграции (что куда)
-
-| Исходный документ | Действие | Назначение |
-|---|---|---|
-| `Local_OS_About.md` | адаптировать + front-matter | **00_PRODUCT** (канон) |
-| `PROJECT_ANALYSIS_HANDOFF.md` | адаптировать + front-matter + `verified_against_code` | **01_ARCHITECTURE** (канон) |
-| `LCOS_Conformance_Alignment_GlobalRequirements.md` — Часть 3 | вынести | **02_REQUIREMENTS** |
-| `LCOS_Conformance_Alignment_GlobalRequirements.md` — Часть 2 | вынести | **05_BACKLOG** (сделано, seed) |
-| `LCOS_Conformance_Alignment_GlobalRequirements.md` — Часть 1 | разовая сверка | свернуть в 01 или в архив |
-| `Local_OS_Functional_Stages_v01.md` + `Local_OS_Roadmap_v03.xlsx` | слить | **03_ROADMAP** |
-| `LCOS_Stabilization_AuthKeys_Spec.md` | вытеснен богатым GlobalRequirements | `superseded` → **archive/** (валидные части свернуть в 02) |
-| `Local_OS_Specification_v04.md` | устарел (Telegram/Java/no-auth per handoff) | **archive/** (собрать остатки истины в 02/03) |
-| `Local_OS_MVP1_AgentSpec.md` | частично вытеснен кодом | собрать валидное в 02/03 → **archive/** |
-| `Local_OS_OnePager_v03.docx` | вытеснен About | **archive/** |
-| `Local_OS_MVP_OnePager.docx` (v01) | устарел (Poster/Telegram/Java) | **archive/** |
-| `Local_OS_MVP_OnePager_v02.docx` | устарел (purchasing/marketplace pivot) | **archive/** |
-| `Local_OS_Roadmap.xlsx` | вытеснен v03 | **archive/** |
-| `recognition-feature.md` | рабочий журнал | **work/** (итоги → 01/03 по закрытии) |
-| `scan-preprocessing-plan.md` | рабочий журнал | **work/** |
-| `no-ai-ocr-options.md` | анализ опций | **work/**; принятое решение → ADR в 04 |
-
----
-
-## 8. Шаблоны
-
-### 8.1 Нормативный / продуктовый документ
-```markdown
----
-doc: 00_PRODUCT
-title: ...
-version: 1.0.0
-status: current
-updated: YYYY-MM-DD
-verified_against_code: n/a
-owner: Ivan
-supersedes: [...]
-superseded_by: none
-trust_tier: 4
-ssot_for: [...]
----
-
-# Заголовок
-
-> Одно предложение: что это за документ и по чему он SSOT.
-
-## Разделы по существу
-...
-
-## Журнал изменений
-- YYYY-MM-DD v1.0.0 — создан из <источник>.
-```
-
-### 8.2 Описательный документ (architecture)
-Как выше, но `verified_against_code: YYYY-MM-DD` заполнен, и первая строка тела — «Сверено с кодом на <дата>; при расхождении прав код».
-
-### 8.3 ADR-запись (в `04_DECISIONS.md`)
-```markdown
-### ADR-0NN · <короткое название>
-- **Статус:** accepted | superseded (→ ADR-0MM)
-- **Дата:** YYYY-MM-DD
-- **Контекст:** зачем встал вопрос.
-- **Решение:** что решили (одним абзацем).
-- **Следствия:** что это влечёт, чем платим.
-- **Связи:** REQ-*, BACKLOG-*, ADR-*.
-```
-
-### 8.4 Тикет бэклога (в `05_BACKLOG.md`)
-```markdown
-- **[ID] Название** — `status: open|decided|in-progress|done` · `prio: P0|P1|P2`
-  - Проблема / что не так.
-  - Действие / варианты + рекомендация.
-  - Готово, когда: критерий.
-  - Связи: ADR-*, REQ-*.
-```
-
----
-
-## Журнал изменений
-- 2026-07-03 v1.1.0 — в реестр добавлены `plan/*` (общий план + PHASE-файлы фаз имплементации) и `OBSOLETE_DOCS.md`; описан жизненный цикл PHASE-файлов.
-- 2026-07-02 v1.0.0 — создан. Заведены порядок доверия, реестр, конвенция версионности, жизненный цикл, governance, карта миграции, шаблоны.
+## Migration record (2026-07-09)
+This vault replaces the previous flat pile of numbered/`TZ__`/audit docs. Nothing was deleted:
+- `01_ARCHITECTURE.md` + `APP_OVERVIEW.md` → merged into [[architecture]] (originals in `archive/`).
+- `06_STRATEGY.md` (+ `Local_OS_About.md`) → [[product]]; `07_PHASES.md` + `plan/00` → [[roadmap]].
+- `08_PHASE1_SPEC.md` + `LCOS_Conformance…` (R1–R9) → `requirements/` + feature AC.
+- `04_DECISIONS.md` (+ `__DEC-0011`/`__DEC-0013`) → `adr/` (one file per ADR + [[index]]).
+- Process artefacts (`TZ__*`, `IMPLEMENTATION_REVIEW*`, `*_AUDIT`, `EVIDENCE__*`) → `archive/`; still-live ones (aligned stabilization TZ, Bucket-1 fix journal, VER-021 gate) → `work/`.
+- `api/esupl/` → `reference/esupl-api/`. Per-phase specs → `work/plan/`.
+- The restructure plan and generation log: `work/_RESTRUCTURE_PLAN.md`.
