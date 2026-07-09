@@ -154,9 +154,20 @@ Append-only лог зафиксированных решений. Прошлую
 - **Следствия:** learning-loop мигрирует в backend без коллизий между поставщиками; miграция `0008_sku_mapping_supplier_key`; merge_gate-тесты обновлены (mapping'и несут `supplier_external_id`), добавлен тест анти-коллизии. Нормализацию ключа владеет backend (`normalize_source_key`) — FE шлёт сырой `rawName` и читает маппинги из backend (устраняет дубль-SSOT c FE `canonicalText`).
 - **Связи:** ADR-018, DEC-0011, DEC-0013, `01_ARCHITECTURE` (two-context resolver), `TZ__STABILIZATION_2026-07-09__ALIGNED.md` S6.
 
+### ADR-020 · Канал накопления moat: клиентский `POST /ingredients/mappings` в `onSend`; persist-then-commit независим от судьбы накладной; FE `save()` удалён
+- **Статус:** accepted · **Дата:** 2026-07-09 (фикс DISCREPANCY Ведро 1 по `TZ__VERIFY_APP_OVERVIEW`)
+- **Контекст:** верификация APP_OVERVIEW (V1/V2) вскрыла две вещи. (а) Решение о **канале** накопления moat и о том, что persist переживает reject, жило только в описательном APP_OVERVIEW (trust tier 3) с **висячей ссылкой** на `ADR-013`, который на самом деле про photo-first supplier resolution — нормативной фиксации не было. (б) FE `IngredientSKUFactory.save()` подавался (в прошлых ТЗ) как путь накопления mapping, но в коде это self-documented **no-op с нулём вызовов** — dead code; реальная запись идёт только через `POST /ingredients/mappings`.
+- **Решение:**
+  1. **Единственный рантайм-канал** накопления moat — клиентский `POST /ingredients/mappings`, который FE вызывает в обработчике `onSend` (`widgets/invoice-workbench`, через `entities/invoice/lib/backendMappings.persistLineMapping`) **до** мутации `sendInvoice` (`method='manual'`, `confirmed_by` = аутентифицированный юзер). BE submit-эндпоинт `sku_mapping` **не пишет** — только читает его на commit-резолве (`_resolve_commit_identities`).
+  2. **Persist идёт ДО submit и в отдельной транзакции** → подтверждённый mapping **переживает reject** накладной by design. Rationale: commit fail-closed резолвит идентичность только из `sku_mapping`; если бы persist зависел от судьбы накладной (или шёл после бросающего send), fail-closed reject первой накладной блокировал бы инициализацию moat.
+  3. FE `IngredientSKUFactory.save()` **удалён** как dead (вместе с членом `save` интерфейса `SKUFactory`). `SupplierSKUFactory.save()` — вне scope этого решения (см. фикс-ТЗ Ведро 1, отчёт «вне scope»).
+- **Следствия:** persist-independence закреплён тестами — T1 (BE: submit→reject→строка `sku_mapping` присутствует) и T2 (FE: `onSend` вызывает `persistLineMapping` и дожидается его **до** `sendInvoice`). APP_OVERVIEW §8 ссылается на этот ADR; висячая ссылка на `ADR-013` из §8 убрана. Канал записи moat — один (SSOT), FE-фабрика в персисте не участвует.
+- **Связи:** `ADR-013` (photo-first — источник висячей ссылки), `ADR-018`/DEC-0013 (commit-eligible mapping), `ADR-019`/DEC-0012 (композитный ключ), `entities/invoice/lib/backendMappings.persistLineMapping`, merge_gate/onSend тесты, `TZ__FIX_DISCREPANCY_BUCKET1_2026-07-09.md`.
+
 ---
 
 ## Журнал изменений
+- 2026-07-09 v1.4.0 — добавлен ADR-020 (канал накопления moat = клиентский `POST /ingredients/mappings` в `onSend`; persist-then-commit независим от reject накладной; FE `save()` удалён; убрана висячая ссылка `ADR-013` из APP_OVERVIEW §8).
 - 2026-07-09 v1.3.0 — добавлен ADR-019 (DEC-0012 ратифицирован: композитный ключ `sku_mapping` с `supplier_external_id`; под миграцию learning-loop в backend).
 - 2026-07-09 v1.2.0 — добавлен ADR-018 (SKU-identity commit-gate: кодификация DEC-0011 + DEC-0013 вариант A; зафиксирован veto варианта C из `TZ__STABILIZATION_2026-07-09`, вариант A ратифицирован).
 - 2026-07-03 v1.1.0 — добавлены ADR-016 (источник остатков/потребления — proposed, решается пробами Э0) и ADR-017 (self-service поставщиков — accepted, схема-задел без портала). Заведены под `08_PHASE1_SPEC.md` F0.5/F2.3.
