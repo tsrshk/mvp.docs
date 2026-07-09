@@ -139,8 +139,25 @@ Append-only лог зафиксированных решений. Прошлую
 - **Следствия:** миграция enum/FK дёшева сейчас, дорога потом; `suppliers` остаётся зеркалом Esupl, условия живут отдельно.
 - **Связи:** `08_PHASE1_SPEC.md` F2.3, `06_STRATEGY.md` (лестница рутин / привязка клиента).
 
+### ADR-018 · SKU-identity commit-gate: POS = SoT, mapping на durable id, вариант A (block до подтверждения)
+- **Статус:** accepted · **Дата:** 2026-07-08 (кодификация DEC-0011 + DEC-0013); veto варианта C — 2026-07-09
+- **Контекст:** кто владеет идентичностью ингредиента и как коммитить строку с exact-cache-match, но без подтверждённого `sku_mapping` — авто или block.
+- **Решение:** кодифицирует **DEC-0011** (POS — единственный SoT идентичности/атрибутов ингредиента; `sku_mapping` привязан к durable `pos_ingredient_id`, НЕ к кэшу/surrogate PK; двухконтекстный резолв — draft толерантно из локального каталога, commit fail-closed с live-валидацией в POS) + **DEC-0013 вариант A**: commit разрешён ТОЛЬКО для commit-eligible mapping (`method=manual` OR `confirmed_by IS NOT NULL`); cache exact / fuzzy / AI НЕ авто-коммитят и НЕ авто-создают mapping. Moat (`sku_mapping`) растёт только через явное подтверждение человеком.
+- **Veto (2026-07-09, Ivan):** предложение `TZ__STABILIZATION_2026-07-09` (D1 / S6) воскресить **вариант C** — exact-cache-match авто-создаёт `sku_mapping` (`method='cache_exact'`, `confirmed_by='system'`) и коммитит — **отклонено**. Причина: вариант C ниже DEC-0013 по авторитету, откатывает fail-closed инвариант и ломает merge_gate-тест `test_exact_cache_match_does_not_commit_and_creates_no_mapping`. Единая интеграция резолва — только `sku_mapping`, кэш в commit-пути отсутствует.
+- **Следствия:** каждая новая позиция требует одноразового ручного подтверждения (это и есть «review»); mapping-moat переживает drop+rebuild кэша; VER-022 (scope-асимметрия кэша) закрыт — кэш вне commit-пути. Открыто: **VER-021** (durability `pos_ingredient_id`) — GATE, требует WRITE в Esupl-sandbox → owner-run, не закрывается в read-only.
+- **Связи:** `04_DECISIONS__DEC-0011.md`, `04_DECISIONS__DEC-0013.md`, `01_ARCHITECTURE` (SKU identity & two-context resolver), `TZ__STABILIZATION_2026-07-09__ALIGNED.md`, merge_gate tests (`test_dec0013_commit_gate.py`, `test_merge_gate_durable_id.py`).
+
+### ADR-019 · DEC-0012: композитный ключ `sku_mapping` (supplier в ключе)
+- **Статус:** accepted · **Дата:** 2026-07-09 · **Ratifies:** DEC-0012 (ранее deferred)
+- **Контекст:** FE learning-loop учит маппинги **per-supplier** (`provider::org::supplier::name`), а backend `sku_mapping.source_key` был supplier-agnostic с `UNIQUE(scope_type, scope_id, source_key)`. При миграции learning-loop в backend (moat, DEC-0013) два разных поставщика с одинаковым сырым названием строки («Молоко») мапятся на РАЗНЫЕ POS-SKU → схлопывание в один ключ → перезапись → неверный `pos_ingredient_id` на commit.
+- **Решение:** ключ `sku_mapping` становится **композитным**: добавлен `supplier_external_id` (durable Esupl-id поставщика, `''` = supplier-agnostic/legacy), `UNIQUE(scope_type, scope_id, supplier_external_id, source_key)`. Commit-резолв (`_resolve_commit_identities`) фильтрует по `supplier_external_id` накладной (при commit он уже не None — prep.ready требует резолва поставщика). Приоритет subdivision → org сохранён.
+- **Следствия:** learning-loop мигрирует в backend без коллизий между поставщиками; miграция `0008_sku_mapping_supplier_key`; merge_gate-тесты обновлены (mapping'и несут `supplier_external_id`), добавлен тест анти-коллизии. Нормализацию ключа владеет backend (`normalize_source_key`) — FE шлёт сырой `rawName` и читает маппинги из backend (устраняет дубль-SSOT c FE `canonicalText`).
+- **Связи:** ADR-018, DEC-0011, DEC-0013, `01_ARCHITECTURE` (two-context resolver), `TZ__STABILIZATION_2026-07-09__ALIGNED.md` S6.
+
 ---
 
 ## Журнал изменений
+- 2026-07-09 v1.3.0 — добавлен ADR-019 (DEC-0012 ратифицирован: композитный ключ `sku_mapping` с `supplier_external_id`; под миграцию learning-loop в backend).
+- 2026-07-09 v1.2.0 — добавлен ADR-018 (SKU-identity commit-gate: кодификация DEC-0011 + DEC-0013 вариант A; зафиксирован veto варианта C из `TZ__STABILIZATION_2026-07-09`, вариант A ратифицирован).
 - 2026-07-03 v1.1.0 — добавлены ADR-016 (источник остатков/потребления — proposed, решается пробами Э0) и ADR-017 (self-service поставщиков — accepted, схема-задел без портала). Заведены под `08_PHASE1_SPEC.md` F0.5/F2.3.
 - 2026-07-02 v1.0.0 — создан; кодифицированы ADR-001…015 из кода, CLAUDE.md, продуктовых доков и аналитики.

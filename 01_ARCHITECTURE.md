@@ -297,6 +297,19 @@ match without a confirmed `sku_mapping` does **not** auto-commit and does **not*
 mapping — the line is held for human confirmation. Confirming a suggestion (or creating a manual
 mapping via `POST /ingredients/mappings`) is what grows the moat. This is stricter than the TZ's
 default variant C and is the maximally fail-closed reading of "an invoice is a responsible step."
+The 2026-07-09 stabilization TZ's proposal (D1 / S6) to revive **variant C** — an exact
+`ingredient_cache` match auto-creating a `cache_exact`/`confirmed_by='system'` mapping and
+committing — was **vetoed** (variant A stands; see **ADR-018**). Executing it would also break the
+merge-gate test `test_exact_cache_match_does_not_commit_and_creates_no_mapping`.
+
+**Moat growth + the `description` key (FE→BE):** the moat (`sku_mapping`) grows when the user
+**sends** an invoice — `InvoiceWorkbench.onSend` POSTs each mapped line to `POST /ingredients/mappings`
+(`method='manual'`, so commit-eligible; DEC-0013). The `source_key` is the **raw supplier line text**,
+and the send payload's `description` MUST carry that same raw text (not the matched SKU's catalog
+name) — the commit-resolver keys by `normalize_source_key(description)`, so keying by `sku.name`
+would make the moat unable to match a fresh invoice. `supplier_external_id` (DEC-0012) is the
+supplier's durable Esupl id. (Historical note: the FE send path once sent `description = sku.name`;
+corrected to `rawName` so persist and commit-resolve key on the same value.)
 
 **T2 — `esupl_item_id` (int) vs `pos_ingredient_id` (str):** these are the **same Esupl
 ingredient entity in two representations**, used by the two contexts. `ingredients.esupl_item_id`
@@ -311,11 +324,27 @@ and is a **draft-only** store. Under variant A it is **not a commit tier at all*
 commit authority comes solely from `sku_mapping` (subdivision→org). VER-022 is thereby closed:
 no cache-vs-mapping scope priority conflict can exist on the commit path.
 
+**D2 — unit authority (POS authoritative, OCR cross-check).** The unit written to the Esupl payload
+is the **POS unit** (`ingredients.esupl_unit_id`, a catalog/POS mirror; set in draft-resolve), never
+the OCR-extracted unit. The OCR unit (`line.unit`) is used **only** as a live-validation cross-check
+in `validate_ingredient_on_commit`: the comparator is empty-tolerant and case/space-normalized, and
+blocks the commit **only when both units are present and differ**. Missing OCR unit → proceed on the
+POS unit (nothing to cross-check). Residual risk: with no OCR unit the quantity is accepted in POS
+units as-is; acceptable for Customer Zero (human in the loop). Alternative on file: soft-flag instead
+of silent proceed.
+
 > **T1 / VER-021 (durability gate) — OPEN.** The whole durable-id model assumes `pos_ingredient_id`
 > is stable across Esupl edit/delete-recreate. This has **not** been empirically confirmed (requires
-> WRITE access to Esupl sandbox team 17957). A runnable probe is in `VER-021_ESUPL_DURABILITY_TEST.md`
+> WRITE access to Esupl sandbox team 17957) and is therefore **owner-run** — it cannot be discharged
+> under a read-only constraint. A runnable probe is in `VER-021_ESUPL_DURABILITY_TEST.md`
 > / `scripts/ver021_durability_probe.py`. **Merge stays gated until this table is filled.** If the id
 > is not durable on edit → STOP and reopen DEC-0011 on an alternative anchor.
+>
+> **Endpoint caveat (read-only, resolvable now):** commit-validation (`get_ingredient`) reads the
+> single item via `GET /teams/{id}/products?id=`, whereas the VER-021 probe/doc mutate
+> `/teams/{id}/ingredients/{id}`. These are different resources; unless `products.id == ingredients.id`
+> is documented, the probe does not certify the id that `get_ingredient` actually resolves. Confirm the
+> `products?id=` filter (and `product_name` LIKE) is honored with **reads only** — no writes required.
 
 ### Migrations (Alembic async)
 
