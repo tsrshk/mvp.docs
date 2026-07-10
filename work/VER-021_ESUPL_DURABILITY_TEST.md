@@ -1,48 +1,48 @@
-# VER-021: Esupl pos_ingredient_id Durability Gate Test
+# VER-021: гейт-тест долговечности pos_ingredient_id в Esupl
 
-**Status:** GATE TEST — blocks all downstream work (PRE-2) until confirmed.  
-**Team ID:** 17957 (Esupl sandbox)  
+**Status:** GATE TEST (гейт-тест) — блокирует всю нижестоящую работу (PRE-2) до подтверждения.  
+**Team ID:** 17957 (песочница Esupl)  
 
-> **Runnable probe:** `mvp.be/scripts/ver021_durability_probe.py` implements S1–S3 (create →
-> edit(rename/unit/rate) → delete → recreate) with a hard sandbox-only guard. It refuses to run
-> without `VER021_CONFIRM=yes-write-to-sandbox-17957` (writes are outward-facing). It prints the
-> «operation → id before/after» table + a DURABLE/NOT-DURABLE verdict, then cleans up.
-> **T1 owner (Ivan) runs it** and pastes the table into `01_ARCHITECTURE.md` (VER-021 section) and
-> the PR evidence bundle. Until then, merge stays gated (DoD T1).
+> **Запускаемый пробник:** `mvp.be/scripts/ver021_durability_probe.py` реализует S1–S3 (создание →
+> редактирование(переименование/единица/коэффициент) → удаление → повторное создание) с жёсткой защитой «только песочница». Он отказывается запускаться
+> без `VER021_CONFIRM=yes-write-to-sandbox-17957` (записи направлены наружу). Он печатает
+> таблицу «операция → id до/после» + вердикт DURABLE/NOT-DURABLE (годен/не годен), затем выполняет очистку.
+> **Владелец T1 (Иван) запускает его** и вставляет таблицу в `01_ARCHITECTURE.md` (раздел VER-021) и
+> в комплект доказательств PR. До этого момента мёрдж остаётся заблокированным гейтом (DoD T1).
 
-**Target:** Verify that Esupl ingredient IDs remain stable under mutation (edit, delete+recreate, split/merge scenarios).
-
----
-
-## Test Objective
-
-Establish whether `pos_ingredient_id` (Esupl ingredient ID) exhibits **durability** — i.e., does it:
-- Persist unchanged when the ingredient record is edited (name, unit, category)?
-- Reuse the same ID after delete + recreate?
-- Fragment/merge when split or merged (if supported)?
-
-**Acceptance Criteria:**
-- **PASS (proceed to PRE-2):** ID is durable across all scenarios (persists on edit, reuses on recreate).
-- **FAIL (STOP, escalate):** ID changes on edit, or cannot be reused after delete.
+**Target:** Проверить, что идентификаторы ингредиентов Esupl остаются стабильными при мутациях (редактирование, удаление+повторное создание, сценарии разделения/слияния).
 
 ---
 
-## Prerequisites
+## Цель теста
 
-1. **Esupl Team 17957 access** with API token (read + write enabled via `ERP_WRITE_ENABLED=true`)
-2. **Test ingredients created in sandbox** (not production)
-3. **API Base URL:** `https://api.esupl.com/v1`
-4. **Authorization:** Bearer token from `mvp.fe/.env` → `VITE_ESUPL_API_TOKEN`
-5. **No writes to production team** (verify team_id=17957 before each request)
+Установить, обладает ли `pos_ingredient_id` (идентификатор ингредиента Esupl) **долговечностью** — то есть:
+- Сохраняется ли он неизменным при редактировании записи ингредиента (имя, единица, категория)?
+- Переиспользуется ли тот же id после удаления + повторного создания?
+- Фрагментируется/сливается ли он при разделении или слиянии (если поддерживается)?
+
+**Критерии приёмки:**
+- **PASS (годен) (переход к PRE-2):** id долговечен во всех сценариях (сохраняется при редактировании, переиспользуется при повторном создании).
+- **FAIL (не годен) (СТОП, эскалировать):** id меняется при редактировании или не может быть переиспользован после удаления.
 
 ---
 
-## Test Scenarios
+## Предварительные требования
 
-### Scenario 1: Create Ingredient, Record ID
+1. **Доступ к команде Esupl 17957** с API-токеном (чтение + запись включены через `ERP_WRITE_ENABLED=true`)
+2. **Тестовые ингредиенты созданы в песочнице** (не в продакшене)
+3. **Базовый URL API:** `https://api.esupl.com/v1`
+4. **Авторизация:** Bearer-токен из `mvp.fe/.env` → `VITE_ESUPL_API_TOKEN`
+5. **Никаких записей в продакшен-команду** (проверяйте team_id=17957 перед каждым запросом)
 
-**Steps:**
-1. POST to `/teams/17957/ingredients`
+---
+
+## Тестовые сценарии
+
+### Сценарий 1: Создать ингредиент, записать id
+
+**Шаги:**
+1. POST на `/teams/17957/ingredients`
    ```json
    {
      "name": "Test Ingredient VER-021-S1",
@@ -51,24 +51,24 @@ Establish whether `pos_ingredient_id` (Esupl ingredient ID) exhibits **durabilit
      "conversion_rate": 1.0
    }
    ```
-2. Record the returned `id` → **`CREATED_ID_S1`**
-3. GET `/teams/17957/ingredients/{CREATED_ID_S1}` → verify name and metadata
+2. Записать возвращённый `id` → **`CREATED_ID_S1`**
+3. GET `/teams/17957/ingredients/{CREATED_ID_S1}` → проверить имя и метаданные
 
-**Acceptance:**
-- Status 201 or 200 (create successful)
-- Response contains `id` field (non-null)
-- GET retrieves the ingredient
+**Приёмка:**
+- Статус 201 или 200 (создание успешно)
+- Ответ содержит поле `id` (не null)
+- GET извлекает ингредиент
 
-**Data to Log:**
-- `CREATED_ID_S1` (string or int)
-- Timestamp, response status, full response body
+**Записать в лог:**
+- `CREATED_ID_S1` (строка или int)
+- Временная метка, статус ответа, полное тело ответа
 
 ---
 
-### Scenario 2: Edit Ingredient, Verify ID Persistence
+### Сценарий 2: Редактировать ингредиент, проверить сохранение id
 
-**Steps:**
-1. Issue PUT to `/teams/17957/ingredients/{CREATED_ID_S1}` (same ID from S1)
+**Шаги:**
+1. Отправить PUT на `/teams/17957/ingredients/{CREATED_ID_S1}` (тот же id из S1)
    ```json
    {
      "name": "Test Ingredient VER-021-S1-RENAMED",
@@ -77,35 +77,35 @@ Establish whether `pos_ingredient_id` (Esupl ingredient ID) exhibits **durabilit
      "conversion_rate": 1.5
    }
    ```
-2. Verify response status (200 or similar)
-3. GET `/teams/17957/ingredients/{CREATED_ID_S1}` → confirm:
-   - `id` field = **`CREATED_ID_S1`** (unchanged)
-   - `name` field = "Test Ingredient VER-021-S1-RENAMED"
-   - `unit_id` changed (if provided)
+2. Проверить статус ответа (200 или похожий)
+3. GET `/teams/17957/ingredients/{CREATED_ID_S1}` → подтвердить:
+   - поле `id` = **`CREATED_ID_S1`** (без изменений)
+   - поле `name` = "Test Ingredient VER-021-S1-RENAMED"
+   - `unit_id` изменился (если был передан)
 
-**Acceptance:**
-- ID does NOT change after PUT
-- New values reflected in GET
+**Приёмка:**
+- id НЕ меняется после PUT
+- Новые значения отражены в GET
 
-**Result Interpretation:**
-- **✓ DURABLE:** ID unchanged → continue
-- **✗ NON-DURABLE:** ID changed or endpoint returns new ID → FAIL scenario
+**Интерпретация результата:**
+- **✓ DURABLE (долговечен):** id не изменился → продолжаем
+- **✗ NON-DURABLE (не долговечен):** id изменился или эндпоинт возвращает новый id → сценарий FAIL (не годен)
 
-**Data to Log:**
-- PUT request body
-- Response status and returned ID
-- GET confirmation ID
-- Timestamp
+**Записать в лог:**
+- Тело PUT-запроса
+- Статус ответа и возвращённый id
+- Подтверждающий id из GET
+- Временная метка
 
 ---
 
-### Scenario 3: Delete & Recreate, Check ID Reuse
+### Сценарий 3: Удалить и создать заново, проверить переиспользование id
 
-**Steps:**
+**Шаги:**
 1. DELETE `/teams/17957/ingredients/{CREATED_ID_S1}`
-   - Verify 204 or 200 (success)
-2. GET `/teams/17957/ingredients/{CREATED_ID_S1}` → expect 404 (ingredient gone)
-3. POST to `/teams/17957/ingredients` with **identical payload from S1** (or similar):
+   - Проверить 204 или 200 (успех)
+2. GET `/teams/17957/ingredients/{CREATED_ID_S1}` → ожидать 404 (ингредиент отсутствует)
+3. POST на `/teams/17957/ingredients` с **идентичным телом запроса из S1** (или похожим):
    ```json
    {
      "name": "Test Ingredient VER-021-S1",
@@ -114,33 +114,33 @@ Establish whether `pos_ingredient_id` (Esupl ingredient ID) exhibits **durabilit
      "conversion_rate": 1.0
    }
    ```
-4. Record returned ID → **`RECREATED_ID_S1`**
-5. Compare `RECREATED_ID_S1` vs `CREATED_ID_S1`
+4. Записать возвращённый id → **`RECREATED_ID_S1`**
+5. Сравнить `RECREATED_ID_S1` и `CREATED_ID_S1`
 
-**Acceptance Criteria (3a: ID Reuse):**
-- **✓ REUSED:** `RECREATED_ID_S1` == `CREATED_ID_S1` → Esupl reuses IDs (durable across lifecycle)
-- **✗ NEW ID:** `RECREATED_ID_S1` != `CREATED_ID_S1` → Esupl issues new IDs (not reusable)
+**Критерии приёмки (3a: переиспользование id):**
+- **✓ ПЕРЕИСПОЛЬЗОВАН:** `RECREATED_ID_S1` == `CREATED_ID_S1` → Esupl переиспользует id (долговечен на протяжении жизненного цикла)
+- **✗ НОВЫЙ ID:** `RECREATED_ID_S1` != `CREATED_ID_S1` → Esupl выдаёт новые id (не переиспользуемые)
 
-**Result Interpretation:**
-- **Reuse OK:** If IDs are reused, callers can safely assume "same ingredient name/product = same ID" after recreation. ✓ DURABLE (variant: reuse)
-- **Never Reuse:** If IDs are never reused, callers must use external tracking or accept new IDs on recreation. ⚠ SEMI-DURABLE (safe for audit trail, risk for caching)
-- **Inconsistent:** Some recreates reuse, some don't → ✗ NOT DURABLE (FAIL)
+**Интерпретация результата:**
+- **Переиспользование OK:** Если id переиспользуются, вызывающая сторона может безопасно считать, что «то же имя ингредиента/продукт = тот же id» после повторного создания. ✓ DURABLE (долговечен) (вариант: переиспользование)
+- **Никогда не переиспользуется:** Если id никогда не переиспользуются, вызывающая сторона должна вести внешнее отслеживание или принимать новые id при повторном создании. ⚠ SEMI-DURABLE (частично долговечен) (безопасно для журнала аудита, риск для кэширования)
+- **Непоследовательно:** Часть повторных созданий переиспользует, часть нет → ✗ NOT DURABLE (не долговечен) (FAIL, не годен)
 
-**Data to Log:**
-- DELETE request + response status
-- POST request body (should match S1)
-- Response status and `RECREATED_ID_S1`
-- Timestamp
-- Comparison: `CREATED_ID_S1` vs `RECREATED_ID_S1` (equal? yes/no)
+**Записать в лог:**
+- DELETE-запрос + статус ответа
+- Тело POST-запроса (должно совпадать с S1)
+- Статус ответа и `RECREATED_ID_S1`
+- Временная метка
+- Сравнение: `CREATED_ID_S1` и `RECREATED_ID_S1` (равны? да/нет)
 
 ---
 
-### Scenario 4: Use Ingredient in Menu Product (Optional, Validates Ref Integrity)
+### Сценарий 4: Использовать ингредиент в товаре меню (Опционально, проверяет ссылочную целостность)
 
-**Purpose:** Verify that ingredient ID is usable as a foreign key in menu products after edits.
+**Назначение:** Проверить, что id ингредиента пригоден для использования в качестве внешнего ключа в товарах меню после редактирований.
 
-**Steps:**
-1. Create a menu product with ingredient reference:
+**Шаги:**
+1. Создать товар меню со ссылкой на ингредиент:
    ```json
    POST /teams/17957/menu-products
    {
@@ -157,86 +157,86 @@ Establish whether `pos_ingredient_id` (Esupl ingredient ID) exhibits **durabilit
      ]
    }
    ```
-2. Record returned menu product ID → **`MENU_PRODUCT_ID`**
+2. Записать возвращённый id товара меню → **`MENU_PRODUCT_ID`**
 3. GET `/teams/17957/menu-products/{MENU_PRODUCT_ID}?include=modifications.product`
-4. Verify modification still references ingredient `CREATED_ID_S1` correctly
+4. Проверить, что модификация по-прежнему корректно ссылается на ингредиент `CREATED_ID_S1`
 
-**Acceptance:**
-- Menu product created (201 or 200)
-- GET shows modification with ingredient_id = `CREATED_ID_S1`
+**Приёмка:**
+- Товар меню создан (201 или 200)
+- GET показывает модификацию с ingredient_id = `CREATED_ID_S1`
 
-**Result Interpretation:**
-- ✓ DURABLE: ID is usable as FK in other entities → confirmed durable in practice
-
----
-
-### Scenario 5: Category & Unit Changes (Extended Edit Test)
-
-**Purpose:** Verify ID durability with systematic property changes.
-
-**Steps:**
-1. Create ingredient with category and base unit (S1)
-2. Edit and change:
-   - `name` → append " [v2]"
-   - `unit_id` → different unit (if multiple available)
-   - `ingredient_category_id` → different category (if applicable)
-   - `conversion_rate` → different multiplier
-3. GET full ingredient after each edit
-4. Verify `id` unchanged after each property change
-
-**Acceptance:**
-- All edits succeed (200)
-- ID stable across all property changes
-- Metadata updates reflected
-
-**Data to Log:**
-- List of property changes per edit
-- ID before/after each edit (all same)
+**Интерпретация результата:**
+- ✓ DURABLE (долговечен): id пригоден для использования как внешний ключ в других сущностях → долговечность подтверждена на практике
 
 ---
 
-### Scenario 6: Split/Merge (If Supported)
+### Сценарий 5: Изменения категории и единицы (расширенный тест редактирования)
 
-**Purpose:** Understand API behavior for complex ingredient mutations.
+**Назначение:** Проверить долговечность id при систематических изменениях свойств.
 
-**Steps:**
-1. Check Esupl API docs or attempt:
-   - POST `/teams/17957/ingredients/{CREATED_ID_S1}/split` (if endpoint exists)
-   - POST `/teams/17957/ingredients/{CREATED_ID_S1}/merge` (if endpoint exists)
-2. If no such endpoints: **Note as "not supported"** and skip.
-3. If supported:
-   - Record any new IDs generated
-   - Verify original ID status (persists, orphaned, deleted?)
+**Шаги:**
+1. Создать ингредиент с категорией и базовой единицей (S1)
+2. Отредактировать и изменить:
+   - `name` → добавить " [v2]"
+   - `unit_id` → другая единица (если доступно несколько)
+   - `ingredient_category_id` → другая категория (если применимо)
+   - `conversion_rate` → другой множитель
+3. GET полного ингредиента после каждого редактирования
+4. Проверить, что `id` не изменился после каждого изменения свойства
 
-**Acceptance:**
-- If not supported: **N/A** (note in report)
-- If supported:
-  - Clearly document new ID generation rules
-  - Note if original ID becomes unavailable
+**Приёмка:**
+- Все редактирования успешны (200)
+- id стабилен при всех изменениях свойств
+- Обновления метаданных отражены
 
-**Data to Log:**
-- HTTP response (404 for unsupported endpoints)
-- If supported: full mutation details
+**Записать в лог:**
+- Список изменений свойств на каждое редактирование
+- id до/после каждого редактирования (все одинаковые)
 
 ---
 
-## Test Execution Steps
+### Сценарий 6: Разделение/слияние (если поддерживается)
 
-### Prerequisites Checklist
-- [ ] Esupl team 17957 credentials available
-- [ ] API token in `.env` or script
-- [ ] Sandbox environment confirmed (not production)
-- [ ] Tool for HTTP requests ready (curl, Postman, Python requests, Node.js fetch)
+**Назначение:** Понять поведение API при сложных мутациях ингредиентов.
 
-### Run Tests (Recommended Order)
-1. **S1 + S2 + S3** (core durability: create → edit → delete/recreate)
-2. **S4** (reference integrity check)
-3. **S5** (extended edits)
-4. **S6** (advanced features, if API supports)
+**Шаги:**
+1. Проверить документацию API Esupl или попробовать:
+   - POST `/teams/17957/ingredients/{CREATED_ID_S1}/split` (если эндпоинт существует)
+   - POST `/teams/17957/ingredients/{CREATED_ID_S1}/merge` (если эндпоинт существует)
+2. Если таких эндпоинтов нет: **отметить как «не поддерживается»** и пропустить.
+3. Если поддерживается:
+   - Записать все сгенерированные новые id
+   - Проверить статус исходного id (сохраняется, осиротел, удалён?)
 
-### Execution Method Option A: Manual (Curl/Postman)
+**Приёмка:**
+- Если не поддерживается: **N/A** (отметить в отчёте)
+- Если поддерживается:
+  - Чётко задокументировать правила генерации новых id
+  - Отметить, становится ли исходный id недоступным
 
-**Setup:**
+**Записать в лог:**
+- HTTP-ответ (404 для неподдерживаемых эндпоинтов)
+- Если поддерживается: полные детали мутации
+
+---
+
+## Шаги выполнения теста
+
+### Чек-лист предварительных требований
+- [ ] Учётные данные команды Esupl 17957 доступны
+- [ ] API-токен в `.env` или в скрипте
+- [ ] Подтверждено окружение песочницы (не продакшен)
+- [ ] Готов инструмент для HTTP-запросов (curl, Postman, Python requests, Node.js fetch)
+
+### Запуск тестов (рекомендуемый порядок)
+1. **S1 + S2 + S3** (базовая долговечность: создание → редактирование → удаление/повторное создание)
+2. **S4** (проверка ссылочной целостности)
+3. **S5** (расширенные редактирования)
+4. **S6** (продвинутые возможности, если API поддерживает)
+
+### Метод выполнения, вариант A: вручную (Curl/Postman)
+
+**Настройка:**
 ```bash
 export TEAM_ID="17957"
 export BASE_URL="https://api.esupl.com/v1"
@@ -244,7 +244,7 @@ export TOKEN="<your_api_token>"
 export HEADER_AUTH="Authorization: Bearer ${TOKEN}"
 ```
 
-**Example S1 (Create):**
+**Пример S1 (Create):**
 ```bash
 curl -X POST "${BASE_URL}/teams/${TEAM_ID}/ingredients" \
   -H "Content-Type: application/json" \
@@ -257,13 +257,13 @@ curl -X POST "${BASE_URL}/teams/${TEAM_ID}/ingredients" \
   }' | jq .
 ```
 
-**Example S1 (Get):**
+**Пример S1 (Get):**
 ```bash
 curl -X GET "${BASE_URL}/teams/${TEAM_ID}/ingredients/{CREATED_ID_S1}" \
   -H "${HEADER_AUTH}" | jq .
 ```
 
-**Example S2 (Edit):**
+**Пример S2 (Edit):**
 ```bash
 curl -X PUT "${BASE_URL}/teams/${TEAM_ID}/ingredients/{CREATED_ID_S1}" \
   -H "Content-Type: application/json" \
@@ -276,13 +276,13 @@ curl -X PUT "${BASE_URL}/teams/${TEAM_ID}/ingredients/{CREATED_ID_S1}" \
   }' | jq .
 ```
 
-**Example S3 (Delete):**
+**Пример S3 (Delete):**
 ```bash
 curl -X DELETE "${BASE_URL}/teams/${TEAM_ID}/ingredients/{CREATED_ID_S1}" \
   -H "${HEADER_AUTH}" -w "\nStatus: %{http_code}\n"
 ```
 
-### Execution Method Option B: Python Script
+### Метод выполнения, вариант B: Python-скрипт
 
 ```python
 #!/usr/bin/env python3
@@ -392,7 +392,7 @@ else:
     print("  → STOP — escalate to Esupl support")
 ```
 
-### Execution Method Option C: Node.js Script
+### Метод выполнения, вариант C: Node.js-скрипт
 
 ```javascript
 const BASE_URL = "https://api.esupl.com/v1";
@@ -527,102 +527,102 @@ test().catch(console.error);
 
 ---
 
-## Acceptance Criteria & Decision Tree
+## Критерии приёмки и дерево решений
 
-### Outcome Matrix
+### Матрица исходов
 
-| Scenario | Result | Implication |
+| Сценарий | Результат | Следствие |
 |----------|--------|-------------|
-| S1 + S2 + S3: ID stable on edit + delete 404 + ID reused on recreate | **PASS** | ✓ **DURABLE** → Proceed to PRE-2 |
-| S1 + S2: ID stable on edit; S3: ID NOT reused (new ID) | **SEMI-PASS** | ⚠ **SEMI-DURABLE** → Escalate to Esupl for reuse semantics; may proceed with risk mitigation |
-| S1 + S2: ID changes on edit OR S3: Delete fails | **FAIL** | ✗ **NOT DURABLE** → STOP, do not proceed; escalate to Esupl support |
-| S4: Reference in menu product breaks | **FAIL** | ✗ **ID Not Referenceable** → STOP |
-| S5: Any property change causes ID change | **FAIL** | ✗ **NOT DURABLE** → STOP |
-| S6: Split/merge creates orphaned IDs | **FAIL** (if supported) | ✗ **ID Fragmentation** → STOP unless handled in app layer |
+| S1 + S2 + S3: id стабилен при редактировании + удаление 404 + id переиспользован при повторном создании | **PASS (годен)** | ✓ **DURABLE (долговечен)** → Переход к PRE-2 |
+| S1 + S2: id стабилен при редактировании; S3: id НЕ переиспользован (новый id) | **SEMI-PASS (частично годен)** | ⚠ **SEMI-DURABLE (частично долговечен)** → Эскалировать в Esupl для уточнения семантики переиспользования; можно продолжать со снижением риска |
+| S1 + S2: id меняется при редактировании ИЛИ S3: удаление не удаётся | **FAIL (не годен)** | ✗ **NOT DURABLE (не долговечен)** → СТОП, не продолжать; эскалировать в поддержку Esupl |
+| S4: ссылка в товаре меню нарушается | **FAIL (не годен)** | ✗ **ID не пригоден для ссылок** → СТОП |
+| S5: любое изменение свойства вызывает изменение id | **FAIL (не годен)** | ✗ **NOT DURABLE (не долговечен)** → СТОП |
+| S6: разделение/слияние создаёт осиротевшие id | **FAIL (не годен)** (если поддерживается) | ✗ **Фрагментация id** → СТОП, если не обработано на уровне приложения |
 
-### Decision Gate
+### Гейт решения
 
-**PROCEED to PRE-2 if:**
-- ✓ ID persists unchanged on edit (S2)
-- ✓ Delete returns 404 (S3)
-- ✓ ID reused on recreate with same payload (S3) **OR** documented and mitigated if not reused
+**ПЕРЕХОДИТЬ к PRE-2, если:**
+- ✓ id сохраняется неизменным при редактировании (S2)
+- ✓ Удаление возвращает 404 (S3)
+- ✓ id переиспользован при повторном создании с тем же телом запроса (S3) **ИЛИ** задокументировано и риск снижен, если не переиспользуется
 
-**STOP & ESCALATE if:**
-- ✗ ID changes on edit (S2 fails)
-- ✗ Delete does not remove ingredient (S3 fails)
-- ✗ Reference integrity broken (S4 fails)
-- ✗ Behavior inconsistent across properties (S5 fails)
+**СТОП и ЭСКАЛАЦИЯ, если:**
+- ✗ id меняется при редактировании (S2 не пройден)
+- ✗ Удаление не удаляет ингредиент (S3 не пройден)
+- ✗ Ссылочная целостность нарушена (S4 не пройден)
+- ✗ Поведение непоследовательно по свойствам (S5 не пройден)
 
 ---
 
-## Test Report Template
+## Шаблон отчёта о тесте
 
-**Date:** `<test_date>`  
-**Executor:** `<tester_name>`  
+**Дата:** `<test_date>`  
+**Исполнитель:** `<tester_name>`  
 **Team ID:** 17957  
 **API Version:** v1  
 
-| Test Case | Input | Expected | Actual | Status | Notes |
+| Тест-кейс | Ввод | Ожидается | Фактически | Статус | Примечания |
 |-----------|-------|----------|--------|--------|-------|
-| S1 Create | POST /ingredients payload | 201, id=X | 201, id=X | ✓ PASS | X = 12345 |
-| S1 Get | GET /ingredients/12345 | 200, name matches | 200, name matches | ✓ PASS | |
-| S2 Edit | PUT /ingredients/12345 with name change | 200, id=12345 | 200, id=12345 | ✓ PASS | ID persists |
-| S2 Verify | GET /ingredients/12345 | name updated | name updated | ✓ PASS | |
-| S3 Delete | DELETE /ingredients/12345 | 204 or 200 | 204 | ✓ PASS | |
-| S3 Confirm | GET /ingredients/12345 | 404 | 404 | ✓ PASS | Deletion confirmed |
-| S3 Recreate | POST /ingredients same payload as S1 | 201, id=Y | 201, id=12345 | ✓ PASS | ID REUSED (Y == X) |
-| S4 Ref | Menu product with ingredient_id=12345 | 200, ref valid | 200, ref valid | ✓ PASS | Ref integrity OK |
-| S5 Category Change | PUT /ingredients/12345 category=2 | 200, id=12345 | 200, id=12345 | ✓ PASS | |
-| S5 Unit Change | PUT /ingredients/12345 unit_id=21 | 200, id=12345 | 200, id=12345 | ✓ PASS | |
-| S6 Split/Merge | POST /ingredients/12345/split (if exists) | 404 or valid | 404 | N/A | Not supported |
+| S1 Create | POST /ingredients тело запроса | 201, id=X | 201, id=X | ✓ PASS (годен) | X = 12345 |
+| S1 Get | GET /ingredients/12345 | 200, имя совпадает | 200, имя совпадает | ✓ PASS (годен) | |
+| S2 Edit | PUT /ingredients/12345 с изменением имени | 200, id=12345 | 200, id=12345 | ✓ PASS (годен) | id сохраняется |
+| S2 Verify | GET /ingredients/12345 | имя обновлено | имя обновлено | ✓ PASS (годен) | |
+| S3 Delete | DELETE /ingredients/12345 | 204 или 200 | 204 | ✓ PASS (годен) | |
+| S3 Confirm | GET /ingredients/12345 | 404 | 404 | ✓ PASS (годен) | Удаление подтверждено |
+| S3 Recreate | POST /ingredients то же тело запроса, что в S1 | 201, id=Y | 201, id=12345 | ✓ PASS (годен) | id ПЕРЕИСПОЛЬЗОВАН (Y == X) |
+| S4 Ref | Товар меню с ingredient_id=12345 | 200, ссылка валидна | 200, ссылка валидна | ✓ PASS (годен) | Ссылочная целостность OK |
+| S5 Category Change | PUT /ingredients/12345 category=2 | 200, id=12345 | 200, id=12345 | ✓ PASS (годен) | |
+| S5 Unit Change | PUT /ingredients/12345 unit_id=21 | 200, id=12345 | 200, id=12345 | ✓ PASS (годен) | |
+| S6 Split/Merge | POST /ingredients/12345/split (если существует) | 404 или валидно | 404 | N/A | Не поддерживается |
 
 **Verdict:** `✓ DURABLE — Ready for PRE-2`
 
 ---
 
-## Escalation Procedure (If FAIL)
+## Процедура эскалации (если FAIL, не годен)
 
-If any test fails:
+Если какой-либо тест не пройден:
 
-1. **Document failure clearly:**
-   - Exact HTTP request (method, path, body)
-   - Response status and body
-   - Expected vs actual behavior
-   - Timestamp
+1. **Чётко задокументировать сбой:**
+   - Точный HTTP-запрос (метод, путь, тело)
+   - Статус и тело ответа
+   - Ожидаемое vs фактическое поведение
+   - Временная метка
 
-2. **Escalate to Esupl support:**
-   - Reference this test plan (VER-021)
-   - Include failure details + test report
-   - Ask: "Is pos_ingredient_id durability guaranteed? Can IDs be reused after delete?"
+2. **Эскалировать в поддержку Esupl:**
+   - Сослаться на этот план тестирования (VER-021)
+   - Приложить детали сбоя + отчёт о тесте
+   - Спросить: «Гарантирована ли долговечность pos_ingredient_id? Могут ли id переиспользоваться после удаления?»
 
-3. **Interim risk mitigation (if SEMI-DURABLE):**
-   - Cache ingredient mappings (name/product → ID) client-side
-   - Track mutations in mvp.be (ingredient_mutations table)
-   - Use external UUID mapping if ID reuse is unstable
+3. **Промежуточное снижение риска (если SEMI-DURABLE, частично долговечен):**
+   - Кэшировать сопоставления ингредиентов (имя/продукт → id) на стороне клиента
+   - Отслеживать мутации в mvp.be (таблица ingredient_mutations)
+   - Использовать внешнее сопоставление UUID, если переиспользование id нестабильно
 
-4. **Block downstream:**
-   - Do not proceed to PRE-2 until Esupl confirms durability contract
-   - Implement workaround in backend before feature release
+4. **Заблокировать нижестоящую работу:**
+   - Не переходить к PRE-2, пока Esupl не подтвердит контракт долговечности
+   - Реализовать обходное решение в бэкенде до релиза фичи
 
 ---
 
-## Cleanup
+## Очистка
 
-After test completion:
+После завершения теста:
 
-1. **Delete test ingredients** from team 17957:
+1. **Удалить тестовые ингредиенты** из команды 17957:
    ```bash
    curl -X DELETE "https://api.esupl.com/v1/teams/17957/ingredients/{CREATED_ID_S1}" \
      -H "Authorization: Bearer ${TOKEN}"
    ```
 
-2. **Delete test menu products** (if created in S4):
+2. **Удалить тестовые товары меню** (если созданы в S4):
    ```bash
    curl -X DELETE "https://api.esupl.com/v1/teams/17957/menu-products/{MENU_PRODUCT_ID}" \
      -H "Authorization: Bearer ${TOKEN}"
    ```
 
-3. **Verify sandbox clean:** List ingredients and confirm test data gone:
+3. **Проверить чистоту песочницы:** Вывести список ингредиентов и подтвердить, что тестовые данные удалены:
    ```bash
    curl "https://api.esupl.com/v1/teams/17957/ingredients?filter[name]=VER-021" \
      -H "Authorization: Bearer ${TOKEN}" | jq '.data | length'
@@ -630,15 +630,15 @@ After test completion:
 
 ---
 
-## References
+## Ссылки
 
-- **Esupl API Docs:** `mvp.docs/api/esupl/menu.md` (ingredients endpoints)
-- **mvp.be Esupl Provider:** `mvp.be/app/providers/erp/esupl.py` (integration code)
-- **Memory:** Esupl API real access notes in memory/MEMORY.md
-- **Gate Outcome:** Blocks PRE-2 if FAIL; permits PRE-2 if PASS
+- **Документация API Esupl:** `mvp.docs/api/esupl/menu.md` (эндпоинты ingredients)
+- **Провайдер Esupl в mvp.be:** `mvp.be/app/providers/erp/esupl.py` (интеграционный код)
+- **Memory:** заметки о реальном доступе к API Esupl в memory/MEMORY.md
+- **Итог гейта:** Блокирует PRE-2 при FAIL (не годен); разрешает PRE-2 при PASS (годен)
 
 ---
 
 **Created:** 2026-07-08  
 **Version:** 1.0  
-**Status:** READY FOR EXECUTION
+**Status:** ГОТОВ К ВЫПОЛНЕНИЮ
