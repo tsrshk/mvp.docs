@@ -2,7 +2,7 @@
 id: price_list_line
 type: entity
 title: price_list_line — позиция прайс-листа поставщика (append-only, драйвер freshness)
-status: planned
+status: built
 scope: org
 table: price_list_lines
 pk: id (int)
@@ -13,7 +13,7 @@ updated: 2026-07-13
 ---
 # price_list_lines · позиция прайс-листа
 
-**Scope:** org (`organization_id` — граница изоляции) · **Status:** planned
+**Scope:** org (`organization_id` — граница изоляции) · **Status:** built
 
 ## Назначение
 Отдельная позиция прайс-листа поставщика, полученная парсингом загрузки

@@ -39,7 +39,7 @@ sources:
 | [[LCOS-E1-platform]] | Платформа и основания | ✅ | Мультитенантность, auth, config/secrets, швы провайдеров, fail-closed, module gates, FE-платформа | (сквозной) |
 | [[LCOS-E2-invoice-intake]] | Приёмка накладных (клин) | ✅ | Фото → OCR → сопоставление → валидация → payload Esupl + гейтированная запись | 1 |
 | [[LCOS-E3-sku-identity]] | SKU identity и moat обучающей петли | ✅ | Двухконтекстный resolver, [[sku_mapping]], каталог+packings, [[ingredient_cache]] | 2 |
-| [[LCOS-E4-suppliers]] | Справочник поставщиков и условия | 🟡 | CRUD карточек, гибкие критерии (JSONB), задел self-service, история цен (планируется) | 3 |
+| [[LCOS-E4-suppliers]] | Справочник поставщиков и условия | 🟡 | CRUD карточек, гибкие критерии (JSONB), история цен + прайс-листы/ассортимент/аналитика (F20/F72–F75 ✅), локальный SSOT (ADR-021); self-service — задел | 3 |
 | [[LCOS-E5-stabilization]] | Стабилизация и conformance | 🟡 | DEC-0011/0013/0012, fail-closed шифрование, merge-блокирующие тесты, dead-code-очистка | (сквозной) |
 | [[LCOS-E6-ocr-quality]] | Качество захвата OCR | 📝 | Multi-page, контекст в промпте, авто-кроп, confidence gate | 1 |
 | [[LCOS-E7-stock]] | Остатки и список «заканчивается» | 📝 | Снапшоты `stock_levels` + синк, `reorder_point`, экран `/stock` | 4 |

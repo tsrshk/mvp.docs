@@ -3,7 +3,7 @@ id: LCOS-F72
 type: feature
 title: Загрузка прайс-листа поставщика
 epic: "[[LCOS-E4-suppliers]]"
-status: planned
+status: built
 phase: "Phase 1"
 roles: [member, admin, superadmin]
 entities: ["[[price_list_upload]]"]
@@ -15,7 +15,7 @@ updated: 2026-07-13
 ---
 # LCOS-F72 · Загрузка прайс-листа поставщика
 
-**Эпик:** [[LCOS-E4-suppliers]] · **Статус:** planned · **Фаза:** Phase 1
+**Эпик:** [[LCOS-E4-suppliers]] · **Статус:** built · **Фаза:** Phase 1
 
 ## Описание
 

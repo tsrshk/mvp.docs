@@ -2,7 +2,7 @@
 id: ARCH-SUPPLIER-PRICELISTS
 type: architecture
 title: Архитектурные требования — Прайс-листы и ассортимент поставщика (F72–F75)
-status: draft
+status: accepted
 phase: "Phase 1"
 epic: "[[LCOS-E4-suppliers]]"
 features: ["[[LCOS-F72-supplier-price-list-upload]]", "[[LCOS-F73-price-list-parsing]]", "[[LCOS-F74-supplier-assortment-freshness]]", "[[LCOS-F75-supplier-price-analytics]]", "[[LCOS-F20-price-history]]"]

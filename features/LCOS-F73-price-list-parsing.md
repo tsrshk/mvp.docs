@@ -3,7 +3,7 @@ id: LCOS-F73
 type: feature
 title: Парсинг прайс-листа поставщика
 epic: "[[LCOS-E4-suppliers]]"
-status: planned
+status: built
 phase: "Phase 1"
 roles: [member, admin, superadmin]
 entities: ["[[price_list_upload]]", "[[price_list_line]]"]
@@ -14,7 +14,7 @@ sources: ["mvp.be app/providers/ocr/base.py", "mvp.be app/domain/supplier_criter
 updated: 2026-07-13
 ---
 # LCOS-F73 · Парсинг прайс-листа поставщика
-**Эпик:** [[LCOS-E4-suppliers]] · **Статус:** planned · **Фаза:** Phase 1
+**Эпик:** [[LCOS-E4-suppliers]] · **Статус:** built · **Фаза:** Phase 1
 
 ## Описание
 

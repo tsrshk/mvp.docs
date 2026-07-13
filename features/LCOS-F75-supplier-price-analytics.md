@@ -3,7 +3,7 @@ id: LCOS-F75
 type: feature
 title: Аналитика цен и ассортимента поставщика
 epic: "[[LCOS-E4-suppliers]]"
-status: planned
+status: built
 phase: "Phase 1"
 roles: [member, admin, superadmin]
 entities: ["[[price_list_line]]"]
@@ -15,7 +15,7 @@ updated: 2026-07-13
 ---
 # LCOS-F75 · Аналитика цен и ассортимента поставщика
 
-**Эпик:** [[LCOS-E4-suppliers]] · **Статус:** planned · **Фаза:** Phase 1
+**Эпик:** [[LCOS-E4-suppliers]] · **Статус:** built · **Фаза:** Phase 1
 
 ## Описание
 

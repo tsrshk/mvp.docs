@@ -33,12 +33,12 @@ updated: 2026-07-13
 | LCOS-F17 | CRUD карточек поставщиков + условия поставки | ✅ built | [[LCOS-F17-supplier-cards]] |
 | LCOS-F18 | Реестр гибких критериев поставщика | ✅ built | [[LCOS-F18-supplier-criteria]] |
 | LCOS-F19 | Шов self-service поставщика | 📝 planned | [[LCOS-F19-supplier-self-service]] |
-| LCOS-F20 | История цен + авто-сбор | 📝 planned | [[LCOS-F20-price-history]] |
+| LCOS-F20 | История цен + авто-сбор | ✅ built | [[LCOS-F20-price-history]] |
 | LCOS-F21 | Сигнал об изменении цены в потоке накладной | 📝 planned | [[LCOS-F21-price-change-signal]] |
-| LCOS-F72 | Загрузка прайс-листа/буклета/фото поставщика | 📝 planned | [[LCOS-F72-supplier-price-list-upload]] |
-| LCOS-F73 | Парсинг прайс-листа (OCR) в позиции | 📝 planned | [[LCOS-F73-price-list-parsing]] |
-| LCOS-F74 | Ассортимент поставщика + freshness | 📝 planned | [[LCOS-F74-supplier-assortment-freshness]] |
-| LCOS-F75 | Аналитика цен поставщика (downstream) | 📝 planned · downstream | [[LCOS-F75-supplier-price-analytics]] |
+| LCOS-F72 | Загрузка прайс-листа/буклета/фото поставщика | ✅ built | [[LCOS-F72-supplier-price-list-upload]] |
+| LCOS-F73 | Парсинг прайс-листа (OCR) в позиции | ✅ built | [[LCOS-F73-price-list-parsing]] |
+| LCOS-F74 | Ассортимент поставщика + freshness | ✅ built | [[LCOS-F74-supplier-assortment-freshness]] |
+| LCOS-F75 | Аналитика цен поставщика (downstream) | ✅ built · downstream | [[LCOS-F75-supplier-price-analytics]] |
 
 ## Ключевые сущности / требования
 

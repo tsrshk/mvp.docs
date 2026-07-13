@@ -2,7 +2,7 @@
 id: price_list_upload
 type: entity
 title: price_list_upload — загруженный прайс/фото/сообщение поставщика + метаданные и версия
-status: planned
+status: built
 scope: org
 table: price_list_uploads
 pk: id (int)
@@ -14,7 +14,7 @@ updated: 2026-07-13
 ---
 # price_list_uploads · загрузка прайса поставщика
 
-**Scope:** org (несёт `organization_id`, привязана к [[suppliers]]) · **Status:** planned
+**Scope:** org (несёт `organization_id`, привязана к [[suppliers]]) · **Status:** built
 
 ## Назначение
 Загруженный внутренним пользователем документ прайс-листа поставщика вместе с метаданными:

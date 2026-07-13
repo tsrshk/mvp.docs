@@ -3,7 +3,7 @@ id: LCOS-F74
 type: feature
 title: Ассортимент поставщика и свежесть цен
 epic: "[[LCOS-E4-suppliers]]"
-status: planned
+status: built
 phase: "Phase 1"
 roles: [member, admin, superadmin]
 entities: ["[[price_list_line]]", "[[suppliers]]"]
@@ -15,7 +15,7 @@ updated: 2026-07-13
 ---
 # LCOS-F74 · Ассортимент поставщика и свежесть цен
 
-**Эпик:** [[LCOS-E4-suppliers]] · **Статус:** planned · **Фаза:** Phase 1
+**Эпик:** [[LCOS-E4-suppliers]] · **Статус:** built · **Фаза:** Phase 1
 
 ## Описание
 

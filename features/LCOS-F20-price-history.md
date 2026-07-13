@@ -3,7 +3,7 @@ id: LCOS-F20
 type: feature
 title: История цен + авто-сбор из инвойсов
 epic: "[[LCOS-E4-suppliers]]"
-status: planned
+status: built
 phase: "Phase 1"
 roles: [member, admin, superadmin]
 entities: ["[[suppliers]]", "[[ingredients]]", "[[invoices]]", "[[invoice_lines]]", "[[packings]]", "[[price_list_line]]"]
@@ -15,7 +15,7 @@ updated: 2026-07-13
 ---
 # LCOS-F20 · История цен + авто-сбор из инвойсов
 
-**Эпик:** [[LCOS-E4-suppliers]] · **Статус:** planned · **Фаза:** Phase 1
+**Эпик:** [[LCOS-E4-suppliers]] · **Статус:** built · **Фаза:** Phase 1
 
 ## Описание
 
