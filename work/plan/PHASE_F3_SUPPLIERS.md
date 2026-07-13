@@ -1,9 +1,9 @@
 ---
 doc: plan/PHASE_F3_SUPPLIERS
 title: Фаза F3 — Справочник поставщиков и история цен
-version: 1.0.1
+version: 1.1.0
 status: current
-updated: 2026-07-03
+updated: 2026-07-13
 verified_against_code: n/a
 owner: Ivan
 supersedes: []
@@ -89,8 +89,11 @@ ssot_for: [phase-f3-requirements]
   в существующем механизме (toast/панель предупреждений): «Молоко 3.2%: 2.80 → 3.10 BYN (+10.7%)».
 
 ## 4. Вне объёма
-- Сравнение поставщиков между собой (F4); импорт прайсов из Excel/PDF (Phase 2);
+- Сравнение поставщиков между собой (F4);
   вопросы в свободной форме «какая цена на молоко у X» (F10 — диалог).
+- ~~Импорт прайсов из Excel/PDF (Phase 2)~~ — СНЯТО: по [[ADR-021]] загрузка и парсинг
+  прайс-листов/буклетов/сообщений/ФОТО введена в скоуп фичами F72–F75 (раздел 6 ниже);
+  вход прогоняется через полный парсинг/OCR в структурированные строки.
 
 ---
 
@@ -120,6 +123,96 @@ ssot_for: [phase-f3-requirements]
 
 ---
 
+## 6. Прайс-листы и ассортимент поставщика (F72–F75, [[ADR-021]])
+
+Расширение фазы: любой вход (Excel/CSV/текст/сообщение/PDF/ФОТО/буклет) поставщик-менеджер
+загружает по поставщику, вход прогоняется через полный парсинг/OCR в структурированные строки
+(Р1: мягкая деградация — низкоуверенные строки помечаются `needs_review` и дочищаются вручную,
+не блокируя загрузку). Разрешённые позиции проецируются в единый временной ряд `supplier_prices`
+(F3-B2 / [[LCOS-F20-price-history]]) с дискриминатором `source`, поверх которого работают сигнал
+изменения ([[LCOS-F21-price-change-signal]]) и сравнение ([[PHASE_F4_SUPPLIER_COMPARE]]).
+Спека фич: [[LCOS-F72-supplier-price-list-upload]], [[LCOS-F73-price-list-parsing]],
+[[LCOS-F74-supplier-assortment-freshness]], [[LCOS-F75-supplier-price-analytics]];
+сущности [[price_list_upload]], [[price_list_line]].
+
+### F72 — загрузка и хранение прайса (backend)
+
+- Миграция: таблица `price_list_uploads` (scope=org, pk `id` int) — поля `organization_id`
+  (FK→organizations RESTRICT, indexed), `supplier_id` (FK→suppliers.id CASCADE), `source_kind`
+  (`price_file|photo|booklet|message`), `mime_type`, `original_filename`, `storage_ref`, `raw_text`,
+  `effective_date` (date, nullable — при NULL freshness берёт дату загрузки), `status`
+  (`uploaded|parsing|parsed|needs_review|failed`), `parse_provider`, `parse_confidence`
+  numeric(4,3), `version` int (монотонная на пару `(organization_id, supplier_id)`), `uploaded_by`
+  (FK→users.id SET NULL), `note`, TimestampMixin. Индексы `(organization_id, supplier_id)` и
+  `(organization_id, supplier_id, version)`.
+- Хранение исходного документа/фото (storage_ref) + метаданные; версии append-only (новая загрузка
+  инкрементит `version`, старые остаются).
+- Роуты за гейтом `module_suppliers_enabled`, тенант-скоуп из JWT:
+  `POST /suppliers/{id}/price-lists` (multipart: файл/фото ИЛИ `raw_text` для сообщения + optional
+  `effective_date`), `GET /suppliers/{id}/price-lists` (список версий),
+  `GET /price-lists/{upload_id}` (одна загрузка + статус). После upload — авто-триггер парсинга (F73).
+
+### F73 — парсинг прайса → `price_list_lines` (backend)
+
+- Миграция: таблица `price_list_lines` (scope=org, pk `id` int, append-only) — `organization_id`
+  (FK→organizations RESTRICT, indexed), `price_list_upload_id` (FK→price_list_uploads.id CASCADE),
+  `supplier_id` (FK→suppliers.id CASCADE, денормализовано), `line_no` int, `raw_name` varchar(512),
+  `raw_unit`, `raw_packing`, `price` numeric(14,4), `currency` (default BYN), `price_per_base_unit`
+  numeric(14,4, nullable), `pos_ingredient_id` varchar(64, nullable), `ingredient_id`
+  (FK→ingredients.id SET NULL, nullable), `resolution_method` (`manual|fuzzy|ai|unresolved`),
+  `resolution_confidence` numeric(4,3), `is_available` bool (default true), `observed_at` date
+  (ДРАЙВЕР freshness = `effective_date` загрузки, иначе дата загрузки), `created_at`. Индексы
+  `(organization_id, supplier_id, observed_at)`, `(organization_id, pos_ingredient_id, observed_at)`,
+  `(price_list_upload_id)`. Инвариант: `price/raw_*/observed_at` неизменны после создания; поля
+  `resolution_*` могут дозаполняться при ручной дочистке.
+- Новый метод `OcrProvider.extract_price_list(...)` -> список позиций прайса (отдельный layout-профиль:
+  нет накладной-хедера, возможен буклет/сообщение/фото); переиспользует egress/провайдер-инфраструктуру
+  (claude/gemini, providers/http, provider context, VPN-guard) от `extract_invoice`.
+- Confidence-gate: низкоуверенные строки → `upload.status=needs_review`; парсинг деградирует мягко.
+- SKU-резолв каждой строки через [[LCOS-F13-sku-identity-resolver]] + `sku_mapping` по
+  `(supplier_external_id, нормализованный raw_name)`, `resolution_method` fuzzy/ai + ручное
+  подтверждение (manual); нормализация цены к базовой единице через фактор фасовки (`packings`).
+- Проекция: каждая разрешённая `price_list_line` пишет одно наблюдение в `supplier_prices`
+  (`source=price_list_upload`, `observed_at` из загрузки, цена = `price_per_base_unit`), идемпотентно
+  по `source_price_list_line_id`. Расширение `supplier_prices` (F3-B2): добавить `source`
+  (`invoice|manual|price_list_upload`, default invoice) и `source_price_list_line_id`
+  (FK→price_list_lines.id SET NULL) рядом с `source_invoice_id`.
+- Роуты: `POST /price-lists/{id}/parse` (переразбор), `PATCH /price-list-lines/{id}` (ручная
+  правка/подтверждение связи с SKU).
+
+### F74 — ассортимент и freshness (backend + frontend)
+
+- Backend: `GET /suppliers/{id}/assortment` — последняя `price_list_line` на пару
+  `(supplier, разрешённый SKU / raw_name)` с ценой и freshness по `observed_at`.
+- Frontend: вкладка «Ассортимент» на карточке поставщика (`pages/suppliers`) — список позиций,
+  цена, freshness («обновлено N дней назад», подсветка устаревших); FSD `entities/supplier`
+  расширяется endpoint'ом (RTK `injectEndpoints`, провайдер `backend|mock`).
+
+### F75 — аналитика цен и ассортимента (planned, даунстрим)
+
+- Поверх единого `supplier_prices` (F20): рост цены по SKU во времени, рост ассортимента
+  (кол-во уникальных предлагаемых SKU во времени), по всем источникам `source`.
+- Реализуется ПОСЛЕ F72–F74; лёгкий AC. Родственные: [[LCOS-F21-price-change-signal]],
+  [[PHASE_F4_SUPPLIER_COMPARE]].
+
+### AC расширения (F72–F75)
+
+- [ ] AC-11. Миграции `price_list_uploads`/`price_list_lines` применяются и откатываются; обе таблицы
+      несут `organization_id` (RESTRICT); тест tenant-изоляции (прайсы org A не видны из org B).
+- [ ] AC-12. `POST /suppliers/{id}/price-lists` принимает и файл/фото, и `raw_text`, сохраняет
+      `storage_ref`/метаданные, инкрементит `version`, авто-триггерит парсинг; за гейтом
+      `module_suppliers_enabled` (404 при выкл).
+- [ ] AC-13. `extract_price_list` парсит фото/буклет → `price_list_lines`; низкоуверенные строки →
+      `status=needs_review`, загрузка не блокируется; `PATCH /price-list-lines/{id}` дочищает связь с SKU.
+- [ ] AC-14. Разрешённая строка проецируется в `supplier_prices` c `source=price_list_upload` и
+      корректной ценой за базовую единицу; повторный парсинг идемпотентен по `source_price_list_line_id`.
+- [ ] AC-15. `GET /suppliers/{id}/assortment` отдаёт последнюю позицию на пару (supplier, SKU) с
+      freshness; вкладка «Ассортимент» видна в UI (мобильный вьюпорт), устаревшие подсвечены.
+- [ ] AC-16. F75 (даунстрим): аналитика роста цены/ассортимента считается поверх `supplier_prices`
+      по всем `source` — реализуется после F72–F74.
+
+---
+
 ## Статус реализации (2026-07-08)
 
 **СДЕЛАНО — «Справочник поставщиков и условия поставок» (первый инкремент F3):**
@@ -143,6 +236,8 @@ F3-B3 автосбор цен из накладной + price-change warning, F3
 относятся к этим инкрементам и остаются открытыми.
 
 ## Журнал изменений
+- 2026-07-13 v1.1.0 — добавлен раздел 6 (прайс-листы и ассортимент, F72–F75) по [[ADR-021]];
+  снят пункт «импорт прайсов из Excel/PDF (Phase 2)» из «Вне объёма» — введён в скоуп v1.
 - 2026-07-08 — реализован справочник поставщиков + условия поставок (F3-B1 + CRUD + mobile UI);
   история цен вынесена в следующий инкремент.
 - 2026-07-03 v1.0.1 — терминология: «жена» → «пилотная кофейня».
