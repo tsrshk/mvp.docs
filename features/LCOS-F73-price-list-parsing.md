@@ -31,6 +31,7 @@ updated: 2026-07-13
 - Полный парсинг любого входа (Р1); OCR фото/буклета включён.
 - **Confidence-gate**: низкоуверенные строки → `upload.status=needs_review`; ручная дочистка не блокирует загрузку (мягкая деградация).
 - SKU-резолв каждой строки через [[LCOS-F13-sku-identity-resolver]] и `sku_mapping` по `(supplier_external_id, нормализованный raw_name)`; `resolution_method` ∈ {fuzzy, ai} автоматически, `manual` — при ручном подтверждении.
+- **Сохранение связи в moat:** ручная привязка строки (`PATCH /price-list-lines/{id}`) UPSERT-ит `sku_mapping` (org-scope, `method=manual`, `confirmed_by`) — та же связь «(поставщик, текст позиции) → POS-SKU» переиспользуется и следующим прайсом, и commit-путём накладной (двусторонний moat, как ручная привязка накладной).
 - Проекция разрешённых строк в `supplier_prices` ([[LCOS-F20-price-history]]), идемпотентно по `source_price_list_line_id`.
 - **Нормализация цены** к базовой единице через фактор фасовки ([[packings]]): `price_per_base_unit` заполняется, когда SKU разрешён.
 - Append-only инвариант [[price_list_line]]: `price`/`raw_*`/`observed_at` не меняются; дозаполняются только `resolution_*` — история цен не нарушается.
