@@ -18,7 +18,7 @@ trust_tier: 0
 
 | Папка | Что здесь находится |
 |---|---|
-| `00-overview/` | [[product]] (видение/стратегия), [[architecture]] (as-built SSOT), [[roadmap]] (фазы), [[glossary]], [[MOC]] |
+| `00-overview/` | [[product]] (видение/стратегия), [[architecture]] (as-built SSOT), [[roadmap]] (фазы), [[glossary]], [[MOC]], [[speckit-workflow]] (мост vault ↔ spec-kit) |
 | `epics/` | `LCOS-E1..E15` — документы эпиков, каждый ссылается на свои фичи |
 | `features/` | `LCOS-F1..F71` — документы фич (родительский эпик, описание, возможности, доступ по ролям, сущности, **AC разбит по Backend / Frontend / прочему**) |
 | `entities/` | Документы модели данных, по одному на таблицу (SSOT схемы) |

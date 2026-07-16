@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SKU Selection Mechanism — Architecture Design</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #ffffff;
+            --bg-alt: #f5f5f5;
+            --text: #1a1a1a;
+            --text-muted: #666;
+            --border: #ddd;
+            --accent: #0066cc;
+            --code-bg: #f0f0f0;
+            --success: #22c55e;
+            --warn: #f59e0b;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0a0a0a;
+                --bg-alt: #1a1a1a;
+                --text: #f0f0f0;
+                --text-muted: #aaa;
+                --border: #333;
+                --accent: #66b2ff;
+                --code-bg: #1a1a1a;
+                --success: #22c55e;
+                --warn: #f59e0b;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background-color: var(--bg);
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2em;
+            margin: 2rem 0 1rem;
+            color: var(--accent);
+        }
+
+        h2 {
+            font-size: 1.5em;
+            margin: 2rem 0 1rem;
+            color: var(--accent);
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 0.5rem;
+        }
+
+        h3 {
+            font-size: 1.2em;
+            margin: 1.5rem 0 0.5rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+            color: var(--text);
+        }
+
+        code {
+            background-color: var(--code-bg);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background-color: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1rem;
+            overflow-x: auto;
+            margin: 1rem 0;
+            font-size: 0.85em;
+            line-height: 1.4;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            font-size: 1em;
+        }
+
+        .section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background-color: var(--bg-alt);
+            border-left: 4px solid var(--accent);
+            border-radius: 4px;
+        }
+
+        .diagram {
+            background-color: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.9em;
+            color: var(--text);
+        }
+
+        .flow-chart {
+            margin: 1.5rem 0;
+        }
+
+        .flow-item {
+            display: flex;
+            align-items: center;
+            margin: 0.5rem 0;
+            padding: 0.75rem;
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        .flow-arrow {
+            display: inline-block;
+            margin: 0 0.5rem;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .highlight {
+            background-color: var(--warn);
+            color: var(--text);
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.3em 0.6em;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .badge-factory {
+            background-color: #e0e7ff;
+            color: #3730a3;
+        }
+
+        .badge-dropdown {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-grouping {
+            background-color: #fce7f3;
+            color: #831843;
+        }
+
+        .badge-integration {
+            background-color: #fef3c7;
+            color: #78350f;
+        }
+
+        .structure {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .card {
+            background-color: var(--bg-alt);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.5rem;
+        }
+
+        .card h4 {
+            margin-bottom: 1rem;
+            color: var(--accent);
+        }
+
+        .card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .card li {
+            padding: 0.3rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .card li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+
+        th, td {
+            border: 1px solid var(--border);
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        th {
+            background-color: var(--bg-alt);
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background-color: var(--bg-alt);
+        }
+
+        .example {
+            background-color: var(--code-bg);
+            border-left: 4px solid var(--success);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        .example-title {
+            font-weight: 600;
+            color: var(--success);
+            margin-bottom: 0.5rem;
+        }
+
+        .toc {
+            background-color: var(--bg-alt);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+        }
+
+        .toc ol {
+            margin-left: 1.5rem;
+        }
+
+        .toc li {
+            margin: 0.5rem 0;
+        }
+
+        .toc a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .decision-tree {
+            background-color: var(--bg-alt);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .key-insight {
+            background-color: var(--bg-alt);
+            border-left: 4px solid var(--accent);
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+
+        .key-insight strong {
+            color: var(--accent);
+        }
+
+        .section-badge {
+            display: inline-block;
+            padding: 0.25em 0.5em;
+            background-color: var(--accent);
+            color: white;
+            border-radius: 3px;
+            font-size: 0.75em;
+            font-weight: 600;
+            margin-right: 0.5rem;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+            .section {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SKU Selection Mechanism — Architecture Design</h1>
+        <p style="color: var(--text-muted); font-size: 1.1em;">Factory pattern • Live search dropdown • Intelligent grouping • Multi-entity support</p>
+
+        <div class="toc">
+            <h3>Quick Navigation</h3>
+            <ol>
+                <li><a href="#factory">Factory Pattern: SkuHandlerFactory</a></li>
+                <li><a href="#dropdown">Dropdown Component: SkuDropdown</a></li>
+                <li><a href="#grouping">Grouping Logic & Supplier Detection</a></li>
+                <li><a href="#integration">Integration Points</a></li>
+                <li><a href="#types">Type Definitions</a></li>
+                <li><a href="#example">Real-world Example</a></li>
+            </ol>
+        </div>
+
+        <!-- FACTORY PATTERN -->
+        <h2 id="factory"><span class="section-badge">1</span>Factory Pattern: SkuHandlerFactory</h2>
+
+        <div class="key-insight">
+            <strong>Core Idea:</strong> Different entity types (suppliers, ingredients, products) have different selection contexts and grouping strategies. The factory abstracts these differences into a single interface, so the component never cares about the specific entity type.
+        </div>
+
+        <h3>The Problem It Solves</h3>
+        <div class="section">
+            <ul>
+                <li><strong>Today:</strong> SkuSelect and SkuSearchSelect only handle ingredients (SKUs).</li>
+                <li><strong>Tomorrow:</strong> We'll need supplier selection (multi-step flow) and product selection (supplier catalogue).</li>
+                <li><strong>The risk:</strong> Duplicating search/grouping logic for each entity type.</li>
+                <li><strong>The solution:</strong> One interface (SkuHandler), multiple implementations. Same component works for all.</li>
+            </ul>
+        </div>
+
+        <h3>Architecture Diagram</h3>
+        <div class="diagram">
+SkuHandlerFactory.create(context)
+        ↓
+   (Detects entityType)
+        ↓
+    ┌───┬───────────┬──────────┐
+    ↓   ↓           ↓          ↓
+'ingredient' → IngredientSkuHandler
+'supplier'   → SupplierSkuHandler
+'product'    → ProductSkuHandler
+        ↓
+   SkuHandler interface
+   ├─ fetchSkus()
+   ├─ fetchSupplierProductIds()
+   ├─ searchSkus()
+   └─ groupSkus()
+        ↓
+    SkuDropdown (same component, all entity types!)
+        </div>
+
+        <h3>Core Types</h3>
+        <pre><code>type SkuEntityType = 'supplier' | 'ingredient' | 'product'
+
+interface SkuSelectionContext {
+  entityType: SkuEntityType
+  orgId: string
+  subdivisionId: string
+  supplierId?: string  // When available
+}
+
+interface SkuHandler {
+  fetchSkus(): Promise&lt;Sku[]&gt;
+  fetchSupplierProductIds(supplierId: string): Promise&lt;string[]&gt;
+  searchSkus(skus: Sku[], query: string): Sku[]
+  groupSkus(
+    skus: Sku[],
+    supplierProductIds: Set&lt;string&gt;,
+    options?: { prioritySkuIds?: string[]; locale?: string }
+  ): GroupedSkus
+}
+
+class SkuHandlerFactory {
+  static create(context: SkuSelectionContext): SkuHandler
+}</code></pre>
+
+        <div class="structure">
+            <div class="card">
+                <h4><span class="badge badge-factory">IngredientSkuHandler</span></h4>
+                <ul>
+                    <li>Fetches from POS provider (backend)</li>
+                    <li>Searches by name + unit</li>
+                    <li>Groups by supplier (if supplier selected)</li>
+                    <li>Current primary use case</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h4><span class="badge badge-factory">SupplierSkuHandler</span></h4>
+                <ul>
+                    <li>Fetches from POS provider</li>
+                    <li>Searches by name + tax ID</li>
+                    <li>No sub-grouping (single list)</li>
+                    <li>Future: multi-step supplier picker</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h4><span class="badge badge-factory">ProductSkuHandler</span></h4>
+                <ul>
+                    <li>Fetches supplier-specific products</li>
+                    <li>Requires supplierId in context</li>
+                    <li>Org/subdivision aware</li>
+                    <li>Future: mapping supplier products → SKUs</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- DROPDOWN COMPONENT -->
+        <h2 id="dropdown"><span class="section-badge">2</span>Dropdown Component: SkuDropdown</h2>
+
+        <div class="key-insight">
+            <strong>Design principle:</strong> A single, reusable component that works with any handler. Manages search state, keyboard navigation, focus, and rendering grouped results.
+        </div>
+
+        <h3>Props Interface</h3>
+        <pre><code>interface SkuDropdownProps {
+  value: string | null
+  handler: SkuHandler           // Created by factory
+  supplierProductIds: Set&lt;string&gt;
+  invalid?: boolean
+  placeholder?: string
+  onPick: (skuId: string | null) =&gt; void
+  onCreate?: () => void
+  className?: string
+}</code></pre>
+
+        <h3>Component Lifecycle</h3>
+        <div class="flow-chart">
+            <div class="flow-item">
+                <strong>Mount</strong>
+                <span class="flow-arrow">→</span>
+                <code>handler.fetchSkus()</code>
+                <span class="flow-arrow">→</span>
+                <code>setState(allSkus)</code>
+            </div>
+            <div class="flow-item">
+                <strong>User types</strong>
+                <span class="flow-arrow">→</span>
+                <code>handler.searchSkus()</code>
+                <span class="flow-arrow">→</span>
+                <code>filtered</code>
+            </div>
+            <div class="flow-item">
+                <strong>Supplier changes</strong>
+                <span class="flow-arrow">→</span>
+                <code>handler.groupSkus()</code>
+                <span class="flow-arrow">→</span>
+                <code>grouped results</code>
+            </div>
+            <div class="flow-item">
+                <strong>User picks</strong>
+                <span class="flow-arrow">→</span>
+                <code>onPick(skuId)</code>
+                <span class="flow-arrow">→</span>
+                <code>close dropdown</code>
+            </div>
+        </div>
+
+        <h3>Key Features</h3>
+        <div class="section">
+            <table>
+                <tr>
+                    <th>Feature</th>
+                    <th>Implementation</th>
+                </tr>
+                <tr>
+                    <td><strong>Live Search</strong></td>
+                    <td>Client-side filtering (no API calls on keystroke)</td>
+                </tr>
+                <tr>
+                    <td><strong>Keyboard Nav</strong></td>
+                    <td>Arrow up/down, Enter to pick, Esc to close</td>
+                </tr>
+                <tr>
+                    <td><strong>Click Outside</strong></td>
+                    <td>Closes dropdown automatically</td>
+                </tr>
+                <tr>
+                    <td><strong>Grouped Rendering</strong></td>
+                    <td>Optgroups by handler result groups</td>
+                </tr>
+                <tr>
+                    <td><strong>Accessibility</strong></td>
+                    <td>Proper ARIA labels, focus management, WCAG 2.1</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- GROUPING LOGIC -->
+        <h2 id="grouping"><span class="section-badge">3</span>Grouping Logic & Supplier Detection</h2>
+
+        <div class="key-insight">
+            <strong>The core grouping strategy:</strong> "Supplier items first, then all others, alphabetical." But this only happens if a supplier is selected. Without a supplier, it's just "all items, alphabetical."
+        </div>
+
+        <h3>Supplier Detection Decision Tree</h3>
+        <div class="decision-tree">
+Where does the supplier come from?
+
+1. Line's own supplier (least common)
+   ↓
+2. Invoice header supplier (most common)
+   ↓
+3. Redux explicit selectedSupplierId
+   ↓
+4. None selected (show all, no grouping)
+
+Priority: Line > Header > Redux > None
+        </div>
+
+        <h3>Grouping Algorithm (Pseudocode)</h3>
+        <pre><code>function groupSkusIntel(
+  skus: Sku[],
+  supplierId: string | null,
+  supplierProductIds: Set&lt;string&gt;,
+  locale: string = 'en'
+): GroupedSkus {
+  const collator = new Intl.Collator(locale)
+
+  if (supplierId && supplierProductIds.size > 0) {
+    // Split into two groups
+    const supplierSkus = skus.filter(sku =>
+      sku.productId && supplierProductIds.has(sku.productId)
+    )
+    const restSkus = skus.filter(sku =>
+      !sku.productId || !supplierProductIds.has(sku.productId)
+    )
+
+    // Sort each group
+    supplierSkus.sort((a, b) => collator.compare(a.name, b.name))
+    restSkus.sort((a, b) => collator.compare(a.name, b.name))
+
+    // Return groups
+    return {
+      groups: [
+        {
+          id: 'supplier',
+          label: 'Ингредиенты этого поставщика',
+          skus: supplierSkus,
+          isDefault: true
+        },
+        {
+          id: 'rest',
+          label: 'Остальные ингредиенты',
+          skus: restSkus
+        }
+      ],
+      totalCount: skus.length
+    }
+  } else {
+    // Single group: all SKUs, alphabetical
+    const sorted = [...skus].sort((a, b) =>
+      collator.compare(a.name, b.name)
+    )
+    return {
+      groups: [{
+        id: 'all',
+        label: 'Все ингредиенты',
+        skus: sorted,
+        isDefault: true
+      }],
+      totalCount: skus.length
+    }
+  }
+}</code></pre>
+
+        <h3>Key Data Structure: Sku.productId</h3>
+        <div class="section">
+            <p><strong>What it is:</strong> An ID that links a SKU (ingredient) to a supplier's product catalogue entry.</p>
+            <p><strong>Why it matters:</strong> It's the join key. When a supplier is selected, we ask "which SKUs have productIds in this supplier's delivery history?" Those appear first.</p>
+            <table>
+                <tr>
+                    <th>Scenario</th>
+                    <th>Behavior</th>
+                </tr>
+                <tr>
+                    <td>Supplier selected, SKU.productId in supplier's history</td>
+                    <td>→ Appears in "supplier group" (first)</td>
+                </tr>
+                <tr>
+                    <td>Supplier selected, SKU.productId NOT in history</td>
+                    <td>→ Appears in "rest group" (second)</td>
+                </tr>
+                <tr>
+                    <td>Supplier selected, SKU.productId is null</td>
+                    <td>→ Appears in "rest group"</td>
+                </tr>
+                <tr>
+                    <td>No supplier selected</td>
+                    <td>→ All SKUs in single group, no sub-grouping</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- INTEGRATION POINTS -->
+        <h2 id="integration"><span class="section-badge">4</span>Integration Points</h2>
+
+        <h3>Integration 1: Invoice Form → SKU Selection</h3>
+        <div class="example">
+            <div class="example-title">Line Row Component (Desktop View)</div>
+            <pre><code>export function LineRow({
+  line,
+  onSkuPick,
+  supplierProductIds,
+  // ...
+}: LineRowProps) {
+  const supplier = useAppSelector(s => s.invoiceSession.supplier)
+
+  // Create handler context from invoice state
+  const handlerContext: SkuSelectionContext = {
+    entityType: 'ingredient',
+    orgId: auth.orgId,
+    subdivisionId: auth.subdivisionId,
+    supplierId: supplier?.id
+  }
+
+  const handler = useMemo(
+    () => SkuHandlerFactory.create(handlerContext),
+    [handlerContext]
+  )
+
+  return (
+    &lt;SkuDropdown
+      value={line.skuId || null}
+      handler={handler}
+      supplierProductIds={supplierProductIds}
+      onPick={(skuId) => onSkuPick(line.id, skuId)}
+    /&gt;
+  )
+}</code></pre>
+        </div>
+
+        <h3>Integration 2: Supplier Selection → SKU Grouping</h3>
+        <div class="example">
+            <div class="example-title">Invoice Header Component</div>
+            <pre><code>const onSupplierSelect = (supplier: Supplier | null) => {
+  // Update invoice supplier
+  dispatch(supplierSelected(supplier))
+
+  // Load product IDs for grouping
+  if (supplier) {
+    (async () => {
+      const handler = SkuHandlerFactory.create({
+        entityType: 'ingredient',
+        orgId: auth.orgId,
+        subdivisionId: auth.subdivisionId,
+        supplierId: supplier.id
+      })
+      const productIds = await handler.fetchSupplierProductIds(supplier.id)
+      // Dispatch to Redux so all pickers re-group
+      dispatch(supplierProductIdsLoaded(productIds))
+    })()
+  }
+}</code></pre>
+        </div>
+
+        <h3>Integration 3: Org/Subdivision Scope</h3>
+        <div class="key-insight">
+            <strong>Every handler is scoped to org + subdivision.</strong> This ensures:<br>
+            • SKUs from handler.fetchSkus() are only for this org/subdiv<br>
+            • Backend auth validates scope via session cookie<br>
+            • Supplier product IDs are also scoped (ERP owns the data)<br>
+            • Future multi-tenant scenarios are built-in
+        </div>
+
+        <h3>Integration 4: Async Search & Caching</h3>
+        <div class="section">
+            <p><strong>Caching strategy:</strong></p>
+            <ul>
+                <li><strong>SKUs:</strong> Loaded once on component mount (via handler.fetchSkus())</li>
+                <li><strong>Search:</strong> Happens client-side (no API calls on every keystroke)</li>
+                <li><strong>Supplier product IDs:</strong> Cached per supplier (loaded when supplier changes)</li>
+            </ul>
+            <p><strong>Why?</strong> Instant feedback, no jank, no server load.</p>
+        </div>
+
+        <!-- TYPE DEFINITIONS -->
+        <h2 id="types"><span class="section-badge">5</span>Type Definitions & Interfaces</h2>
+
+        <h3>Factory & Handler Types</h3>
+        <pre><code>// shared/sku/factory.ts
+
+interface SkuHandler {
+  fetchSkus(): Promise&lt;Sku[]&gt;
+  fetchSupplierProductIds(supplierId: string): Promise&lt;string[]&gt;
+  searchSkus(skus: Sku[], query: string): Sku[]
+  groupSkus(
+    skus: Sku[],
+    supplierProductIds: Set&lt;string&gt;,
+    options?: { prioritySkuIds?: string[]; locale?: string }
+  ): GroupedSkus
+}
+
+interface SkuGroup {
+  label: string
+  id: string
+  skus: Sku[]
+  isDefault?: boolean
+}
+
+interface GroupedSkus {
+  groups: SkuGroup[]
+  totalCount: number
+}</code></pre>
+
+        <h3>Dropdown Component Types</h3>
+        <pre><code>// features/lines-table/ui/SkuDropdown.tsx
+
+interface SkuDropdownProps {
+  value: string | null
+  handler: SkuHandler
+  supplierProductIds: Set&lt;string&gt;
+  invalid?: boolean
+  placeholder?: string
+  onPick: (skuId: string | null) => void
+  onCreate?: () => void
+  className?: string
+}
+
+interface SkuDropdownState {
+  isOpen: boolean
+  searchQuery: string
+  allSkus: Sku[]
+  filteredSkus: Sku[]
+  groupedResults: GroupedSkus
+  selectedIndex: number | null
+  error?: string
+}
+
+type SkuDropdownAction =
+  | { type: 'OPEN' }
+  | { type: 'CLOSE' }
+  | { type: 'SEARCH_QUERY_CHANGED'; payload: string }
+  | { type: 'SKUS_LOADED'; payload: Sku[] }
+  | { type: 'SEARCH_RESULTS'; payload: { filtered: Sku[]; grouped: GroupedSkus } }
+  | { type: 'SELECT_NEXT' }
+  | { type: 'SELECT_PREV' }
+  | { type: 'PICK'; payload: string | null }
+  | { type: 'ERROR'; payload: string }</code></pre>
+
+        <h3>Redux Integration Types</h3>
+        <pre><code>// entities/sku/model/skusSlice.ts
+
+interface SkusState {
+  items: Sku[]
+  selectedSupplierId: string | null
+  searchQuery: string
+  supplierProductIds: Set&lt;string&gt;
+  loading: boolean
+  error?: string
+}
+
+// Actions
+export const {
+  skusLoaded,
+  supplierSelected,
+  supplierProductIdsLoaded,
+  searchQueryChanged,
+  searchCleared
+} = skusSlice.actions
+
+// Selectors
+export const selectAllSkus = (state: RootState) => state.skus.items
+export const selectSelectedSupplierId = (state: RootState) =>
+  state.skus.selectedSupplierId
+export const selectFilteredSkus = (
+  state: RootState,
+  supplierProductIds?: Set&lt;string&gt;
+) => {
+  // ... filtering logic
+}</code></pre>
+
+        <!-- REAL-WORLD EXAMPLE -->
+        <h2 id="example"><span class="section-badge">6</span>Real-World Example: Mobile Card SKU Selection</h2>
+
+        <div class="example">
+            <div class="example-title">LineCard Component (Current Use Case)</div>
+            <pre><code>export function LineCard({
+  line,
+  onSkuPick,
+  supplierProductIds,
+  // ...
+}: LineCardProps) {
+  const supplier = useAppSelector(s => s.invoiceSession.supplier)
+  const allSkus = useAppSelector(s => s.skus.items)
+
+  // 1. Create handler context (depends on supplier & auth)
+  const handlerContext: SkuSelectionContext = useMemo(
+    () => ({
+      entityType: 'ingredient',
+      orgId: useAuth().orgId,
+      subdivisionId: useAuth().subdivisionId,
+      supplierId: supplier?.id
+    }),
+    [supplier?.id]
+  )
+
+  // 2. Create handler (factory does the work)
+  const handler = useMemo(
+    () => SkuHandlerFactory.create(handlerContext),
+    [handlerContext]
+  )
+
+  return (
+    &lt;div className="p-4 border rounded-lg"&gt;
+      &lt;div className="mb-3"&gt;
+        &lt;label className="text-xs font-semibold"&gt;Товар&lt;/label&gt;
+        {/* 3. Pass handler to dropdown (same component works for all entity types!) */}
+        &lt;SkuDropdown
+          value={line.skuId || null}
+          handler={handler}
+          supplierProductIds={supplierProductIds}
+          invalid={line.errors?.includes('skuId')}
+          onPick={(skuId) => onSkuPick(line.id, skuId)}
+          className="mt-1 w-full"
+        /&gt;
+      &lt;/div&gt;
+      {/* Other line fields... */}
+    &lt;/div&gt;
+  )
+}</code></pre>
+        </div>
+
+        <h3>What Happens When User Types "ящ"</h3>
+        <div class="flow-chart">
+            <div class="flow-item">
+                <strong>User types "ящ"</strong>
+                <span class="flow-arrow">→</span>
+                <code>handleChange('ящ')</code>
+            </div>
+            <div class="flow-item">
+                <strong>setState(searchQuery: 'ящ')</strong>
+                <span class="flow-arrow">→</span>
+                <code>useEffect triggered</code>
+            </div>
+            <div class="flow-item">
+                <strong>handler.searchSkus(allSkus, 'ящ')</strong>
+                <span class="flow-arrow">→</span>
+                <code>[ящик, ящик-10л, …]</code>
+            </div>
+            <div class="flow-item">
+                <strong>handler.groupSkus(filtered, supplierProductIds)</strong>
+                <span class="flow-arrow">→</span>
+                <code>GroupedSkus with groups</code>
+            </div>
+            <div class="flow-item">
+                <strong>Render grouped results</strong>
+                <span class="flow-arrow">→</span>
+                <code>User sees filtered items</code>
+            </div>
+        </div>
+
+        <h3>What Happens When Supplier Changes</h3>
+        <div class="flow-chart">
+            <div class="flow-item">
+                <strong>User selects supplier</strong>
+                <span class="flow-arrow">→</span>
+                <code>dispatch(supplierSelected(s))</code>
+            </div>
+            <div class="flow-item">
+                <strong>handler context changes</strong>
+                <span class="flow-arrow">→</span>
+                <code>supplierId is now set</code>
+            </div>
+            <div class="flow-item">
+                <strong>handler.fetchSupplierProductIds()</strong>
+                <span class="flow-arrow">→</span>
+                <code>ProductId[] for this supplier</code>
+            </div>
+            <div class="flow-item">
+                <strong>ALL dropdowns re-group</strong>
+                <span class="flow-arrow">→</span>
+                <code>Supplier items appear first</code>
+            </div>
+        </div>
+
+        <!-- CLOSING SECTION -->
+        <h2>Summary</h2>
+        <div class="section">
+            <h3>What You Get</h3>
+            <ul style="list-style: none; padding: 0;">
+                <li style="margin-bottom: 1rem;">✓ <strong>Factory Pattern:</strong> Extensible to new entity types (ingredients, suppliers, products, …).</li>
+                <li style="margin-bottom: 1rem;">✓ <strong>Single Component:</strong> SkuDropdown works with any handler.</li>
+                <li style="margin-bottom: 1rem;">✓ <strong>Intelligent Grouping:</strong> Detects supplier selection, prioritizes relevant items.</li>
+                <li style="margin-bottom: 1rem;">✓ <strong>Fast Search:</strong> Client-side, instant feedback, no jank.</li>
+                <li style="margin-bottom: 1rem;">✓ <strong>Accessibility:</strong> Keyboard nav, focus management, ARIA labels.</li>
+                <li style="margin-bottom: 1rem;">✓ <strong>Org/Subdiv Scope:</strong> Built-in multi-tenancy support.</li>
+                <li>✓ <strong>Testable:</strong> Handlers are stateless, easy to mock.</li>
+            </ul>
+
+            <h3 style="margin-top: 2rem;">Migration Path</h3>
+            <ol style="padding-left: 1.5rem;">
+                <li><strong>Phase 1:</strong> Create factory + IngredientSkuHandler (mirrors current logic)</li>
+                <li><strong>Phase 2:</strong> New SkuDropdown component (side-by-side with old)</li>
+                <li><strong>Phase 3:</strong> Supplier & Product handlers (for future features)</li>
+                <li><strong>Phase 4:</strong> Redux integration (automatic re-grouping)</li>
+            </ol>
+        </div>
+
+        <div style="margin-top: 3rem; padding: 1.5rem; background-color: var(--bg-alt); border-radius: 6px; color: var(--text-muted);">
+            <p style="margin: 0;">For detailed implementation, see <strong>sku-selection-architecture.md</strong> in the project root.</p>
+        </div>
+    </div>
+</body>
+</html>
