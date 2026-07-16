@@ -2,14 +2,14 @@
 doc: plan/PHASE_S1_STABILIZATION
 title: Фаза S1 — Стабилизация и выравнивание (бэклог ALIGN/DEC/VER + перенос доков)
 version: 1.0.1
-status: current
+status: superseded
 updated: 2026-07-03
 verified_against_code: n/a
 owner: Ivan
 supersedes: []
-superseded_by: none
+superseded_by: "[[roadmap]]"
 trust_tier: 2
-ssot_for: [phase-s1-requirements]
+ssot_for: []
 ---
 
 # Фаза S1 — Стабилизация и выравнивание

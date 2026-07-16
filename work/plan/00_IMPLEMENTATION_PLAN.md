@@ -2,14 +2,14 @@
 doc: plan/00_IMPLEMENTATION_PLAN
 title: LCOS — Общий план реализации (фазы, зависимости, сквозные требования)
 version: 1.0.1
-status: current
-updated: 2026-07-03
+status: superseded
+updated: 2026-07-16
 verified_against_code: n/a
 owner: Ivan
 supersedes: [Local_OS_Functional_Stages_v01.md]
-superseded_by: none
+superseded_by: "[[roadmap]]"
 trust_tier: 2
-ssot_for: [implementation-plan, phase-order, cross-cutting-requirements]
+ssot_for: []
 ---
 
 # LCOS — Общий план реализации

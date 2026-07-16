@@ -59,6 +59,6 @@ updated: 2026-07-13
 [[LCOS-F72-supplier-price-list-upload]] (загрузка документа/фото/сообщения, хранение + метаданные, версия, триггер парсинга), [[LCOS-F73-price-list-parsing]] (парсинг загрузки → [[price_list_line]], confidence-gate `needs_review`, проекция в `supplier_prices`).
 
 ## Источники
-- [[ARCH-SUPPLIER-PRICELISTS]] §1.2 — SSOT схемы `price_list_uploads`
+- [[ARCH_SUPPLIER_PRICELISTS]] §1.2 — SSOT схемы `price_list_uploads`
 - Дизайн-спек эпика [[LCOS-E4-suppliers]] (схема данных `price_list_uploads`)
 - [[ADR-021]] (локальный SSOT поставщика)

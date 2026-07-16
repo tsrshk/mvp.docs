@@ -2,14 +2,14 @@
 doc: plan/PHASE_F6_LOCAL_CONTEXT
 title: Фаза F6 — Локальный контекст (погода + события района в дайджесте)
 version: 1.0.0
-status: current
+status: superseded
 updated: 2026-07-03
 verified_against_code: n/a
 owner: Ivan
 supersedes: []
-superseded_by: none
+superseded_by: "[[roadmap]]"
 trust_tier: 2
-ssot_for: [phase-f6-requirements]
+ssot_for: []
 ---
 
 # Фаза F6 — Локальный контекст

@@ -36,6 +36,17 @@ ssot_for: [doc-audit-2026-07-15]
 
 ## б) Medium-замечания (приоритет)
 
+> **Статус закрытия — 2026-07-16 (Phase 7a/7c, [[OPTIMIZATION_PLAN_2026-07-16]]).** Все 10 medium закрыты:
+> - [x] `LCOS-F20`, `LCOS-F72` (×2), `entities/price_list_upload` — `[[ARCH-SUPPLIER-PRICELISTS]]` → `[[ARCH_SUPPLIER_PRICELISTS]]`.
+> - [x] `reference/esupl-api/esupl-api-index` — добавлен front-matter (id/type/title/status/updated).
+> - [x] `VER-021_ESUPL_DURABILITY_TEST` — добавлен work-tier front-matter (`status: in_progress`, `ssot_for: [VER-021]`).
+> - [x] `TZ__STABILIZATION_2026-07-09__ALIGNED` — добавлен front-matter (`status: current`).
+> - [x] `05_BACKLOG__append_2026-07-08` — влит в `05_BACKLOG.md` и удалён; VER-021 сведён к ссылке на канонический `[[VER-021_ESUPL_DURABILITY_TEST]]`.
+> - [x] `05_BACKLOG` — `updated` → 2026-07-16, version → 1.3.0.
+> - [x] `plan/00_IMPLEMENTATION_PLAN` + `plan/PHASE_*` (кроме живых `PHASE_F3_SUPPLIERS`, `ARCH_SUPPLIER_PRICELISTS`; включая `PHASE_F4_SUPPLIER_COMPARE`, не попавший в перечень выше по недосмотру) → `status: superseded`, `superseded_by: [[roadmap]]`, `ssot_for` очищен; указатель `09_PHASE1_TASKS` → `08_PHASE1_SPEC` заменён на `features/LCOS-F*`.
+> - [x] `_RESTRUCTURE_PLAN` — `status` → `complete` (совпал с телом), директива «ALL docs in ENGLISH» отменена (vault — русская проза).
+> - [x] 7c Jira: `work/bugs/README.md` — обещания «выгрузим в Jira» заменены на «внешний трекер не планируется; GitHub Issues через `speckit-taskstoissues`».
+
 | Файл | Проблема | Рекомендация |
 |---|---|---|
 | `features/LCOS-F20-price-history.md` | Битая вики-ссылка `[[ARCH-SUPPLIER-PRICELISTS]]` (дефисы) — реальный basename `ARCH_SUPPLIER_PRICELISTS` (подчёркивания). | Заменить на `[[ARCH_SUPPLIER_PRICELISTS]]`. |

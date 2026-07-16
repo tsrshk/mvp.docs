@@ -2,14 +2,14 @@
 doc: plan/PHASE_F9_CROSS_RECIPE
 title: Фаза F9 — Cross-recipe рекомендации (идеи меню из имеющихся SKU)
 version: 1.0.0
-status: current
+status: superseded
 updated: 2026-07-03
 verified_against_code: n/a
 owner: Ivan
 supersedes: []
-superseded_by: none
+superseded_by: "[[roadmap]]"
 trust_tier: 2
-ssot_for: [phase-f9-requirements]
+ssot_for: []
 ---
 
 # Фаза F9 — Cross-recipe рекомендации

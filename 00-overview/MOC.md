@@ -23,6 +23,7 @@ sources:
 - [[glossary]] — термины (moat, source_key, fail-closed, ProviderContext, …)
 - [[README]] — карта хранилища и реестр документов
 - [[speckit-workflow]] — мост vault ↔ spec-kit: где что живёт, соответствие артефактов, слэш-команды
+- [[dev-workflow]] — как работать с проектом: три репо + workspace, локальный запуск, баг-трекинг, CI/CD
 
 ## Эпики
 

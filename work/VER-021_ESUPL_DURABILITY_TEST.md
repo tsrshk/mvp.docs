@@ -1,3 +1,13 @@
+---
+doc: VER-021_ESUPL_DURABILITY_TEST
+title: VER-021 — гейт-тест долговечности pos_ingredient_id в Esupl
+status: in_progress
+updated: 2026-07-16
+owner: Ivan
+trust_tier: 2
+ssot_for: [VER-021]
+---
+
 # VER-021: гейт-тест долговечности pos_ingredient_id в Esupl
 
 **Status:** GATE TEST (гейт-тест) — блокирует всю нижестоящую работу (PRE-2) до подтверждения.  

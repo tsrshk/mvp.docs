@@ -1,3 +1,11 @@
+---
+id: esupl-api-index
+type: reference
+title: Esupl API — offline documentation (mirror index)
+status: current
+updated: 2026-07-16
+---
+
 # Esupl API — offline documentation
 
 > Mirrored locally from the Postman collection so we don't hit the web each time.

@@ -1,3 +1,14 @@
+---
+doc: TZ__STABILIZATION_2026-07-09__ALIGNED
+title: ТЗ — Стабилизация (выровнено с DEC-0011/DEC-0013 и реальным кодом)
+status: current
+updated: 2026-07-09
+owner: Ivan
+trust_tier: 3
+supersedes: [TZ__STABILIZATION_2026-07-09.md]
+ssot_for: [stabilization-tz]
+---
+
 # ТЗ — Стабилизация (ВЫРОВНЕНО с DEC-0011/DEC-0013 и реальным кодом)
 
 - **Date:** 2026-07-09

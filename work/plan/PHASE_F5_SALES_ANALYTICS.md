@@ -2,14 +2,14 @@
 doc: plan/PHASE_F5_SALES_ANALYTICS
 title: Фаза F5 — Аналитика продаж (read-only sync из Esupl + еженедельный дайджест)
 version: 1.0.1
-status: current
+status: superseded
 updated: 2026-07-03
 verified_against_code: n/a
 owner: Ivan
 supersedes: []
-superseded_by: none
+superseded_by: "[[roadmap]]"
 trust_tier: 2
-ssot_for: [phase-f5-requirements]
+ssot_for: []
 ---
 
 # Фаза F5 — Аналитика продаж

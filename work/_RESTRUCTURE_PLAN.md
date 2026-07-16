@@ -1,9 +1,9 @@
 ---
 doc: DOCS_RESTRUCTURE_PLAN
-title: Documentation restructure — plan, ID map, templates, migration (Obsidian/Jira vault)
+title: Documentation restructure — plan, ID map, templates, migration (Obsidian vault)
 version: 0.1.0
-status: in_progress
-updated: 2026-07-09
+status: complete
+updated: 2026-07-16
 owner: Ivan
 trust_tier: 4
 notes: Generation SSOT + progress journal for the mvp.docs restructure. Owner-approved decisions locked below.
@@ -185,7 +185,8 @@ Features (basename = these EXACT strings):
 (all prefixed `LCOS-`). Entities = 14 table names. Roles = superadmin, admin, member, sqladmin-operator, supplier-future. Requirements = auth, config-secrets, erp-esupl-integration, fail-closed, global-requirements, invoice-status-machine, multitenancy, provider-abstraction, secret-encryption, sku-identity-resolver, supplier-criteria-registry, vpn-egress. ADR = ADR-001..020, DEC-0011, DEC-0013, index.
 Full (E1–E8 = F1–F44): 3 done (F8,F13,F17) → 41 remaining. Stub (E9–E15 = F45–F71): 27.
 
-## LANGUAGE (owner update 2026-07-09): ALL docs in ENGLISH — prose AND identifiers. Stage A files (generated in RU) MUST be translated to English (prose only; preserve [[wikilinks]], front-matter keys, IDs, code, file paths, numbers). Stage B/C generate directly in English.
+## LANGUAGE (corrected 2026-07-16)
+Проза vault — на **РУССКОМ** (закреплено в [[README]]). Английскими/ASCII остаются только идентификаторы: front-matter-ключи, ID (`LCOS-E#`/`LCOS-F#`), `[[wikilinks]]`, имена файлов, код, пути, числа. Прежняя директива owner-update 2026-07-09 «ALL docs in ENGLISH — prose AND identifiers» **ОТМЕНЕНА**: фактический vault — русская проза, ранее выполненный all-English проход откачен к RU. Прогресс-лог ниже сохранён как исторический — его пункт «vault all-English» относится к промежуточному состоянию, не к текущему.
 
 ## Progress
 - [x] Inventory (wf_23ea3cfb-73b) · [x] decisions locked · [x] plan/ID-map (this doc)
@@ -194,3 +195,4 @@ Full (E1–E8 = F1–F44): 3 done (F8,F13,F17) → 41 remaining. Stub (E9–E15 
 - [x] link-normalize: 302 links rewritten / 49 files → 4007 wikilinks, 0 unresolved, 0 duplicate basenames, vault all-English
 - STATUS: COMPLETE 2026-07-09. Vault: 00-overview(5) epics(15) features(71) entities(18) roles(5) requirements(12) adr(23) + reference/esupl-api + work + archive.
 - Known drift to fix in Stage C link-normalize: overview/epic guessed slugs (e.g. LCOS-E1-platform-foundations→LCOS-E1-platform, E3-sku-identity-moat→E3-sku-identity, E6-ocr-capture→E6-ocr-quality, E7-stock-levels→E7-stock), [[erp-esupl]]→[[erp-esupl-integration]], [[F9-line-catalog-matching]]→[[F9-line-matching]], [[F26-multipage-interim-fix]]→[[F26-multipage-fix]], [[F3-sqladmin-operator-plane]]→[[F3-sqladmin-operator]], [[ADR-index]]/[[adr/index]]→[[index]], [[Pilot-Gate]] (no standalone note → point to glossary).
+- RESIDUAL dispositions closed 2026-07-16 (Phase 7 doc cleanup, по [[SPECKIT-AUDIT-2026-07-15]]): `05_BACKLOG__append_2026-07-08` влит в `05_BACKLOG.md` **in place** (файл не переименован в `backlog.md`, append удалён); `plan/00_IMPLEMENTATION_PLAN` + `plan/PHASE_*` (кроме `PHASE_F3_SUPPLIERS` и `ARCH_SUPPLIER_PRICELISTS`, они живые) помечены `superseded` (`superseded_by: [[roadmap]]`, `ssot_for` очищен) **in place** вместо переноса в `plan-archive`; битые `[[ARCH-SUPPLIER-PRICELISTS]]`, отсутствующий front-matter гейт/индекс-доков и Jira-обещания закрыты.

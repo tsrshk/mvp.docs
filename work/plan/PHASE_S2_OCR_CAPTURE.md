@@ -2,14 +2,14 @@
 doc: plan/PHASE_S2_OCR_CAPTURE
 title: Фаза S2 — Качество захвата и OCR (multi-page, промпт-хинты, авто-кроп, confidence-gate)
 version: 1.0.0
-status: current
+status: superseded
 updated: 2026-07-03
 verified_against_code: n/a
 owner: Ivan
 supersedes: []
-superseded_by: none
+superseded_by: "[[roadmap]]"
 trust_tier: 2
-ssot_for: [phase-s2-requirements]
+ssot_for: []
 ---
 
 # Фаза S2 — Качество захвата и OCR

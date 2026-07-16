@@ -2,14 +2,14 @@
 doc: plan/PHASE_F8_COMPETITORS_REVIEWS
 title: Фаза F8 — Конкуренты: отзывы (sentiment, тренды, секция в дайджесте)
 version: 1.0.0
-status: current
+status: superseded
 updated: 2026-07-03
 verified_against_code: n/a
 owner: Ivan
 supersedes: []
-superseded_by: none
+superseded_by: "[[roadmap]]"
 trust_tier: 2
-ssot_for: [phase-f8-requirements]
+ssot_for: []
 ---
 
 # Фаза F8 — Конкуренты: отзывы

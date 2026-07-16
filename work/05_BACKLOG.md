@@ -1,9 +1,9 @@
 ---
 doc: 05_BACKLOG
 title: LCOS — Бэклог (выравнивание, решения, проверки, отложенное)
-version: 1.1.0
+version: 1.3.0
 status: current
-updated: 2026-07-03
+updated: 2026-07-16
 verified_against_code: n/a
 owner: Ivan
 supersedes: []
@@ -120,6 +120,47 @@ ssot_for: [alignment-tasks, open-decisions, verifications, deferred-items]
 
 ---
 
+## DEC-0011 — SKU-идентичность и learning-loop moat (влито из `05_BACKLOG__append_2026-07-08` 2026-07-16)
+
+Тикеты рабочего потока [[DEC-0011]] (двухконтекстная SKU-идентичность + learning-loop). Слиты из бывшего append-файла; нумерация сквозная — коллизий с ALIGN-01..03 / DEC-01..08 / VER-01..03 / DEFER-01..06 нет.
+
+- **[VER-021] Стабильность `pos_ingredient_id` в Esupl** — `status: in-progress` · `prio: P0` (линчпин DEC-0011)
+  - Полное описание, сценарии S1–S6 и критерии приёмки — [[VER-021_ESUPL_DURABILITY_TEST]] (SSOT). Здесь — только ссылка.
+  - Кратко: durable ли ID при edit (переименование/`unit`/категория), при delete + пересоздании, при merge/split.
+  - **Blocks:** DEC-0011 Phase 2, ALIGN-015.
+
+- **[VER-022] Scope каталога ингредиентов в Esupl** — `status: open` · `prio: P1`
+  - Вопрос: каталог ингредиентов per-subdivision или общий на организацию?
+  - Acceptance: scope зафиксирован в [[architecture]]; определено значение по умолчанию для `ingredient_cache.scope_type` (`org` | `subdivision`). Для одной кофейни неблокирующе, модель уже scope-aware.
+
+- **[ALIGN-014] READ-seam `ERPProvider` (`list_ingredients`, `get_ingredient`)** — `status: open` · `prio: P0`
+  - Ввести READ-контракт провайдера ERP: `list_ingredients(scope) -> [Ingredient]`, `get_ingredient(pos_ingredient_id) -> Ingredient | None`. Одна реализация (Esupl) за seam. Сейчас интеграция — write-point only; дыра под F5–F10 и прямой пререк DEC-0011 Phase 2.
+  - Acceptance: seam + Esupl-реализация + integration-тест против sandbox либо зафиксированного контракта. `get_ingredient` возвращает `None` (не бросает fallback) при отсутствии — решение о блокировке принимает commit-путь.
+  - **Blocks:** DEC-0011 Phase 2, F5–F10.
+
+- **[ALIGN-015] Схема `ingredient_cache` + `sku_mapping` + Alembic migration** — `status: open` · `prio: P0`
+  - Реализовать модель данных DEC-0011: две таблицы, SQLAlchemy 2.0 async, Alembic-миграция, регистрация в SQLAdmin для инспекции.
+  - Acceptance: `sku_mapping` БЕЗ FK на `ingredient_cache.id` (durable ID only); UNIQUE-констрейнты по эскизу DEC-0011; embedding/`pgvector` в этой модели не вводится; проходит `test_mapping_has_no_fk_to_cache`.
+  - **Depends on:** VER-021 (форма якоря), VER-022 (значение scope).
+
+- **[ALIGN-016] Merge-blocking тесты инвариантов DEC-0011** — `status: open` · `prio: P0`
+  - Реализовать как merge-blocking (правило «тесты на архитектурные non-negotiables»): `test_cache_rebuild_preserves_mappings`, `test_commit_blocked_when_pos_unavailable`, `test_commit_blocked_when_pos_id_missing`, `test_commit_blocked_on_unit_mismatch`, `test_matching_resolves_subdivision_before_org`, `test_mapping_has_no_fk_to_cache`.
+  - Acceptance: все зелёные; настроены как блокирующие merge (pytest + testcontainers).
+  - **Depends on:** ALIGN-014, ALIGN-015.
+
+- **[DEC-0012] Правило `source_key`: нормализация и ключ mapping** — `status: open` · `prio: P1` (решить до массового накопления mappings)
+  - Вопрос: что является ключом `sku_mapping` — нормализованный текст строки накладной? supplier product code? композит `(supplier_id, supplier_product_code)` с fallback на нормализованный текст?
+  - Почему важно: ключ определяет качество и переносимость mapping (целостность moat). Слишком свободный текст → грязный, нестабильный ключ; supplier code стабильнее, но не всегда доступен. Миграция ключа задним числом — дорогая.
+  - Предварительная рекомендация: ключ = `(supplier_id, normalized_line_description)`; при наличии supplier product code использовать его как приоритетный компонент. Финализировать ДО накопления реальных mappings.
+  - Acceptance: правило нормализации зафиксировано (регистр, пробелы, единицы в тексте, транслитерация) + состав ключа + зафиксировано в DEC и [[architecture]].
+
+- **[DEFER-016] Delta-sync / webhooks каталога ингредиентов** — `status: deferred`
+  - Инкрементальная синхронизация каталога (webhooks / delta polling) вместо TTL + on-open + on-commit.
+  - Rationale отсрочки: Customer Zero = сотни позиций; TTL-refresh + refresh при открытии накладной + re-валидация на commit достаточны. Строить сейчас — переусложнение.
+  - Trigger на пересмотр: размер каталога / латентность refresh / жалобы на staleness matching. Реализуется за существующим seam `ERPProvider` без изменения DEC-0011.
+
+---
+
 ## DONE — завершённые работы (вне текущей очереди фич)
 
 ### SKU Factory Pattern & Dropdown Mechanism (2026-07-08)
@@ -167,6 +208,7 @@ ssot_for: [alignment-tasks, open-decisions, verifications, deferred-items]
 ---
 
 ## Журнал изменений
+- 2026-07-16 v1.3.0 — влит `05_BACKLOG__append_2026-07-08` (workstream DEC-0011: VER-021/022, ALIGN-014/015/016, DEC-0012, DEFER-016); VER-021 сведён к ссылке на [[VER-021_ESUPL_DURABILITY_TEST]] (SSOT), append-файл удалён; front-matter version синхронизирован с журналом.
 - 2026-07-08 v1.2.0 — добавлена DONE секция: SKU Factory Pattern & Dropdown (14 файлов, foundation для F1.2/F4.2/F4.5).
 - 2026-07-03 v1.1.0 — добавлена секция «Трассировка в Фазу 1»: сопоставление тикетов (ALIGN-01/03, DEC-02/05/06/07, VER-01, DEFER-04) с фичами `08_PHASE1_SPEC.md`.
 - 2026-07-02 v1.0.0 — создан из Части 2 анализа соответствия; заведены ALIGN/DEC/VER/DEFER.

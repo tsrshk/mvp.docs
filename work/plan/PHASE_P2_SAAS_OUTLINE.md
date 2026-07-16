@@ -2,14 +2,14 @@
 doc: plan/PHASE_P2_SAAS_OUTLINE
 title: Фаза P2 — SaaS для рынка (outline; гейт — Pilot-Gate)
 version: 1.0.1
-status: current
+status: superseded
 updated: 2026-07-03
 verified_against_code: n/a
 owner: Ivan
 supersedes: []
-superseded_by: none
+superseded_by: "[[roadmap]]"
 trust_tier: 2
-ssot_for: [phase-p2-outline]
+ssot_for: []
 ---
 
 # Фаза P2 — SaaS для рынка (outline)

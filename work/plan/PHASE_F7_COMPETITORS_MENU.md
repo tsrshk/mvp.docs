@@ -2,14 +2,14 @@
 doc: plan/PHASE_F7_COMPETITORS_MENU
 title: Фаза F7 — Конкуренты: меню и цены (база района через OCR фото меню)
 version: 1.0.0
-status: current
+status: superseded
 updated: 2026-07-03
 verified_against_code: n/a
 owner: Ivan
 supersedes: []
-superseded_by: none
+superseded_by: "[[roadmap]]"
 trust_tier: 2
-ssot_for: [phase-f7-requirements]
+ssot_for: []
 ---
 
 # Фаза F7 — Конкуренты: меню и цены
