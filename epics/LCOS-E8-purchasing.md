@@ -34,7 +34,7 @@ updated: 2026-07-09
 | LCOS-F40 | AI-предложение заказа (`order_planning_service`) | 📝 planned | [[LCOS-F40-ai-order-proposal]] |
 | LCOS-F41 | UI «Предложить заказ» + пометка AI-строк | 📝 planned | [[LCOS-F41-ai-order-ui]] |
 | LCOS-F42 | Сверка приход ↔ заказ | 📝 planned | [[LCOS-F42-receipt-reconciliation]] |
-| LCOS-F43 | Серверная идемпотентность (DEFER-04) | 📝 planned | [[LCOS-F43-idempotency]] |
+| LCOS-F43 | Серверная идемпотентность (DEFER-04) | ✅ done | [[LCOS-F43-idempotency]] |
 | LCOS-F44 | Live-режим + метрики закрытия | 📝 planned | [[LCOS-F44-live-closeout]] |
 
 ## Ключевые сущности / требования

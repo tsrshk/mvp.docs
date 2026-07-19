@@ -105,7 +105,7 @@ ssot_for: [alignment-tasks, open-decisions, verifications, deferred-items]
 | DEC-06 | закрыть/починить пути без токена | **F0.3** | пути team-scoped + резолв токена per-org |
 | DEC-07 | (B) `MAX_INVOICE_PAGES=1` | **F5.3** REQ-4 | потеря страниц в `shared/ocr/providers/backend.ts:43` |
 | VER-01 | merge-блокирующие тесты | **F1.5** | + pytest-маркер `non_negotiable` |
-| DEFER-04 | backend-idempotency | **F5.2** | заменяет браузерный `sentRegistry` |
+| DEFER-04 | backend-idempotency | **F5.2** | ✅ сдано 2026-07-16 — [[LCOS-F43-idempotency]] done; `sentRegistry` удалён |
 
 Вне Фазы 1 (по `06_STRATEGY.md` стоп-лист / отложено): DEC-01 (Gemini — claude-only, не сейчас), DEC-03 (`CredentialScope.subdivision`), DEC-04 (CSRF — прод-чеклист), DEC-08 (POS-токен — оставить), VER-02/03, DEFER-01/02/03/05/06.
 
@@ -114,7 +114,7 @@ ssot_for: [alignment-tasks, open-decisions, verifications, deferred-items]
 - **[DEFER-01]** Rate-limiting на `/auth/login` (single-tenant local; → прод-чеклист).
 - **[DEFER-02]** CI-пайплайн (non-negotiables как merge-gate).
 - **[DEFER-03]** Прод-хардненинг: `Dockerfile.prod`, Hetzner, `COOKIE_SECURE=true`, `CSRF_ENABLED=true`, реальный `SECRETS_ENC_KEY`.
-- **[DEFER-04]** Бэкенд-idempotency ключ (заменит per-browser `sentRegistry`).
+- **[DEFER-04]** ✅ Снят 2026-07-16: серверный `Idempotency-Key` на `POST /invoices` сдан ([[LCOS-F43-idempotency]] done), per-browser `sentRegistry` удалён.
 - **[DEFER-05]** `localos.lastWarehouseId` без org-scope (низкий риск).
 - **[DEFER-06]** FSD-линтер (steiger/dependency-cruiser); сейчас — ревью-конвенция.
 

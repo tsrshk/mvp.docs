@@ -30,7 +30,7 @@ updated: 2026-07-09
 - **N4. `esupl_payload` замораживается на `prepared`** — чтобы поздняя gated-отправка воспроизвела **точное** валидированное тело без повторного resolve.
 - **N5. Запись гейтится дважды:** `submit` вызывает `erp.write_invoice` **только** при `resolve_bool(ERP_WRITE_ENABLED)` (по умолчанию False); сам `EsuplErpProvider.write_invoice` **повторно гейтит** по тому же флагу (возвращает `esupl-prepared-<number>` без egress при OFF). См. [[erp-esupl-integration]] N4.
 - **N6. Исключения записи не роняют запрос:** `submit` перехватывает их и пишет `status=failed` + `validation_errors`, не 500.
-- **N7. Идемпотентность записи:** `UNIQUE(organization_id, external_id)` на [[invoices]] (PG трактует NULL как различные → черновики без `external_id` не конфликтуют); `get_by_external_id` для повторной записи. FE dedup — `sentInvoiceKey(scopeId, identity)` (per-browser, подлежит замене серверным ключом — DEFER-04).
+- **N7. Идемпотентность записи:** `UNIQUE(organization_id, external_id)` на [[invoices]] (PG трактует NULL как различные → черновики без `external_id` не конфликтуют); `get_by_external_id` для повторной записи. Идемпотентность самого submit — серверный `Idempotency-Key` ([[LCOS-F43-idempotency]], DEFER-04 снят 2026-07-16): партиальный `UNIQUE(organization_id, idempotency_key)`, двухфазный submit (commit ключа до ERP-вызова), replay без повторного `erp.write_invoice`; per-browser guard удалён.
 
 ## Обоснование
 
