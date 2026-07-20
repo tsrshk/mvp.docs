@@ -8,8 +8,8 @@ table: users
 pk: id (uuid)
 used_by: ["[[LCOS-F1-multitenancy]]", "[[LCOS-F2-app-auth]]"]
 requirements: ["[[auth]]", "[[multitenancy]]"]
-sources: [mvp.be/app/db/models.py:124-143, 01_ARCHITECTURE.md#data-model]
-updated: 2026-07-09
+sources: [mvp.be/app/db/models.py:146-175, 01_ARCHITECTURE.md#data-model]
+updated: 2026-07-16
 ---
 # users · глобальная идентичность
 
@@ -34,7 +34,10 @@ nullable — заложено под внешних провайдеров. `is_
 | `created_at` / `updated_at` | timestamptz | no | `TimestampMixin` |
 
 ## Отношения, FK, уникальность
-- **Уникальность:** `email` — `unique=True` (неявный `uq_users_email`).
+- **Уникальность:** `email` — `unique=True` (байтовая, неявный `uq_users_email`) **плюс**
+  функциональный `uq_users_email_lower` UNIQUE(`lower(email)`) (миграция `0017`, B4 гигиены):
+  `Ivan@x` и `ivan@x` — один пользователь. Вход нормализуется (strip+lower) в
+  `UserRepository.get_by_email` и seed.
 - `memberships` — one-to-many, `cascade="all, delete-orphan"`.
 - На `users.id` ссылаются: [[memberships]] (CASCADE), [[refresh_sessions]] (CASCADE),
   [[sku_mapping]] `confirmed_by` (SET NULL).

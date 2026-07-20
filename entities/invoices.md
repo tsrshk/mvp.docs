@@ -32,7 +32,7 @@ updated: 2026-07-16
 | `image_ref` | varchar(1024) | yes | ссылка на скан |
 | `ocr_provider` / `ocr_raw` | varchar/text | yes | OCR-провайдер + сырой ответ |
 | `number` | varchar(128) | yes | номер накладной; индексируется |
-| `issued_at` | timestamp | yes | дата документа |
+| `issued_at` | timestamptz | yes | дата документа (aware с миграции `0015`, B1 гигиены) |
 | `total_amount` | numeric(14,2) | yes | сумма |
 | `currency` | varchar(8) | yes | валюта |
 | `status` | enum `invoice_status` | no | default `draft`; индексируется |

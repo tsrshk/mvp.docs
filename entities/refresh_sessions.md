@@ -8,8 +8,8 @@ table: refresh_sessions
 pk: id (uuid)
 used_by: ["[[LCOS-F2-app-auth]]"]
 requirements: ["[[auth]]"]
-sources: [mvp.be/app/db/models.py:173-192, "archive/lcos-auth-multitenancy-spec.md §3.2"]
-updated: 2026-07-09
+sources: [mvp.be/app/db/models.py:200-225, "archive/lcos-auth-multitenancy-spec.md §3.2"]
+updated: 2026-07-16
 ---
 # refresh_sessions · сессия refresh-токена
 
@@ -29,7 +29,7 @@ updated: 2026-07-09
 | `token_hash` | varchar(128) | no | **UNIQUE**; хэш непрозрачного refresh, не сам токен |
 | `active_subdivision_id` | uuid FK→subdivisions | yes | `ondelete="SET NULL"` — активный контекст |
 | `family_id` | uuid | no | индексируется; цепочка ротации → детекция повторного использования |
-| `expires_at` | timestamptz | no | абсолютный TTL |
+| `expires_at` | timestamptz | no | абсолютный TTL; индексируется (`0017`, B5) — по нему идёт стартовая чистка |
 | `last_used_at` | timestamptz | yes | обновляется при ротации; NULL до первой |
 | `revoked` | boolean | no | default false; отзыв всего семейства при повторном использовании |
 | `created_at` / `updated_at` | timestamptz | no | `TimestampMixin` |
@@ -41,6 +41,9 @@ updated: 2026-07-09
 - **Уникальность:** `token_hash` уникален.
 - `family_id` индексируется — всё семейство токенов отзывается при обнаружении повторного
   использования уже ротированного токена.
+- **Retention (B5):** на старте бэкенда удаляются строки с `expires_at` старше 30 дней
+  (grace-окно сохраняет revoked-строки для reuse-detection). Фоновых задач в Phase 1 нет
+  (non-goal) — для 24/7-продакшена чистку вынести в планировщик (деплой-чеклист).
 
 ## Используется фичами
 [[LCOS-F2-app-auth]] (JWT+refresh: скользящее окно, ротация, детекция повторного использования, восстановление
