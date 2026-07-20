@@ -4,11 +4,12 @@ type: guide
 title: Как работать с проектом — организация репо, документация, разработка, поставка
 status: current
 phase: cross-cutting
-updated: 2026-07-16
+updated: 2026-07-20
 owner: Ivan
 trust_tier: 3
 sources:
   - Ревью организации проекта 2026-07-16 (repo/docs/bugs/dev/CI-CD)
+  - Изолированный e2e-стек + скриншотная регрессия 2026-07-20 (mvp.fe/TESTING.md, mvp.be docker-compose e2e-профиль)
 ---
 
 # Как работать с проектом
@@ -58,7 +59,9 @@ yarn dev          # основной режим разработки
 **Под капотом** (если нужно управлять частями вручную):
 
 - Backend: `cd mvp.be && docker compose up --build` — pgvector/pg16 + backend, авто `alembic upgrade head` + seed; Swagger `/docs`, SQLAdmin `/admin`. Конфиг именно `lcos.env`, **не** `.env` (docker compose ломает `$` в bcrypt-хэшах). Нативный режим (Windows): `docker compose up -d db` → `scripts\run-native.ps1`.
-- Frontend: `cd mvp.fe && yarn dev` (http://localhost:5173, ждёт backend); сборка `yarn build` (`tsc -b && vite build`); тесты `yarn test:unit` (vitest, ~326), `yarn test:e2e` (Playwright, вручную); линт `yarn lint` (ESLint). Env для локалки не обязателен (дефолты в `src/shared/config/env.ts`); переопределения — `VITE_*` в `.env`.
+- Frontend: `cd mvp.fe && yarn dev` (http://localhost:5173, ждёт backend); сборка `yarn build` (`tsc -b && vite build`); тесты `yarn test:unit` (vitest), `yarn test:e2e` (Playwright, вручную — см. ниже); линт `yarn lint` (ESLint). Env для локалки не обязателен (дефолты в `src/shared/config/env.ts`); переопределения — `VITE_*` в `.env`.
+
+**E2E (Playwright) — изолированный стек + скриншотная сверка.** E2E гоняется против ВЫДЕЛЕННОГО одноразового бэкенда, а не dev-стека: профиль `e2e` в `mvp.be/docker-compose.yml` поднимает `backend-e2e` (:8001) + `db-e2e` (:5433, своя БД `lcos_e2e`, свой том), запускаемые под отдельным compose-проектом `lcos-e2e`, — dev-данные (:8000/:5432) не трогаются. При `APP_ENV=e2e` монтируется тест-опора `/api/v1/__test__/reset` (вайп всех таблиц + пере-seed к детерминированному baseline); два независимых барьера (`APP_ENV=e2e` **и** имя целевой БД содержит `e2e`) не дают запустить сброс против не-e2e БД. Playwright сбрасывает БД до и после прогона → **после e2e не остаётся мусора**, а данные на экране стабильны → **скриншотная регрессия** (`playwright.visual.config.ts`, проект `stable`). Команды: `yarn e2e:up` / `yarn test:e2e` (functional) / `yarn test:e2e:visual[:update]` / `yarn e2e:down`. **Операционный SSOT — `mvp.fe/TESTING.md`** (стек, барьеры, команды, генерация baseline).
 
 Тесты и линт BE — в контейнере: `docker compose run --rm backend pytest` (реальный Postgres, HTTP через respx), `... ruff check .`; merge-гейт: `pytest -m merge_gate`. Миграции: `docker compose run --rm backend alembic revision --autogenerate -m "..."` / `alembic upgrade head`. AI-ключи и тумблеры (`erp_write_enabled`, `ai_provider`, module-гейты) живут **в БД** (`system_settings`), не в env.
 
