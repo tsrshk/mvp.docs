@@ -28,7 +28,7 @@ Config API (`routes/admin_system.py`) предоставляет superadmin ру
 
 - Панель SQLAdmin на `/admin`; форма логина `AdminAuth` проверяет `authenticate_admin` (`username == settings.admin_username`, bcrypt-проверка `admin_password_hash`), сохраняет `admin_authenticated=True` в сессии Starlette.
 - ModelView для всех структурных/операционных/конфигурационных таблиц; `RefreshSessionAdmin` — read-only (только инспекция).
-- `UserAdmin.on_model_change`: поле `password_hash` с открытым текстом → argon2 при сохранении (пропускает, если уже `$argon2`) — операторы создают/сбрасывают реальных пользователей.
+- `UserAdmin.on_model_change`: поле `password_hash` с открытым текстом → argon2 при сохранении (пропускает, если уже `$argon2`) — операторы создают/сбрасывают реальных пользователей. Пошаговый how-to создания юзеров (org→subdivision→user→membership) и бутстрап первого супер-админа — [[creating-users]].
 - `IntegrationCredentialAdmin.on_model_change`: открытый текст на входе → `encrypt()` перед сохранением (идемпотентно) → установка `rotated_at` → деактивация других активных строк того же (scope, provider, org, subdivision); списки/детали маскируются до последних 4 символов; поле write-only для открытого текста, read-masked.
 - `SystemSettingAdmin`: ключи выбираются из белого списка (выпадающий список `SETTING_TYPES`), не вводятся свободно; правки меняют поведение во время выполнения без редеплоя.
 - Config API: `GET /admin/status`, `POST /admin/ai-vpn`, `GET /admin/modules` (защищено для superadmin через `require_admin`).

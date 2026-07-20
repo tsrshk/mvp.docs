@@ -36,7 +36,7 @@ updated: 2026-07-09
 Organization ([[organizations]]), Subdivision ([[subdivisions]]), User ([[users]]), Membership ([[memberships]]), Supplier ([[suppliers]]), Invoice, InvoiceLine, SystemSetting ([[system_settings]]), IntegrationCredential ([[integration_credentials]]), RefreshSession ([[refresh_sessions]]).
 
 Заметные операции:
-- **`UserAdmin.on_model_change`** — поле `password_hash` принимает **plaintext** и argon2-хеширует его при сохранении (пропускает, если уже `$argon2`). Так оператор **создаёт реальных пользователей приложения** (включая первого superadmin).
+- **`UserAdmin.on_model_change`** — поле `password_hash` принимает **plaintext** и argon2-хеширует его при сохранении (пропускает, если уже `$argon2`). Так оператор **создаёт реальных пользователей приложения** (включая первого superadmin). Пошаговый how-to (порядок org→subdivision→user→membership) — [[creating-users]].
 - **`IntegrationCredentialAdmin.on_model_change`** — plaintext на входе → `encrypt()` (Fernet, идемпотентно) перед сохранением, выставляет `rotated_at`, держит инвариант single-active (деактивирует другие активные строки той же `(scope, provider, org, subdivision)`); списки/детали маскируют значение до last-4 (`_cred_last4`). Поле write-only-plaintext / read-masked.
 - **`SystemSetting`** — редактирование whitelisted несекретного KV (AI provider, models, VPN toggle, module toggles, `erp_write_enabled`). Ключи выбираются из `REGISTRY` (`SETTING_TYPES` наполняет dropdown), не вводятся свободно.
 - **`RefreshSessionAdmin`** — read-only (только просмотр).
