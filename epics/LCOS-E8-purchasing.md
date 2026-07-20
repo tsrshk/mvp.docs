@@ -2,7 +2,7 @@
 id: LCOS-E8
 type: epic
 title: Закупки — черновики заказов и замыкание цикла
-status: planned
+status: partial  # F37 (purchase_orders) построен, F43 (идемпотентность) done; остальное — план
 phase: "Phase 1"
 features: ["[[LCOS-F37-purchase-orders]]", "[[LCOS-F38-orders-ui]]", "[[LCOS-F39-order-message]]", "[[LCOS-F40-ai-order-proposal]]", "[[LCOS-F41-ai-order-ui]]", "[[LCOS-F42-receipt-reconciliation]]", "[[LCOS-F43-idempotency]]", "[[LCOS-F44-live-closeout]]"]
 legacy_refs: [07 Э4a/Э4b/Э5, 08 F4.x/F5.x]
@@ -12,7 +12,7 @@ updated: 2026-07-09
 
 # LCOS-E8 · Закупки — черновики заказов и замыкание цикла
 
-**Статус:** 📝 planned · **Фаза:** Phase 1
+**Статус:** 🟡 partial (F37 построен, F43 done; остальное план) · **Фаза:** Phase 1
 
 ## Описание
 

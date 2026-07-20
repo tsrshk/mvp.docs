@@ -36,7 +36,7 @@ sources:
 - [[LCOS-E5-stabilization]] 🟡 — Стабилизация и conformance
 - [[LCOS-E6-ocr-quality]] 📝 — Качество захвата OCR
 - [[LCOS-E7-stock]] 📝 — Остатки и список «заканчивается»
-- [[LCOS-E8-purchasing]] 📝 — Закупки: черновики заказов и замыкание петли
+- [[LCOS-E8-purchasing]] 🟡 — Закупки: черновики заказов и замыкание петли (F37/F43 построены)
 
 **→ [[glossary]] ←**
 
