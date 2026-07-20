@@ -8,7 +8,7 @@ table: invoices
 pk: id (int)
 used_by: ["[[LCOS-F8-ocr-recognition]]", "[[LCOS-F9-line-matching]]", "[[LCOS-F10-invoice-status-machine]]", "[[LCOS-F11-esupl-read]]", "[[LCOS-F43-idempotency]]"]
 requirements: ["[[invoice-status-machine]]", "[[erp-esupl-integration]]", "[[multitenancy]]"]
-sources: [mvp.be/app/db/models.py:257-313, 01_ARCHITECTURE.md#data-model, APP_OVERVIEW.md §7]
+sources: ["mvp.be/app/db/models.py (class Invoice, class InvoiceStatus)", 01_ARCHITECTURE.md#data-model, APP_OVERVIEW.md §7]
 updated: 2026-07-16
 ---
 # invoices · накладная
@@ -64,5 +64,5 @@ Enum `status`: `draft`, `validated`, `rejected`, `prepared`, `written`, `failed`
 [[LCOS-F43-idempotency]] (серверный Idempotency-Key: ключ+хэш на строке, двухфазный submit).
 
 ## Источники
-- `mvp.be/app/db/models.py:235-274` (модель `Invoice`), `:61-67` (`InvoiceStatus`)
+- `mvp.be/app/db/models.py` (`class Invoice`, `class InvoiceStatus`)
 - [[invoice-status-machine]], [[erp-esupl-integration]], [[architecture]] — data-model

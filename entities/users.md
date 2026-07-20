@@ -8,7 +8,7 @@ table: users
 pk: id (uuid)
 used_by: ["[[LCOS-F1-multitenancy]]", "[[LCOS-F2-app-auth]]"]
 requirements: ["[[auth]]", "[[multitenancy]]"]
-sources: [mvp.be/app/db/models.py:146-175, 01_ARCHITECTURE.md#data-model]
+sources: ["mvp.be/app/db/models.py (class User)", 01_ARCHITECTURE.md#data-model]
 updated: 2026-07-16
 ---
 # users · глобальная идентичность
@@ -49,5 +49,5 @@ nullable — заложено под внешних провайдеров. `is_
 ([[sqladmin-operator]]).
 
 ## Источники
-- `mvp.be/app/db/models.py:124-143` (модель `User`)
+- `mvp.be/app/db/models.py` (`class User`)
 - [[auth]], [[architecture]] — data-model

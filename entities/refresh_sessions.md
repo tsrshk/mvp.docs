@@ -8,7 +8,7 @@ table: refresh_sessions
 pk: id (uuid)
 used_by: ["[[LCOS-F2-app-auth]]"]
 requirements: ["[[auth]]"]
-sources: [mvp.be/app/db/models.py:200-225, "archive/lcos-auth-multitenancy-spec.md §3.2"]
+sources: ["mvp.be/app/db/models.py (class RefreshSession)", "archive/lcos-auth-multitenancy-spec.md §3.2"]
 updated: 2026-07-16
 ---
 # refresh_sessions · сессия refresh-токена
@@ -50,5 +50,5 @@ updated: 2026-07-16
 активного контекста).
 
 ## Источники
-- `mvp.be/app/db/models.py:173-192` (модель `RefreshSession`)
+- `mvp.be/app/db/models.py` (`class RefreshSession`)
 - [[auth]] — sliding idle §3.2
