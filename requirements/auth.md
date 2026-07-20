@@ -10,7 +10,8 @@ adrs: ["[[ADR-007]]"]
 requirements: ["[[multitenancy]]", "[[global-requirements]]"]
 legacy_refs: [Conformance R3, CLAUDE.md §11]
 sources: [01_ARCHITECTURE.md "Auth & multi-tenancy", APP_OVERVIEW.md §4, LCOS_Conformance R3, app/auth/*]
-updated: 2026-07-09
+ssot_for: [app-auth, jwt-access-token, opaque-refresh, refresh-reuse-detection, password-hashing-argon2]
+updated: 2026-07-20
 ---
 
 # REQ-AUTH · Аутентификация приложения

@@ -5,10 +5,10 @@ title: Архитектура LCOS (as-built SSOT)
 status: current
 phase: "Phase 1"
 verified_against_code: 2026-07-09
-updated: 2026-07-09
+updated: 2026-07-20
 owner: Ivan
 trust_tier: 2
-ssot_for: [architecture, layering, provider-seams, module-gates, config-tiers, migrations-chain]
+ssot_for: [architecture, layering, module-gates]
 legacy_refs: [01_ARCHITECTURE.md, APP_OVERVIEW.md]
 sources:
   - 01_ARCHITECTURE.md (normative as-built)
@@ -19,7 +19,7 @@ sources:
 
 # Архитектура LCOS (as-built)
 
-> Это единственный SSOT фактической архитектуры системы. Он объединяет нормативный `01_ARCHITECTURE.md` (tier 2) и сверенный с кодом `APP_OVERVIEW.md` (tier 3, `verified_against_code 2026-07-09`). Авторитет при конфликте: **код + `CLAUDE.md` > [[DEC-0011]]/[[DEC-0013]] > документы**. Данные о сущностях и требованиях здесь не дублируются — см. ссылки на [[MOC]] и [[MOC]].
+> Это единственный SSOT фактической архитектуры системы. Он объединяет нормативный `01_ARCHITECTURE.md` (tier 2) и сверенный с кодом `APP_OVERVIEW.md` (tier 3, `verified_against_code 2026-07-09`). Порядок доверия — канонически в [[ADR-015]]: код + `CLAUDE.md` > `adr/` (решения; конституция — их дистиллят, не выше них) > `requirements/` + `architecture` > `overview/product`; при расхождении описательного факта с кодом побеждает код, расхождение с нормативным принципом — дефект (ALIGN). Данные о сущностях и требованиях здесь не дублируются — см. ссылки на [[MOC]] и [[MOC]].
 
 ## 1. Что это такое (границы системы)
 
@@ -196,21 +196,13 @@ Photo → recognize (OCR, vision-LLM)  →  InvoiceDraft (raw lines + supplier f
 14 сущностей (детали и колонки — в документах, здесь не дублируются):
 [[organizations]] · [[subdivisions]] · [[users]] · [[memberships]] · [[refresh_sessions]] · [[suppliers]] · [[invoices]] · [[invoice_lines]] · [[ingredients]] · [[packings]] · [[sku_mapping]] · [[ingredient_cache]] · [[system_settings]] · [[integration_credentials]].
 
-**Цепочка миграций (Alembic async): `0001` … `0009` + `1e12…` (OCR prompt).**
+**Цепочка миграций — SSOT в коде: `mvp.be/alembic/versions/` (авторитетна цепочка `down_revision`, не этот документ).** Здесь фиксируются только структурные инварианты, стабильные независимо от номера головы:
 
-| Ревизия | Содержимое |
-|---|---|
-| `0001_initial` | squashed («consolidated 0001–0004»), `down_revision=None`; сначала `CREATE EXTENSION vector`, создаёт все таблицы; `downgrade()` дропает enum-типы, но **не** дропает `vector` |
-| `0002_org_pos_token` | `organizations.esupl_api_token` (encrypted) — per-org POS-секрет (позже мигрирован) |
-| `0003_integration_credentials` | таблица `integration_credentials` + частично-уникальное через sentinel-UUID COALESCE; **data-migrate** секретов из `system_settings`/`esupl_api_token` → scoped-строки; + `refresh_sessions.last_used_at` |
-| `0004` | `sku_mapping` + `ingredient_cache` (moat + draft-кэш) |
-| `0005` | `invoice_lines.pos_ingredient_id` (durable POS-identity на строке) |
-| `0006` | поля карточки поставщика (`contact_name`, `phone`, `messenger`, `delivery_terms`, `min_order_amount`, …) |
-| `0007`–`0008` | критерии поставщика JSONB / дальнейшая эволюция |
-| `0009_sku_mapping_packing` | `packing` в `sku_mapping` ([[ADR-019]]) — **последняя нумерованная** |
-| `1e12…` (OCR prompt) | OCR-промпт в `system_settings` (ревизия вне цепочки) |
+- `0001_initial` — squashed («consolidated 0001–0004»), `down_revision=None`; сначала `CREATE EXTENSION vector`, создаёт все таблицы; `downgrade()` дропает enum-типы, но **не** дропает `vector`.
+- Далее — инкрементальная эволюция: per-org POS-секрет и его миграция в `integration_credentials` (частично-уникальное через sentinel-UUID COALESCE, data-migrate секретов), `sku_mapping` + `ingredient_cache` (moat + draft-кэш), `invoice_lines.pos_ingredient_id`, поля и JSONB-критерии карточки поставщика, `packing` в `sku_mapping` ([[ADR-019]]).
+- Есть ревизия вне числовой цепочки (`1e12…`) — OCR-промпт в `system_settings`.
 
-`alembic/env.py` `include_object` исключает расширение `vector` (`EXCLUDE_NAMES={"vector"}`), чтобы autogenerate его не дропал.
+Точный список ревизий и порядок — только в `mvp.be/alembic/versions/` (`alembic history`); при расхождении с этим разделом побеждает код. `alembic/env.py` `include_object` исключает расширение `vector` (`EXCLUDE_NAMES={"vector"}`), чтобы autogenerate его не дропал.
 
 > **коррекция doc↔code (мёртвый код, backlog `DEC-02`, `status: open`):** колонка **`invoice_lines.sku_embedding` `Vector(1536)` НЕ используется** — никто её не читает и не пишет, нет ANN-индекса (ivfflat/hnsw), нет embedding-провайдера, нет write-триггера. Это неиспользуемая placeholder-колонка для будущего семантического сопоставления, помеченная на dead-code-очистку ([[DEC-0011]]). Текущее сопоставление line→SKU использует fuzzy + LLM, а не эту колонку.
 

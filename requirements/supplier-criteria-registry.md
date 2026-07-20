@@ -6,11 +6,12 @@ status: built
 scope: cross-cutting
 roles: [admin, member]
 entities: ["[[suppliers]]"]
-adrs: ["[[ADR-017]]"]
+adrs: ["[[ADR-017]]", "[[ADR-021]]"]
 requirements: ["[[multitenancy]]", "[[sku-identity-resolver]]", "[[global-requirements]]"]
+ssot_for: [supplier-criteria-registry, criterion-def-registry, criteria-jsonb-validation]
 legacy_refs: [08 F2.1 (superseded), plan F3, APP §10]
 sources: [APP_OVERVIEW.md §10, 01_ARCHITECTURE.md "suppliers", app/domain/supplier_criteria.py]
-updated: 2026-07-09
+updated: 2026-07-20
 ---
 
 # REQ-SUPPLIER-CRITERIA · Реестр гибких критериев поставщика
@@ -24,7 +25,7 @@ updated: 2026-07-09
 - **N3. Валидация против реестра на уровне API:** невалидные значения → **422**; **неизвестные ключи тихо отбрасываются** (не 422 — толерантность к лишним ключам). Значение приводится к типу критерия из реестра.
 - **N4. Новый критерий — правкой реестра, без миграций** — JSONB не нужен ALTER TABLE. Это ключевое свойство: продуктовое расширение условий не блокируется циклом миграций.
 - **N5. Отдельные структурные поля карточки поставщика** (не в `criteria`, миграция `0006`): `contact_name`, `phone`, `messenger`, `delivery_terms` (Text), `min_order_amount` (Numeric), `min_order_note`, `is_active` (soft-hide устаревших). Гибкие критерии дополняют карточку, не заменяют её.
-- **N6. Consumer-аналитика (REQ 1b) — шов, потребитель отложен:** модель критериев существует, но потребитель (сравнение/скоринг поставщиков) отложен решением checkpoint — сейчас это только хранение + валидация.
+- **N6. Consumer-аналитика (REQ 1b) — шов, потребитель отложен:** модель критериев существует, но потребитель (сравнение/скоринг поставщиков) отложен решением checkpoint — сейчас это только хранение + валидация. Отложенный шов потребителя реализуется поверх единой серии `supplier_prices` ([[ADR-021]] §3), а не над отдельным источником цен.
 
 ## Обоснование
 
@@ -39,13 +40,13 @@ updated: 2026-07-09
 
 ## Связи
 
-- ADR: [[ADR-017]] (supplier self-service — шов схемы `supplier_settings`, портал не построен; смежная тема условий).
+- ADR: [[ADR-017]] (supplier self-service — шов схемы `supplier_settings`, портал не построен; смежная тема условий); [[ADR-021]] (поставщики — локальный SSOT + единая серия `supplier_prices`, поверх которой сядет отложенный consumer-шов критериев).
 - Сущности: [[suppliers]] (`criteria` JSONB + карточка).
 - Требования: [[multitenancy]] (org-scope), [[sku-identity-resolver]] (`supplier_external_id` в композитном ключе moat), [[global-requirements]].
 
 ## На это ссылаются
 
-`LCOS-F18` (Supplier flexible criteria registry), `LCOS-F17` (Supplier cards CRUD + delivery terms), `LCOS-F20`/`F21` (price history / price-change signal — будущие потребители критериев).
+`LCOS-F18` (Supplier flexible criteria registry), `LCOS-F17` (Supplier cards CRUD + delivery terms), [[LCOS-F40-ai-order-proposal]] (order planning — предполагаемый потребитель критериев при скоринге/предложении заказа).
 
 ## Источники
 

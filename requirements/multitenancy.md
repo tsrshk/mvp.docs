@@ -10,7 +10,8 @@ adrs: ["[[ADR-008]]", "[[ADR-004]]"]
 requirements: ["[[auth]]", "[[global-requirements]]"]
 legacy_refs: [Conformance R5, plan G-tenant]
 sources: [01_ARCHITECTURE.md "org/subdivision/user hierarchy", APP_OVERVIEW.md §4, LCOS_Conformance R5]
-updated: 2026-07-09
+ssot_for: [tenant-isolation, org-subdivision-membership, tenant-scoping, scope-from-jwt-claims]
+updated: 2026-07-20
 ---
 
 # REQ-MULTITENANCY · Мультитенантность и scoping

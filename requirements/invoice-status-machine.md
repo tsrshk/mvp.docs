@@ -1,16 +1,17 @@
 ---
 id: REQ-INVOICE-STATUS
 type: requirement
-title: Машина статусов накладной (draft→validated→rejected→prepared→written→failed)
+title: Машина статусов накладной (draft→validated→rejected→prepared→written→failed→needs_reconcile)
 status: built
 scope: cross-cutting
+ssot_for: ["invoice-status-machine", "invoice-lifecycle", "esupl-payload-freeze", "write-idempotency"]
 roles: [member, admin]
 entities: ["[[invoices]]", "[[invoice_lines]]"]
 adrs: ["[[ADR-001]]", "[[ADR-002]]", "[[ADR-006]]"]
 requirements: ["[[erp-esupl-integration]]", "[[sku-identity-resolver]]", "[[fail-closed]]", "[[global-requirements]]"]
 legacy_refs: [07 Э1, plan F1, 08 F0.x]
 sources: [01_ARCHITECTURE.md "prepare()→payload", "Enums (InvoiceStatus)", APP_OVERVIEW.md §6]
-updated: 2026-07-09
+updated: 2026-07-20
 ---
 
 # REQ-INVOICE-STATUS · Машина статусов накладной
@@ -19,18 +20,19 @@ updated: 2026-07-09
 
 ## Нормативное положение
 
-- **N1. Enum `InvoiceStatus` (native PG enum):** `draft → validated → rejected → prepared → written → failed`. По умолчанию `draft`, индексирован. Семантика:
+- **N1. Enum `InvoiceStatus` (native PG enum):** `draft → validated → rejected → prepared → written → failed → needs_reconcile`. По умолчанию `draft`, индексирован. Семантика:
   - `validated` — OCR ok, арифметика прошла, но **ещё не** разрешено в POS-payload.
   - `rejected` — провал арифметики/обязательных полей **или** commit-resolve identity (fail-closed).
   - `prepared` — полностью разрешено в `EsuplOutgoingInvoice`, готово к отправке; **payload сохранён в `invoices.esupl_payload`**.
   - `written` — реально записано в Esupl (только при `ERP_WRITE_ENABLED`).
   - `failed` — запись в ERP не удалась.
+  - `needs_reconcile` — запись в ERP НЕОДНОЗНАЧНА (таймаут / 5xx / потерянный ответ): документ мог быть создан в Esupl, но подтверждение не получено. Статус **НЕ терминальный**, требует ручной сверки с POS перед повторной записью, иначе тихая расходимость LCOS≠Esupl (подтверждено против enum `InvoiceStatus` в `mvp.be/app/db/models.py:73-75`, см. `invoice_service._submit`).
 - **N2. API из двух шагов:** `recognize` (только OCR, без persist) → клиент правит → `submit`. `prepare` — чистый resolve-шаг (также `POST /invoices/prepare` для предпросмотра), не persist-ит.
 - **N3. `submit(draft)` = `validate_draft` + `prepare` + persist:** `validate_draft` проверяет номер, положительный total, сумму строк vs total в пределах `_TOTAL_TOLERANCE = Decimal("0.05")`; затем `prepare` (draft-resolve, [[sku-identity-resolver]] N1) и commit-resolve identity; персистит локальную [[invoices]], выставляет статус.
 - **N4. `esupl_payload` замораживается на `prepared`** — чтобы поздняя gated-отправка воспроизвела **точное** валидированное тело без повторного resolve.
 - **N5. Запись гейтится дважды:** `submit` вызывает `erp.write_invoice` **только** при `resolve_bool(ERP_WRITE_ENABLED)` (по умолчанию False); сам `EsuplErpProvider.write_invoice` **повторно гейтит** по тому же флагу (возвращает `esupl-prepared-<number>` без egress при OFF). См. [[erp-esupl-integration]] N4.
 - **N6. Исключения записи не роняют запрос:** `submit` перехватывает их и пишет `status=failed` + `validation_errors`, не 500.
-- **N7. Идемпотентность записи:** `UNIQUE(organization_id, external_id)` на [[invoices]] (PG трактует NULL как различные → черновики без `external_id` не конфликтуют); `get_by_external_id` для повторной записи. Идемпотентность самого submit — серверный `Idempotency-Key` ([[LCOS-F43-idempotency]], DEFER-04 снят 2026-07-16): партиальный `UNIQUE(organization_id, idempotency_key)`, двухфазный submit (commit ключа до ERP-вызова), replay без повторного `erp.write_invoice`; per-browser guard удалён.
+- **N7. Идемпотентность записи:** `UNIQUE(organization_id, external_id)` на [[invoices]] (PG трактует NULL как различные → черновики без `external_id` не конфликтуют); `get_by_external_id` для повторной записи. Сам submit-путь обёрнут серверной идемпотентностью (`Idempotency-Key`), детали механизма — [[LCOS-F43-idempotency]].
 
 ## Обоснование
 

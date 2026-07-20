@@ -8,9 +8,10 @@ roles: [superadmin, sqladmin-operator]
 entities: ["[[integration_credentials]]"]
 adrs: ["[[ADR-010]]", "[[ADR-011]]", "[[ADR-005]]"]
 requirements: ["[[config-secrets]]", "[[fail-closed]]", "[[global-requirements]]"]
+ssot_for: [secret-encryption, fernet-envelope, kek-versioning, kek-rotation]
 legacy_refs: [Conformance R2/R6, config-arch-review enc:v2]
 sources: [01_ARCHITECTURE.md "Encryption scheme (enc:v2)", APP_OVERVIEW.md §5, LCOS_Conformance R2]
-updated: 2026-07-09
+updated: 2026-07-20
 ---
 
 # REQ-SECRET-ENCRYPTION · Шифрование секретов at-rest
@@ -30,6 +31,8 @@ updated: 2026-07-09
 - **N6. `validate_keyring()`** — eager-валидация при старте; malformed Fernet-ключ → `RuntimeError` немедленно (см. [[fail-closed]] N7).
 - **N7. Запись/чтение секрета через SQLAdmin** ([[sqladmin-operator]]): `IntegrationCredentialAdmin.on_model_change` берёт plaintext → `encrypt()` перед persist (идемпотентно) → `rotated_at` → деактивация других активных строк той же (scope,provider,org,subdivision). List/detail — маска last-4 (`_cred_last4`). Поле write-only plaintext, read-masked. Ни один endpoint/view не возвращает наружу расшифрованный секрет.
 - **N8. Редактирование в логах** (`core/logging.py::redact()`): полностью маскирует `admin_password_hash`, `session_secret`, `jwt_secret`, `secrets_enc_key(_old)`, пароль в `database_url`. AI-ключи/POS-токены не живут в `Settings` → не утекают через снапшот конфигурации.
+
+> **SSOT.** N7 (ритуал `on_model_change` в SQLAdmin) и N8 (список секретов для `redact()`) — единый источник; другие доки ([[config-secrets]], [[global-requirements]]) ссылаются сюда и не дублируют спецификацию.
 
 ## Обоснование
 

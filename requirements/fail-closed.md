@@ -10,7 +10,8 @@ adrs: ["[[ADR-006]]"]
 requirements: ["[[vpn-egress]]", "[[secret-encryption]]", "[[erp-esupl-integration]]", "[[config-secrets]]", "[[global-requirements]]"]
 legacy_refs: [Conformance R8, CLAUDE.md non-negotiables]
 sources: [01_ARCHITECTURE.md "What is fail-closed", APP_OVERVIEW.md §5, LCOS_Conformance R8]
-updated: 2026-07-09
+ssot_for: [fail-closed-catalog, dependency-failure-modes, error-envelope]
+updated: 2026-07-20
 ---
 
 # REQ-FAIL-CLOSED · Fail-closed везде

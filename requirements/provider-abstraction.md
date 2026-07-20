@@ -10,7 +10,8 @@ adrs: ["[[ADR-009]]"]
 requirements: ["[[vpn-egress]]", "[[erp-esupl-integration]]", "[[fail-closed]]", "[[global-requirements]]"]
 legacy_refs: [Conformance R7, DEC-01, CLAUDE.md "one impl per provider"]
 sources: [01_ARCHITECTURE.md "Backend provider abstraction", APP_OVERVIEW.md §3, LCOS_Conformance R7]
-updated: 2026-07-09
+ssot_for: [provider-abstraction, provider-seams, provider-registry, provider-context, one-impl-per-seam]
+updated: 2026-07-20
 ---
 
 # REQ-PROVIDER-ABSTRACTION · Provider seams

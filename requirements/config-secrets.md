@@ -10,7 +10,8 @@ adrs: ["[[ADR-005]]", "[[ADR-011]]", "[[ADR-012]]"]
 requirements: ["[[secret-encryption]]", "[[fail-closed]]", "[[global-requirements]]"]
 legacy_refs: [Conformance R1/R6, config-arch-review]
 sources: [01_ARCHITECTURE.md "Keys, Secrets & Credential Management", APP_OVERVIEW.md §5, LCOS_Conformance R1/R6]
-updated: 2026-07-09
+ssot_for: [config-tiers, system-settings-registry, config-resolution, no-env-fallback]
+updated: 2026-07-20
 ---
 
 # REQ-CONFIG-SECRETS · Три уровня конфигурации и секретов
@@ -27,7 +28,7 @@ updated: 2026-07-09
 - **N4. Никакое значение из N2/N3 не читается из env** — "NO ENV FALLBACK" в `effective_config.py`/`credentials.py`. Проверяемо grep-ом: отсутствие env-ключей для этих значений.
 - **N5. Resolver (`core/effective_config.py`):** `resolve(session, key) → Resolved(value, source, valid)`; невалидное значение из БД → warning + `spec.default` (никогда не пропускает мусор). Приоритет **строго DB → registry default**, без env. Есть `resolve_with_context()` — он открывает свою сессию через `ProviderContext` из [[provider-abstraction]].
 - **N6. Секреты читаются без кэша** (`get_active_credential` дешифрует при каждом вызове) — ротация в SQLAdmin мгновенна ([[ADR-011]]).
-- **N7. Плоскости записи:** уровень 2/3 редактирует **только** superadmin через SQLAdmin ([[sqladmin-operator]]); исключение — POS-токен: org-admin может задать его через `PUT /organizations/{id}/pos-config` (write-only, ответ `{is_set,last4}`). Front-end не хранит секретов ([[ADR-012]]): `VITE_*` — только несекретные toggles.
+- **N7. Плоскости записи (авторитет):** уровень 2/3 редактирует **только** superadmin через SQLAdmin ([[sqladmin-operator]]); исключение — POS-токен: org-admin может задать его через `PUT /organizations/{id}/pos-config` (write-only, ответ `{is_set,last4}`). Front-end не хранит секретов ([[ADR-012]]): `VITE_*` — только несекретные toggles. Ритуал шифрования секрета при записи через эту плоскость (`on_model_change` и т.п.) здесь не дублируется — см. [[secret-encryption]] N7.
 
 ## Обоснование
 

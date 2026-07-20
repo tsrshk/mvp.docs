@@ -10,7 +10,8 @@ adrs: ["[[ADR-018]]", "[[ADR-019]]", "[[ADR-020]]", "[[ADR-013]]"]
 requirements: ["[[fail-closed]]", "[[invoice-status-machine]]", "[[supplier-criteria-registry]]", "[[erp-esupl-integration]]", "[[global-requirements]]"]
 legacy_refs: [DEC-0011, DEC-0012, DEC-0013, 08 F1.1/F1.2]
 sources: [01_ARCHITECTURE.md "SKU identity & two-context resolver", APP_OVERVIEW.md §7/§8, 04_DECISIONS ADR-018..020]
-updated: 2026-07-09
+ssot_for: [sku-identity, two-context-resolver, commit-identity-resolution, sku-mapping-composite-key, source-key-normalization, learning-loop-persist]
+updated: 2026-07-20
 ---
 
 # REQ-SKU-IDENTITY · Двухконтекстный резолвер идентичности SKU

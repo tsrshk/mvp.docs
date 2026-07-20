@@ -6,11 +6,12 @@ status: built
 scope: cross-cutting
 roles: [member, admin, superadmin, sqladmin-operator]
 entities: ["[[system_settings]]", "[[integration_credentials]]", "[[users]]", "[[refresh_sessions]]", "[[organizations]]", "[[subdivisions]]", "[[memberships]]"]
-adrs: ["[[ADR-005]]", "[[ADR-006]]", "[[ADR-007]]", "[[ADR-008]]", "[[ADR-009]]", "[[ADR-010]]", "[[ADR-011]]", "[[ADR-012]]"]
+adrs: ["[[ADR-005]]", "[[ADR-006]]", "[[ADR-007]]", "[[ADR-008]]", "[[ADR-009]]", "[[ADR-010]]", "[[ADR-011]]", "[[ADR-012]]", "[[ADR-021]]", "[[ADR-022]]"]
 requirements: ["[[config-secrets]]", "[[secret-encryption]]", "[[auth]]", "[[multitenancy]]", "[[provider-abstraction]]", "[[fail-closed]]", "[[vpn-egress]]", "[[erp-esupl-integration]]"]
+ssot_for: [conformance-r1-r9]
 legacy_refs: [LCOS_Conformance_Alignment_GlobalRequirements Part 3, 02_REQUIREMENTS (never-created slot)]
 sources: [LCOS_Conformance_Alignment_GlobalRequirements.md Part 3, 01_ARCHITECTURE.md, APP_OVERVIEW.md]
-updated: 2026-07-09
+updated: 2026-07-20
 ---
 
 # REQ-GLOBAL · Глобальные требования текущего этапа (R1–R9)
@@ -46,7 +47,7 @@ updated: 2026-07-09
 ## R4 — Плоскость супер-админа (SQLAdmin) → [[sqladmin-operator]], [[config-secrets]]
 - **R4.1** Вход SQLAdmin — отдельный backend: `ADMIN_USERNAME` + bcrypt `ADMIN_PASSWORD_HASH` из env, session-cookie (`SESSION_SECRET`). **Без строки в [[users]].** Плоскости не смешиваются.
 - **R4.2** Управляет: [[system_settings]], [[integration_credentials]], [[organizations]], [[subdivisions]], [[users]], [[memberships]], каталогом. [[refresh_sessions]] — read-only.
-- **R4.3** `IntegrationCredentialAdmin.on_model_change`: plaintext → `encrypt()` перед persist (идемпотентно) → `rotated_at` → деактивация других активных строк той же (scope,provider,org,subdivision). List/detail — маска last-4. Поле write-only plaintext, read-masked.
+- **R4.3** `IntegrationCredentialAdmin.on_model_change` шифрует секрет перед persist (write-only plaintext, read-masked last-4), деактивирует конкурентов. Детали ритуала — [[secret-encryption]] N7.
 - **R4.4** `UserAdmin.on_model_change`: `password_hash` принимает plaintext → argon2 (пропуск, если уже `$argon2`).
 - **R4.5** Ни один endpoint/view не возвращает наружу расшифрованный секрет.
 
@@ -87,7 +88,7 @@ updated: 2026-07-09
 - **R9.2** Живые пути провайдеров — только `backend`/`mock`; никакого browser-direct LLM/ERP (после A2).
 - **R9.3** Нет мёртвых модулей/экспортов без живого потребителя (после A2/D-b/D-c). **Известно:** `invoice_lines.sku_embedding` UNUSED → backlog DEC-02; FE `shared/llm`/`prompt.ts`/`parse.ts` — рудиментарный мёртвый код.
 - **R9.4** Единый конверт ошибки `{"error":{code,message,details?}}`; catch-all вручную возвращает CORS-заголовки.
-- **R9.5** Логи редактируют секреты (`redact()`): `admin_password_hash`, `session_secret`, `jwt_secret`, `secrets_enc_key(_old)`, пароль в `database_url`.
+- **R9.5** Логи редактируют секреты (`redact()`). Список редактируемых ключей — [[secret-encryption]] N8.
 
 ## R-Deploy — prod-чеклист (не блокирует Phase 1, зафиксирован)
 - Реальные `SECRETS_ENC_KEY`/`JWT_SECRET`/`SESSION_SECRET`; `COOKIE_SECURE=true`.
@@ -99,7 +100,8 @@ updated: 2026-07-09
 - FE suppliers-page / supplier-selector / breadcrumbs / footer **существуют**.
 - `invoice_lines.sku_embedding` — **UNUSED** (мёртвый код, backlog DEC-02).
 - Маршруты `admin_system` гейтятся плоскостью **SQLAdmin OPERATOR**, а не app-JWT superadmin.
-- Цепочка миграций: `0001..0009` + OCR-prompt (`1e12…`). Новейший ADR — [[ADR-020]].
+- Поставщики — локальный SSOT ([[ADR-021]]): `GET /suppliers` и `/suppliers/search` читают локальную таблицу `suppliers`, а Esupl following используется ТОЛЬКО для matching и durable `supplier_external_id` в `sku_mapping` (`POST /suppliers/sync` лишь обогащает локальную карточку, не является источником справочника). Это частичный реверс [[DEC-0011]]: «POS = SSOT» сохраняется для каталога ИНГРЕДИЕНТОВ, но НЕ для справочника ПОСТАВЩИКОВ.
+- Цепочка миграций: `0001..0022` + OCR-prompt (`1e12…`). Новейший ADR — [[ADR-022]].
 - Wife-Gate == Pilot-Gate ([[ADR-003]]).
 
 ## Критерии приёмки (тестовые сценарии)
@@ -107,4 +109,4 @@ updated: 2026-07-09
 
 ## Источники
 - LCOS_Conformance_Alignment_GlobalRequirements.md → Part 3 (R1–R9, R-Deploy), Part 4 (AC), Part 2 (A1/D-*/V-*).
-- 01_ARCHITECTURE.md, APP_OVERVIEW.md (verified_against_code 2026-07-09), 04_DECISIONS.md (ADR-001..020).
+- 01_ARCHITECTURE.md, APP_OVERVIEW.md (verified_against_code 2026-07-09), 04_DECISIONS.md (ADR-001..022).

@@ -10,7 +10,8 @@ adrs: ["[[ADR-006]]"]
 requirements: ["[[fail-closed]]", "[[provider-abstraction]]", "[[global-requirements]]"]
 legacy_refs: [Conformance R8.1, R7.4]
 sources: [01_ARCHITECTURE.md "Failure handling (fail-closed VPN)", APP_OVERVIEW.md §5, LCOS_Conformance R8.1]
-updated: 2026-07-09
+ssot_for: [vpn-egress, ai-egress-transport, vpn-toggle]
+updated: 2026-07-20
 ---
 
 # REQ-VPN-EGRESS · VPN egress для AI
