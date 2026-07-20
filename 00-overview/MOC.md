@@ -13,7 +13,7 @@ sources:
 
 # MOC — карта содержимого хранилища LCOS
 
-> Обзорный индекс всего хранилища: overview-документы, эпики E1–E15, фичи F1–F71, сущности, роли, требования и решения. Обычный вход — из эпика или overview-документа, а оттуда глубже через `[[README]]`. Структура по типу + вики-ссылки (без физической вложенности), см. [[_RESTRUCTURE_PLAN]].
+> Обзорный индекс всего хранилища: overview-документы, эпики E1–E15, фичи F1–F75, сущности, роли, требования и решения. Обычный вход — из эпика или overview-документа, а оттуда глубже через `[[README]]`. Структура по типу + вики-ссылки (без физической вложенности), см. [[_RESTRUCTURE_PLAN]].
 
 ## Overview
 
@@ -58,7 +58,7 @@ sources:
 
 **E3 — SKU identity / moat:** [[LCOS-F13-sku-identity-resolver]] · [[LCOS-F14-learning-loop]] · [[LCOS-F15-sku-catalog]] · [[LCOS-F16-ingredient-cache]]
 
-**E4 — Поставщики:** [[LCOS-F17-supplier-cards]] · [[LCOS-F18-supplier-criteria]] · [[LCOS-F19-supplier-self-service]] · [[LCOS-F20-price-history]] · [[LCOS-F21-price-change-signal]]
+**E4 — Поставщики:** [[LCOS-F17-supplier-cards]] · [[LCOS-F18-supplier-criteria]] · [[LCOS-F19-supplier-self-service]] · [[LCOS-F20-price-history]] · [[LCOS-F21-price-change-signal]] · [[LCOS-F72-supplier-price-list-upload]] · [[LCOS-F73-price-list-parsing]] · [[LCOS-F74-supplier-assortment-freshness]] · [[LCOS-F75-supplier-price-analytics]]
 
 **E5 — Стабилизация:** [[LCOS-F22-sku-stabilization]] · [[LCOS-F23-failclosed-encryption]] · [[LCOS-F24-merge-gate-tests]] · [[LCOS-F25-deadcode-cleanup]] · [[LCOS-F26-multipage-fix]] · [[LCOS-F27-receipts-rename]] · [[LCOS-F28-esupl-contracts]]
 
@@ -87,7 +87,9 @@ sources:
 Иерархия тенанта: [[organizations]] · [[subdivisions]] · [[users]] · [[memberships]]
 Каталог и identity: [[ingredients]] · [[packings]] · [[ingredient_cache]] · [[sku_mapping]]
 Накладные: [[invoices]] · [[invoice_lines]]
-Поставщики: [[suppliers]]
+Поставщики: [[suppliers]] · [[supplier_settings]] · [[price_list_upload]] · [[price_list_line]]
+Закупки (F37): [[purchase_orders]] · [[purchase_order_lines]]
+Аутентификация: [[refresh_sessions]]
 Конфигурация/секреты: [[integration_credentials]] · [[system_settings]]
 Остатки (Фаза 1): [[stock_levels]]
 
