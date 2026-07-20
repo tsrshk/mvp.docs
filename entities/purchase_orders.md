@@ -30,7 +30,7 @@ updated: 2026-07-09
 | total_amount | вычисляемое |
 | confirmed_by | → [[users]] |
 
-Сверяется с полученной накладной через `invoices.purchase_order_id` (см. [[LCOS-F42-receipt-reconciliation]], [[invoices]]).
+Планируется сверка с полученной накладной через `invoices.purchase_order_id` — **этой колонки пока НЕТ в схеме** (F42 не реализован; ни модель Invoice, ни миграции её не добавляют). Появится при реализации [[LCOS-F42-receipt-reconciliation]]; SSOT существования колонки — [[invoices]].
 
 ## Используется
 [[LCOS-F37-purchase-orders]], [[LCOS-F38-orders-ui]], [[LCOS-F39-order-message]], [[LCOS-F40-ai-order-proposal]], [[LCOS-F41-ai-order-ui]], [[LCOS-F42-receipt-reconciliation]].
