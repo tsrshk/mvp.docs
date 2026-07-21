@@ -98,12 +98,18 @@ sources:
 | **L-c** | low | incomplete | mvp.be erp/base.py | placeholder-детект по голой подстроке `-prepared-` (риск false-positive на реальном id) | ✅ | Якорный regex `^[a-z0-9_]+-prepared-` |
 | **L-d** | low | incomplete | mvp.fe prepareInvoice.ts | 32-бит djb2 → коллизия → ложный 422 | ✅ | 64-бит `stableHash` (djb2+sdbm) |
 | **L-f** | low | incomplete | mvp.be ingredients.py | L-4 не покрыл read-эндпоинты (account есть, token нет → 502) | ✅ | list/search возвращают `[]` при token=None |
-| **L-a** | low | missed | mvp.be order_service.py | PO-переходы confirm/cancel/replace_lines check-then-update без row-lock | ⏭️ | DEFER: Phase-1 single-user, draft-заказы; паттерн `get_for_update` доступен при появлении конкуренции |
+| **L-a** | low | missed | mvp.be order_service.py | PO-переходы confirm/cancel/replace_lines check-then-update без row-lock | ✅ | `_lock_order` = `refresh(order, ["status"], with_for_update=True)` в начале трёх переходов (раунд 3) |
 | **L-e** | low | tradeoff | mvp.fe prepareInvoice.ts | контент-отпечаток: две БАЙТ-идентичные безномерные накладные того же дня коллидируют | ⏭️ | DEFER (осознанный tradeoff): условие патологическое (нет номера + идентичны + тот же день); reload-dedup важнее; пользователь различает добавив номер |
 
 **Подтверждено корректным раундом 2:** эпоха сессий M-1 не самоблокирует свежую сессию (transaction_timestamp равенство + строгий `<`, DB-clock без skew); порядок локов users→refresh_sessions единый (нет deadlock); F24-тест placeholder цел; upsert/savepoint паттерны эквивалентны.
 
+## Раунд 3 — стабилизация качества (перед живой регрессией)
+
+- **FE tsc теперь ЗЕЛЁНЫЙ** ✅ — исправлены все 13 пред-существующих `TS18048 res.error possibly undefined` (admin-табы): `'error' in res` не убирал `undefined` из union `{data}|{error?:undefined}` → заменено на сужение по truthiness `if (res.error)`. Приведены к одному паттерну и login/change-password (было `'error' in res`). Тип ошибки — `{message}` (fakeBaseQuery), runtime-поведение идентично.
+- **L-a закрыт** (PO row-lock).
+- **РЕКОМЕНДАЦИЯ по тест-фикстуре (не тронуто — CI-side):** `tests/conftest.py::_session_override` yield-ит общую сессию БЕЗ прод-обёртки `get_session` (commit на успехе / rollback на исключении). Из-за этого класс багов «пишем-и-бросаем» (как H-B: `revoke_family` + `raise 401`) невидим сьюту — запись ложно переживает исключение. Правку НЕ вносил: она высокорисковая и непроверяема без Postgres, а взаимодействие с mid-request `session.commit()` тонкое; чинить на CI с реальной БД (обернуть override в savepoint-эквивалент commit/rollback). H-B-фикс проверить отдельным тестом, воспроизводящим boundary.
+
 ## Осталось владельцу
-- Прогнать полный BE `pytest -m merge_gate` + весь сьют на CI (реальный Postgres) — подтвердить M-1/M-2/L-3/P-2 регрессиями.
-- (Опц.) Починить пред-существующие 13 tsc `res.error` в admin-табах — вне scope этого ревью.
-- L-15 — осознанный DEFER (см. таблицу).
+- Прогнать полный BE `pytest -m merge_gate` + весь сьют на CI (реальный Postgres) — подтвердить M-1/M-2/H-B/L-3/P-2 регрессиями (локально testcontainers недоступны).
+- Выровнять `_session_override` под прод-семантику (см. раунд 3) — иначе «write-then-raise» баги невидимы.
+- L-15 (wire-shape) и L-e (контент-коллизия) — осознанные DEFER (см. таблицы).
