@@ -83,6 +83,26 @@ sources:
 - **FE:** `eslint` (изменённые файлы) — ✅ clean; `vitest run` — ✅ **377 passed / 33 files** (после фикса мока AdminPage под L-11); `tsc -b` — 13 ошибок `TS18048 'res.error' possibly undefined` в admin-табах **пред-существуют на чистом develop** (не связаны с ревью, не мои — проверено stash-ом), новых ошибок мои правки не внесли.
 - **Не закоммичено агентом** до подтверждения владельцем (границы агента: изменения коммитит Ivan). Ветки `fix/code-review-2026-07-21` в трёх репо.
 
+## Раунд 2 — перепроверка ремедиации (adversarial, 45 агентов)
+
+Свежий проход по тем же осям нашёл регрессии/недочинки в самой ремедиации. Исправлено follow-up-коммитом.
+
+| ID | Sev | Тип | Файл | Проблема | Статус | Фикс |
+|----|-----|-----|------|----------|--------|------|
+| **H-A** | high | regression | mvp.be alembic/0026 | имя ревизии 42 символа > VARCHAR(32) `alembic_version` → `upgrade head` падает всегда (деплой-блокер) | ✅ | Ревизия+файл → `0026_price_proj_uq_fk_naming` (28) |
+| **H-B** | high | incomplete | mvp.be auth/service.py | reuse-detection: `revoke_family` откатывается тем же `raise 401` (get_session rollback) → kill-switch кражи не срабатывает | ✅ | `await session.commit()` ДО raise в ветке reuse |
+| **H-C** | high | incomplete | mvp.be auth/service.py | `/auth/refresh` не перевыпускает CSRF-куку → истекает через 30 мин → silent-refresh 403 → logout | ✅ | `issue_csrf_cookie` в refresh_tokens при csrf_enabled |
+| **M-A** | med | incomplete | mvp.fe invoicesApi.ts | L-14 fallback по `\|\|` (truthiness): пробельный номер `' '` обходит content-fallback → нет idempotency-key → дубль | ✅ | `.trim()` перед `\|\|` |
+| **M-B** | med | incomplete | mvp.be alembic/0026 | UNIQUE-индекс без дедупа → падение при уже накопленных дублях (P-2 до фикса) | ✅ | DELETE дублей (row_number) перед create_index |
+| **L-b** | low | incomplete | mvp.be main.py | L-8 неполон: main.py:48,97 инлайнят `org.pos_provider or erp_provider` мимо SSOT | ✅ | `resolve_pos_provider_name(org)` |
+| **L-c** | low | incomplete | mvp.be erp/base.py | placeholder-детект по голой подстроке `-prepared-` (риск false-positive на реальном id) | ✅ | Якорный regex `^[a-z0-9_]+-prepared-` |
+| **L-d** | low | incomplete | mvp.fe prepareInvoice.ts | 32-бит djb2 → коллизия → ложный 422 | ✅ | 64-бит `stableHash` (djb2+sdbm) |
+| **L-f** | low | incomplete | mvp.be ingredients.py | L-4 не покрыл read-эндпоинты (account есть, token нет → 502) | ✅ | list/search возвращают `[]` при token=None |
+| **L-a** | low | missed | mvp.be order_service.py | PO-переходы confirm/cancel/replace_lines check-then-update без row-lock | ⏭️ | DEFER: Phase-1 single-user, draft-заказы; паттерн `get_for_update` доступен при появлении конкуренции |
+| **L-e** | low | tradeoff | mvp.fe prepareInvoice.ts | контент-отпечаток: две БАЙТ-идентичные безномерные накладные того же дня коллидируют | ⏭️ | DEFER (осознанный tradeoff): условие патологическое (нет номера + идентичны + тот же день); reload-dedup важнее; пользователь различает добавив номер |
+
+**Подтверждено корректным раундом 2:** эпоха сессий M-1 не самоблокирует свежую сессию (transaction_timestamp равенство + строгий `<`, DB-clock без skew); порядок локов users→refresh_sessions единый (нет deadlock); F24-тест placeholder цел; upsert/savepoint паттерны эквивалентны.
+
 ## Осталось владельцу
 - Прогнать полный BE `pytest -m merge_gate` + весь сьют на CI (реальный Postgres) — подтвердить M-1/M-2/L-3/P-2 регрессиями.
 - (Опц.) Починить пред-существующие 13 tsc `res.error` в admin-табах — вне scope этого ревью.
