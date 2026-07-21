@@ -110,4 +110,4 @@ updated: 2026-07-20
 
 ## Источники
 - LCOS_Conformance_Alignment_GlobalRequirements.md → Part 3 (R1–R9, R-Deploy), Part 4 (AC), Part 2 (A1/D-*/V-*).
-- 01_ARCHITECTURE.md, APP_OVERVIEW.md (verified_against_code 2026-07-09), 04_DECISIONS.md (ADR-001..022).
+- 01_ARCHITECTURE.md, APP_OVERVIEW.md (verified_against_code 2026-07-09), 04_DECISIONS.md (ADR-001..024).

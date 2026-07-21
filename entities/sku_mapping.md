@@ -9,7 +9,7 @@ pk: id (uuid)
 used_by: ["[[LCOS-F13-sku-identity-resolver]]", "[[LCOS-F14-learning-loop]]"]
 requirements: ["[[sku-identity-resolver]]", "[[fail-closed]]"]
 adrs: ["[[ADR-019]]", "[[ADR-020]]"]
-sources: [mvp.be/app/db/models.py:464-507, __DEC-0011, __DEC-0013]
+sources: [mvp.be/app/db/models.py (SkuMapping), __DEC-0011, __DEC-0013]
 updated: 2026-07-09
 ---
 # sku_mapping · moat learning-loop
@@ -62,5 +62,5 @@ UNIQUE-коллизия. `''` = supplier-agnostic/legacy.
 запись/подтверждение, долговечный moat).
 
 ## Источники
-- `mvp.be/app/db/models.py:464-507` (модель `SkuMapping`), `:75-78` (`MappingMethod`)
+- `mvp.be/app/db/models.py` (модель `SkuMapping` и enum `MappingMethod`)
 - [[ADR-019]], [[ADR-020]], DEC-0011/DEC-0013, [[sku-identity-resolver]]

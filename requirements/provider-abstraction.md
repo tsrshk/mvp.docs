@@ -29,7 +29,7 @@ updated: 2026-07-20
 - **N4. Выбор реализации — две разные плоскости конфигурации (легко спутать):**
   - **ERP = статическая deploy-конфигурация из env:** `get_erp()` читает `settings.erp_provider` (`ERP_PROVIDER`, default `esupl`).
   - **OCR/AI = runtime-конфигурация из БД, не env:** `get_ocr()` вызывает `resolve_ai_provider()` (читает `system_settings.ai_provider`, default `claude`). Superadmin меняет активный OCR/LLM в SQLAdmin без redeploy.
-- **N5. Одна активная реализация на шов** (`ADR-009`): сегодня OCR=`claude`, ERP=`esupl`. Альтернативы **не пишутся** без реального триггера (рост объёма, гео/costs-риск).
+- **N5. Реализации на шов** (`ADR-009`, для ERP частично вытеснен `ADR-024`): OCR=`claude` (ровно одна). ERP несёт **две** санкционированные реализации — `esupl` **или** `quickresto`, выбор пер-организацию (`Organization.pos_provider`, SSOT выбора — `resolve_pos_provider_name`); multi-POS-триггер сработал ([[ADR-024]]). Прочие альтернативы (напр. iiko, [[LCOS-F69]]) **не пишутся** без нового реального триггера.
 - **N6. `ProviderContext` (module-global `_CTX`)** несёт cross-infra, не грязнящую сигнатуры Protocol: `egress` (два httpx-клиента), `ai_vpn` (`AiVpnToggle`), `session_scope` (`SessionFactory`). Устанавливается в `lifespan`, очищается при shutdown; `get_provider_context()` бросает `RuntimeError`, если не установлен. Тесты подставляют fakes.
 
 ## Обоснование

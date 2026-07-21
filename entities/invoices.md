@@ -43,7 +43,7 @@ updated: 2026-07-16
 | `idempotency_request_hash` | varchar(64) | yes | SHA-256 канонизированного `InvoiceDraft` — детектор конфликта «тот же ключ, другое тело» (FR-004) |
 | `created_at` / `updated_at` | timestamptz | no | `TimestampMixin` |
 
-Enum `status`: `draft`, `validated`, `rejected`, `prepared`, `written`, `failed`.
+Enum `status`: `draft`, `validated`, `rejected`, `prepared`, `written`, `failed`, `needs_reconcile` (неоднозначный сбой записи в ERP — миграция 0021, см. [[invoice-status-machine]]).
 
 ## Отношения, FK, уникальность
 - FK `organization_id`/`subdivision_id` **RESTRICT** (mixin).
