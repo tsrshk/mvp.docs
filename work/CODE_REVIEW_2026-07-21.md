@@ -109,6 +109,21 @@ sources:
 - **L-a закрыт** (PO row-lock).
 - **РЕКОМЕНДАЦИЯ по тест-фикстуре (не тронуто — CI-side):** `tests/conftest.py::_session_override` yield-ит общую сессию БЕЗ прод-обёртки `get_session` (commit на успехе / rollback на исключении). Из-за этого класс багов «пишем-и-бросаем» (как H-B: `revoke_family` + `raise 401`) невидим сьюту — запись ложно переживает исключение. Правку НЕ вносил: она высокорисковая и непроверяема без Postgres, а взаимодействие с mid-request `session.commit()` тонкое; чинить на CI с реальной БД (обернуть override в savepoint-эквивалент commit/rollback). H-B-фикс проверить отдельным тестом, воспроизводящим boundary.
 
+## Раунд 4 — финальный gate (go/no-go перед живой регрессией)
+
+Вердикт workflow: **GO для single-user живой регрессии, 0 блокеров.** Найдены и закрыты пробелы консистентности, которые M-1 не покрыл:
+
+| ID | Sev | Ось | Файл | Проблема | Статус | Фикс |
+|----|-----|-----|------|----------|--------|------|
+| **G-1** | med | race | mvp.be users.py:reset_password | M-1 закрыл эпоху только для self-service change_password; админский reset_password (сброс СКОМПРОМЕТИРОВАННОГО аккаунта — важнее) не ставил `sessions_valid_after` → та же concurrent-INSERT гонка открыта | ✅ | `sessions_valid_after=func.now()` в reset_password + deactivate_user (симметрия) |
+| **G-2** | low | fail-closed | mvp.be auth/service.py:switch_context | не проверял `is_active`/эпоху (в отличие от refresh_tokens) → уцелевший ряд мог выпускать access через /switch | ✅ | Добавлены проверки `not is_active`→401 и `created_at < sessions_valid_after`→401 |
+| **G-3** | low | ssot | mvp.be esupl.py:350, quickresto.py:376 | placeholder-id строил провайдер строковым литералом вместо `self.name` | ✅ | `write_disabled_placeholder(self.name, ...)` |
+| **G-4** | low | correctness | mvp.be bootstrap.py | не элевейтит существующего non-superadmin с тем же email (необычное seeded-состояние; путь пустой prod-БД не затронут) | ⏭️ | DEFER: edge вне prod-first-run; при желании — форсить is_superadmin или падать громко |
+
+**Что проверить первым в живом прогоне** (статикой не ловится): bootstrap→first-login→forced-change сквозняк; cookie-auth+CORS+CSRF по-живому (csrf_enabled в dev-grade); first-run пустое состояние супер-админа (0 орг / null context не роняет шелл); `alembic upgrade head` на свежем Postgres (0026 dedup+index+rename); erp_write fail-closed по факту; PO-переходы 409 на повторном confirm.
+
+**Вердикт по осям после 4 проходов:** архитектура — **стабильно** (шов PosProvider цел, FSD держится, SSOT-хелперы единственны, alembic single-head); SSOT/DRY — **стабильно**; race — **закрыто на всех путях отзыва** (change/reset/deactivate ставят эпоху; refresh/switch её уважают; reuse-детект коммитит до raise; PO под row-lock). Остаточный concurrency-долг — только conftest-фикстура (test-only, CI-side).
+
 ## Осталось владельцу
 - Прогнать полный BE `pytest -m merge_gate` + весь сьют на CI (реальный Postgres) — подтвердить M-1/M-2/H-B/L-3/P-2 регрессиями (локально testcontainers недоступны).
 - Выровнять `_session_override` под прод-семантику (см. раунд 3) — иначе «write-then-raise» баги невидимы.
