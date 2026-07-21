@@ -197,3 +197,40 @@
 
 **Задел под email:** флоу спроектирован так, что «сброс пароля письмом» подключается
 позже без изменения контракта (одноразовый пароль → форс смены уже реализованы).
+
+---
+
+## 7. Код-ревью + верификация по факту (2026-07-21, после merge в develop)
+
+Коммиты фичи: BE `9a686a4`, FE `f52a0b7`, docs `ebf7b12` (develop).
+
+### Adversarial-ревью (workflow, 5 измерений → per-finding верификация)
+29 находок, 26 подтверждено. **3 HIGH (реальный захват аккаунта)** — исправлены сразу:
+
+- **create_membership не проверял target user_id** — org-admin мог привязать ЛЮБОГО юзера
+  (в т.ч. superadmin) к своей орг по сырому id, затем `reset-password` → одноразовый пароль в
+  ответе → вход под жертвой (эскалация до superadmin / cross-tenant). **Fix:** запрет привязки
+  superadmin и юзера из чужой орг (target orgs ⊄ managed); проверка существования орг.
+- **_assert_can_see_user слишком широк для credential-операций** — admin орг A мог сбросить
+  пароль мульти-орг юзеру (A+B), т.к. пароль глобальный → захват доступа в B. **Fix:** новый
+  `_assert_can_administer_user` (target не superadmin И все его орг ⊆ управляемых) на
+  reset-password/update/deactivate.
+- **PATCH is_active** позволял самодеактивацию в обход guard на DELETE. **Fix:** тот же guard.
+
+Прочее исправлено: `_membership_tree` терял все subdivision-членства кроме первого в орг;
+недетерминированный дефолтный контекст (добавлен order_by); duplicate-email race 500→409;
+misleading 409 на несуществующей орг → 404. FE: дефолтная роль → manager (least-privilege),
+superadmin-тумблер чистит org/role, confirm на reset-password, инвалидация `Me` на
+membership/user-мутациях, серверные тексты ошибок вместо generic, ярлыки ролей из API (SSOT).
+Фиксы: BE `26ea65c`, FE `f065b8e`. Добавлены регресс-тесты на ВСЕ deny-пути.
+
+### Верификация по факту (throwaway-БД `lcos_verify`, seed OFF, ERP_WRITE OFF, POS-токен не задан)
+- **Полный деплой-флоу:** миграции 0001→0024 → env-bootstrap первого superadmin
+  (`root@localos.dev`, must_change_password) → форс-смена пароля при входе.
+- **2 организации** (Альфа, Браво) + подразделения; **юзеры с ролями** admin/manager +
+  одноразовые пароли. **33/33** проверок флоу + RBAC-deny прошли.
+- **Повторная проверка после фиксов:** **12/12** attack-denial (attach foreign/superadmin →403,
+  reset foreign/superadmin →403, self-deactivate →400, delete-org →403; при этом admin
+  управляет своей орг, superadmin всемогущ). **ЗАПИСЬ в POS не производилась** (токен не задан,
+  ERP_WRITE_ENABLED=false, POS-эндпоинты не вызывались).
+- Итог: BE **370** pytest ✓ ruff ✓; FE tsc/eslint/vitest ✓; Playwright e2e **6/6** ✓.
