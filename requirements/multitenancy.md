@@ -4,9 +4,9 @@ type: requirement
 title: Мультитенантность и scoping (organization → subdivision → membership)
 status: built
 scope: cross-cutting
-roles: [member, admin, superadmin]
+roles: [member, manager, admin, superadmin]
 entities: ["[[organizations]]", "[[subdivisions]]", "[[memberships]]", "[[users]]"]
-adrs: ["[[ADR-008]]", "[[ADR-004]]"]
+adrs: ["[[ADR-008]]", "[[ADR-004]]", "[[ADR-023]]"]
 requirements: ["[[auth]]", "[[global-requirements]]"]
 legacy_refs: [Conformance R5, plan G-tenant]
 sources: [01_ARCHITECTURE.md "org/subdivision/user hierarchy", APP_OVERVIEW.md §4, LCOS_Conformance R5]
@@ -20,11 +20,11 @@ updated: 2026-07-20
 
 ## Нормативное положение
 
-- **N1. Иерархия (модель Slack):** `organization` (граница изоляции) → `subdivision` (= склад Esupl) → `membership` (user↔subdivision+role). `users` — **единственная глобальная** таблица (без `organization_id`). Org выводится **через** subdivision, в `memberships` не хранится.
+- **N1. Иерархия (модель Slack):** `organization` (граница изоляции) → `subdivision` (= склад Esupl) → `membership` (user↔организация[↔subdivision]+role). `users` — **единственная глобальная** таблица (без `organization_id`). `memberships` хранит `organization_id` **явно** (NOT NULL); `subdivision_id` NULLable — `NULL` ⇒ роль на всю организацию (org-level), иначе — на конкретное подразделение (ADR-023, миграция 0024).
 - **N2. Денормализация scope:** `organization_id` присутствует на **каждой** операционной/каталожной строке, `ondelete=RESTRICT`, `nullable=False`, индексирован (`OrganizationScopedMixin`). Операционные строки несут **также** `subdivision_id` (`SubdivisionScopedMixin`). Внутритенантные parent-child FK — `CASCADE`.
 - **N3. Репозитории требуют scope в конструкторе:** tenant-репозитории (`SupplierRepository`, `IngredientRepository`, `InvoiceRepository`) принимают `organization_id` (и опционально `subdivision_id`) в `__init__` — tenant-запрос **структурно невозможен** без scope.
 - **N4. Scope только из подписанного JWT:** `org`/`sub_div` берутся из access-токена (см. [[auth]] N1), **никогда** из клиентского ввода. `get_tenant_context` → **403** при отсутствии `organization_id` ("no active organization context").
-- **N5. Роли:** `is_superadmin` (глобальный boolean-флаг на [[users]]) + `Role.admin` (на уровне подразделения через [[memberships]]). RBAC-матрицы нет (явный non-goal). Пользователь без membership и не superadmin входит, но контекст закрыт (403).
+- **N5. Роли (3-ролевая RBAC, [[ADR-023]]):** `is_superadmin` (глобальный boolean-флаг на [[users]], режим Бога) + enum `role` `{admin, manager}` на [[memberships]]. **admin** управляет своей организацией и всеми её подразделениями «сверху вниз» (CRUD подразделений/юзеров, назначение ролей, настройки; не создаёт орг, не выдаёт superadmin). **manager** — прикладные фичи без управления. Энфорсмент — SSOT `app/auth/rbac.py`; прежний non-goal «RBAC-матрицы нет» снят ADR-023. Пользователь без membership и не superadmin входит, но контекст закрыт (403).
 - **N6. Scope FE** выводится из кэша `GET /auth/me` (авторитетен backend); per-browser хранилища ключуются `orgScopeToken()` — переключение активного scope сбрасывает кэши/дефолты, поэтому данные не утекают между тенантами в одном браузере.
 - **N7. Привязка Esupl:** `organization ↔ ровно одна команда Esupl` (`organizations.esupl_team_id`); `subdivision ↔ склад Esupl` (`subdivisions.esupl_warehouse_id`). Это **несекретные** ID-колонки (см. [[secret-encryption]] R6.5).
 

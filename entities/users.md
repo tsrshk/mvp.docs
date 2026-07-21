@@ -31,6 +31,7 @@ nullable — заложено под внешних провайдеров. `is_
 | `first_name` / `last_name` | varchar(128) | yes | |
 | `is_superadmin` | boolean | no | default false; глобальный god mode ([[superadmin]]) |
 | `is_active` | boolean | no | default true; деактивация без удаления |
+| `must_change_password` | boolean | no | default false; одноразовый пароль → форс смены при входе (ADR-023; env-bootstrap superadmin, admin-set/reset паролей) |
 | `created_at` / `updated_at` | timestamptz | no | `TimestampMixin` |
 
 ## Отношения, FK, уникальность

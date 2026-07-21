@@ -4,9 +4,9 @@ type: requirement
 title: Глобальные требования текущего этапа (нормативные, R1–R9)
 status: built
 scope: cross-cutting
-roles: [member, admin, superadmin, sqladmin-operator]
+roles: [member, manager, admin, superadmin, sqladmin-operator]
 entities: ["[[system_settings]]", "[[integration_credentials]]", "[[users]]", "[[refresh_sessions]]", "[[organizations]]", "[[subdivisions]]", "[[memberships]]"]
-adrs: ["[[ADR-005]]", "[[ADR-006]]", "[[ADR-007]]", "[[ADR-008]]", "[[ADR-009]]", "[[ADR-010]]", "[[ADR-011]]", "[[ADR-012]]", "[[ADR-021]]", "[[ADR-022]]"]
+adrs: ["[[ADR-005]]", "[[ADR-006]]", "[[ADR-007]]", "[[ADR-008]]", "[[ADR-009]]", "[[ADR-010]]", "[[ADR-011]]", "[[ADR-012]]", "[[ADR-021]]", "[[ADR-022]]", "[[ADR-023]]"]
 requirements: ["[[config-secrets]]", "[[secret-encryption]]", "[[auth]]", "[[multitenancy]]", "[[provider-abstraction]]", "[[fail-closed]]", "[[vpn-egress]]", "[[erp-esupl-integration]]"]
 ssot_for: [conformance-r1-r9]
 legacy_refs: [LCOS_Conformance_Alignment_GlobalRequirements Part 3, 02_REQUIREMENTS (never-created slot)]
@@ -54,12 +54,13 @@ updated: 2026-07-20
 > **Корректировка:** маршруты `admin_system` гейтятся плоскостью **SQLAdmin OPERATOR**, а не app-JWT superadmin (см. doc↔code корректировку в инвентаре).
 
 ## R5 — Мультитенантность и scoping → [[multitenancy]]
-- **R5.1** Иерархия: [[organizations]] (граница изоляции) → [[subdivisions]] (= склад Esupl) → [[memberships]] (user↔subdivision+role). [[users]] — единственная глобальная таблица.
+- **R5.1** Иерархия: [[organizations]] (граница изоляции) → [[subdivisions]] (= склад Esupl) → [[memberships]] (user↔организация[↔subdivision]+role). [[users]] — единственная глобальная таблица. `memberships.organization_id` хранится явно (NOT NULL); `subdivision_id` NULLable (NULL ⇒ org-level роль на всю орг) — ADR-023, миграция 0024.
 - **R5.2** `organization_id` денормализован на каждую операционную/каталожную строку, `ondelete=RESTRICT`; операционные строки несут ещё и `subdivision_id`.
 - **R5.3** Tenant-репозитории **требуют `organization_id` в конструкторе** — запрос без scope структурно невозможен.
 - **R5.4** Scope из подписанного access-JWT (`org`,`sub_div`), **никогда** из клиентского ввода. `get_tenant_context` → 403 без `organization_id`.
-- **R5.5** Роли: `is_superadmin` (глобальный флаг на [[users]]) + `Role.admin` (на уровне подразделения). RBAC-матрицы нет (non-goal). Пользователь без membership и не superadmin входит, но контекст закрыт (403).
+- **R5.5** Роли (3-ролевая RBAC, [[ADR-023]]): `is_superadmin` (глобальный флаг на [[users]]) + enum `role` `{admin, manager}` на [[memberships]]. admin управляет своей орг + подразделениями «сверху вниз»; manager — прикладные фичи без управления. SSOT энфорсмента — `app/auth/rbac.py`; прежний non-goal «RBAC-матрицы нет» снят. Пользователь без membership и не superadmin входит, но контекст закрыт (403).
 - **R5.6** Scope FE из кэша `/auth/me` (авторитетен backend); per-browser хранилища ключуются `orgScopeToken()`.
+- **R5.7** Управление структурой и пользователями доступно и из **приложения** (app-JWT REST, не только SQLAdmin): роутеры `organizations` (org + subdivisions CRUD), `users` (user CRUD + memberships + reset-password), `GET /roles`; авторизация — [[ADR-023]] SSOT `app/auth/rbac.py` (`require_app_write`, `assert_can_manage_org`, `require_superadmin`). Одноразовый пароль (`must_change_password`) + форс смены. Две плоскости auth по-прежнему не смешиваются ([[ADR-007]]). См. [[LCOS-F76-user-org-management]].
 
 ## R6 — Управление ключами → [[secret-encryption]], [[erp-esupl-integration]]
 - **R6.1** AI-ключ: `integration_credentials(scope=platform, provider=anthropic)`. active→decrypt, без env. Отсутствие → `AiUnavailableError` (503).
@@ -101,7 +102,7 @@ updated: 2026-07-20
 - `invoice_lines.sku_embedding` — **UNUSED** (мёртвый код, backlog DEC-02).
 - Маршруты `admin_system` гейтятся плоскостью **SQLAdmin OPERATOR**, а не app-JWT superadmin.
 - Поставщики — локальный SSOT ([[ADR-021]]): `GET /suppliers` и `/suppliers/search` читают локальную таблицу `suppliers`, а Esupl following используется ТОЛЬКО для matching и durable `supplier_external_id` в `sku_mapping` (`POST /suppliers/sync` лишь обогащает локальную карточку, не является источником справочника). Это частичный реверс [[DEC-0011]]: «POS = SSOT» сохраняется для каталога ИНГРЕДИЕНТОВ, но НЕ для справочника ПОСТАВЩИКОВ.
-- Цепочка миграций: `0001..0022` + OCR-prompt (`1e12…`). Новейший ADR — [[ADR-022]].
+- Цепочка миграций: `0001..0024` + OCR-prompt (`1e12…`). Новейший ADR — [[ADR-023]] (3-ролевая RBAC + org-level membership + user-management API).
 - Wife-Gate == Pilot-Gate ([[ADR-003]]).
 
 ## Критерии приёмки (тестовые сценарии)

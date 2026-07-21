@@ -4,7 +4,7 @@ type: epic
 title: Платформа и фундамент
 status: built
 phase: "Phase 1"
-features: ["[[LCOS-F1-multitenancy]]", "[[LCOS-F2-app-auth]]", "[[LCOS-F3-sqladmin-operator]]", "[[LCOS-F4-config-secrets]]", "[[LCOS-F5-provider-seams]]", "[[LCOS-F6-module-gates]]", "[[LCOS-F7-frontend-platform]]"]
+features: ["[[LCOS-F1-multitenancy]]", "[[LCOS-F2-app-auth]]", "[[LCOS-F3-sqladmin-operator]]", "[[LCOS-F4-config-secrets]]", "[[LCOS-F5-provider-seams]]", "[[LCOS-F6-module-gates]]", "[[LCOS-F7-frontend-platform]]", "[[LCOS-F76-user-org-management]]"]
 legacy_refs: [plan/00 G1–G11, LCOS_Conformance R1–R9]
 sources: [APP_OVERVIEW.md §2–§5 §11, 01_ARCHITECTURE.md, LCOS_Conformance_Alignment_GlobalRequirements.md]
 updated: 2026-07-09
@@ -35,18 +35,19 @@ updated: 2026-07-09
 | LCOS-F5 | Провайдерские швы + fail-closed egress | ✅ built | [[LCOS-F5-provider-seams]] |
 | LCOS-F6 | Гейты модулей | ✅ built | [[LCOS-F6-module-gates]] |
 | LCOS-F7 | Фронтенд-платформа (FSD/RTK/PWA) | ✅ built | [[LCOS-F7-frontend-platform]] |
+| LCOS-F76 | Управление юзерами/организациями (RBAC, 3 роли) | ✅ built | [[LCOS-F76-user-org-management]] |
 
 ## Ключевые сущности / требования
 
 - Сущности: [[organizations]], [[subdivisions]], [[users]], [[memberships]], [[integration_credentials]], [[system_settings]].
 - Требования: [[multitenancy]], [[auth]], [[config-secrets]], [[secret-encryption]], [[fail-closed]], [[vpn-egress]], [[provider-abstraction]], [[global-requirements]].
-- Роли: [[superadmin]], [[admin]], [[member]], [[sqladmin-operator]].
+- Роли: [[superadmin]], [[admin]], [[manager]], [[member]], [[sqladmin-operator]].
 
 ## Гейты
 
 - **Инварианты, покрытые тестами (VER-01):** изоляция арендаторов, fail-closed VPN, admin-auth — покрыты и **merge-блокирующие**. Регрессия не может попасть в main.
 - **DEC-0011/0013:** двухконтекстная модель идентичности опирается на скоупы платформы (`scope_type/scope_id`) — см. [[LCOS-E3-sku-identity]].
-- **Kill-критерии (Pilot-Gate / ADR-003):** платформа существует, чтобы Customer Zero ежедневно пользовался конвейером накладных; если фундамент мешает скорости разработки фич — упрощать, а не наращивать его (не-цели Phase 1: Celery, cloud, RBAC-матрица, OAuth).
+- **Kill-критерии (Pilot-Gate / ADR-003):** платформа существует, чтобы Customer Zero ежедневно пользовался конвейером накладных; если фундамент мешает скорости разработки фич — упрощать, а не наращивать его (не-цели Phase 1: Celery, cloud, OAuth; RBAC-матрица — ранее не-цель — реализована в [[ADR-023]] / [[LCOS-F76-user-org-management]]).
 
 ## legacy_refs
 

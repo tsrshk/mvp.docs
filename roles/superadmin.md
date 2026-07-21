@@ -44,7 +44,7 @@ updated: 2026-07-09
 - **member** — любой пользователь с membership; базовый доступ к данным своего подразделения.
 - **superadmin** — глобальный флаг, над обоими; эквивалентен admin во всех подразделениях сразу.
 
-RBAC-матрицы нет — это явный non-goal Phase 1. Есть ровно два уровня авторизации: `superadmin` (флаг) и `admin` (роль в membership).
+RBAC — 3 роли (ADR-023): `superadmin` (платформенный флаг) над enum `{admin, manager}` на membership. См. [[admin]], [[manager]]. Энфорсмент — SSOT `app/auth/rbac.py`.
 
 ## Features, предоставляющие/использующие роль
 - [[LCOS-F2-app-auth]] — выдаёт `is_superadmin` в JWT, `/auth/me` полное дерево, `switch-context` без утечки.

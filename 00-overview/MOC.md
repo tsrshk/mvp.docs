@@ -13,7 +13,7 @@ sources:
 
 # MOC — карта содержимого хранилища LCOS
 
-> Обзорный индекс всего хранилища: overview-документы, эпики E1–E15, фичи F1–F75, сущности, роли, требования и решения. Обычный вход — из эпика или overview-документа, а оттуда глубже через `[[README]]`. Структура по типу + вики-ссылки (без физической вложенности), см. [[_RESTRUCTURE_PLAN]].
+> Обзорный индекс всего хранилища: overview-документы, эпики E1–E15, фичи F1–F76, сущности, роли, требования и решения. Обычный вход — из эпика или overview-документа, а оттуда глубже через `[[README]]`. Структура по типу + вики-ссылки (без физической вложенности), см. [[_RESTRUCTURE_PLAN]].
 
 ## Overview
 
@@ -53,7 +53,7 @@ sources:
 
 ## Фичи по эпикам
 
-**E1 — Платформа:** [[LCOS-F1-multitenancy]] · [[LCOS-F2-app-auth]] · [[LCOS-F3-sqladmin-operator]] · [[LCOS-F4-config-secrets]] · [[LCOS-F5-provider-seams]] · [[LCOS-F6-module-gates]] · [[LCOS-F7-frontend-platform]]
+**E1 — Платформа:** [[LCOS-F1-multitenancy]] · [[LCOS-F2-app-auth]] · [[LCOS-F3-sqladmin-operator]] · [[LCOS-F4-config-secrets]] · [[LCOS-F5-provider-seams]] · [[LCOS-F6-module-gates]] · [[LCOS-F7-frontend-platform]] · [[LCOS-F76-user-org-management]]
 
 **E2 — Приёмка накладных:** [[LCOS-F8-ocr-recognition]] · [[LCOS-F9-line-matching]] · [[LCOS-F10-invoice-status-machine]] · [[LCOS-F11-esupl-read]] · [[LCOS-F12-warehouse-target]]
 
@@ -96,7 +96,7 @@ sources:
 
 ## Роли
 
-Плоскость приложения (JWT): [[superadmin]] · [[admin]] · [[member]]
+Плоскость приложения (JWT): [[superadmin]] · [[admin]] · [[manager]] · [[member]]
 Плоскость оператора: [[sqladmin-operator]]
 Placeholder (будущее): [[supplier-future]]
 

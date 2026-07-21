@@ -13,10 +13,16 @@ updated: 2026-07-09
 ---
 # member
 
-**Plane:** app-plane (приложение, JWT) · **Identity:** наличие строки в [[memberships]] для `(user_id, subdivision_id)` · **Не отдельное значение enum** — `Role` в Phase 1 несёт только `admin`.
+**Plane:** app-plane (приложение, JWT) · **Identity:** наличие строки в [[memberships]] (org-level или subdivision-level) · **«member» — зонтичный термин** (любой пользователь с membership), а не значение enum. enum `role` = `{admin, manager}` (ADR-023).
 
 ## Кто это
-Любой пользователь приложения ([[users]]), у которого есть membership в [[subdivisions]] — то есть он получает активный контекст тенанта и доступ к операционным данным этого подразделения. «member» — общее название для «участник с membership»; конкретная роль в membership в Phase 1 всегда `admin` (единственное значение enum), поэтому в текущем коде «просто member без роли admin» практически совпадает с [[admin]] на уровне данных. Различие важно как **семантический шов**: при расширении enum `Role` member станет отдельным уровнем.
+Любой пользователь приложения ([[users]]), у которого есть membership — то есть он получает
+активный контекст тенанта и доступ к операционным данным. «member» — зонтичное название для
+«участник с membership»; конкретная роль в membership — `admin` либо `manager` (ADR-023). См.
+[[admin]] (управляет орг), [[manager]] (прикладные фичи без управления).
+
+> **Обновление 2026-07-21 ([[ADR-023]]):** введена 3-ролевая модель. enum `role` = `{admin,
+> manager}`; «member» остаётся общим термином для наличия membership, а не значением enum.
 
 ## Плоскость аутентификации
 app-plane: `POST /auth/login`, argon2, access-JWT (15 мин, HttpOnly `lcos_access`) + refresh ([[refresh_sessions]]). Payload несёт `org`, `sub_div`, `role`. Авторизация — stateless из подписанного токена. НЕ плоскость [[sqladmin-operator]] ([[ADR-007]]).
@@ -28,10 +34,11 @@ app-plane: `POST /auth/login`, argon2, access-JWT (15 мин, HttpOnly `lcos_acc
 - **Fail-closed для не-участника.** Пользователь без membership и не superadmin может войти, но у него **нет активного контекста** → `get_tenant_context` возвращает `403 "no active organization context"`, FE показывает «нет доступных подразделений».
 
 ## Отличие от других ролей
-- **admin** — тот же membership, но с явным `role=admin` (сейчас единственное значение enum); плюс право на POS-конфигурацию организации. См. [[admin]].
+- **admin** — membership с `role=admin`: управляет своей организацией и подразделениями «сверху вниз» (сотрудники/настройки), плюс POS-конфигурация. См. [[admin]].
+- **manager** — membership с `role=manager`: прикладные фичи без управления сотрудниками/настройками. См. [[manager]].
 - **superadmin** — глобальный флаг, трактуется как admin во всех подразделениях, пересекает границу тенанта. См. [[superadmin]].
 
-RBAC-матрицы нет (явный non-goal). Есть два уровня авторизации: `superadmin` (флаг) и `admin` (роль в membership); «member» — факт наличия membership.
+RBAC — 3 роли (ADR-023): `superadmin` (флаг) + enum `{admin, manager}` на membership; «member» — факт наличия membership. Энфорсмент — SSOT `app/auth/rbac.py`.
 
 ## Features, предоставляющие/использующие роль
 - [[LCOS-F2-app-auth]] — membership → активный контекст, `/auth/me` только ваши подразделения, `switch-context`.

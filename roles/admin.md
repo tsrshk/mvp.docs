@@ -41,7 +41,7 @@ app-plane: `POST /auth/login`, пароль argon2, access-JWT (15 мин, HttpO
 - **superadmin** — глобальный флаг, трактуется как admin во всех подразделениях. См. [[superadmin]].
 - Пользователь **без membership и не superadmin** может войти, но у него **нет активного контекста** → данные тенанта закрыты (`403` из `get_tenant_context`), FE показывает «нет доступных подразделений».
 
-Матрицы прав нет — это явный non-goal. Есть два уровня авторизации: `superadmin` (флаг) и `admin` (роль в membership).
+RBAC — 3 роли (ADR-023): `superadmin` (флаг) + enum `{admin, manager}` на membership. Энфорсмент — SSOT `app/auth/rbac.py`; управление структурой/юзерами из приложения — [[LCOS-F76-user-org-management]].
 
 ## Features, предоставляющие/использующие роль
 - [[LCOS-F2-app-auth]] — membership → `role` в JWT, `/auth/me` только ваши подразделения.
@@ -54,6 +54,6 @@ app-plane: `POST /auth/login`, пароль argon2, access-JWT (15 мин, HttpO
 [[auth]] · [[multitenancy]] · [[config-secrets]] · [[ADR-007]] · [[users]] · [[memberships]] · [[subdivisions]] · [[organizations]]
 
 ## Источники
-- `01_ARCHITECTURE.md` §Auth — Roles (enum `Role` с единственным значением `admin`, строка ~434), §Data Model `memberships` (~245).
+- `db/models.py` (`Role` enum `{admin, manager}`, `Membership.organization_id`/`subdivision_id`), `app/auth/rbac.py`, `routes/{organizations,users}.py`; [[ADR-023]].
 - `APP_OVERVIEW.md` §Auth (roles: superadmin / admin).
 - Код: `db/models.py` (`Role`, `Membership.role`), `routes/organizations.py` (`_authorize`, `pos-config`), `app/auth/dependencies.py` (`get_tenant_context`).

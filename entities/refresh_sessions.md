@@ -19,7 +19,9 @@ updated: 2026-07-16
 Серверная запись непрозрачного refresh-токена. Хранится только **хэш** токена (не сам
 токен). Скользящее окно (30 мин простоя), ротация при refresh и детекция повторного
 использования по `family_id`. Активный контекст org/subdivision дублируется здесь, чтобы
-восстанавливать его при refresh (см. [[auth]]).
+восстанавливать его при refresh (см. [[auth]]). organization хранится **явно**
+(`active_organization_id`), т.к. org-level admin/manager может не иметь активного
+подразделения (напр. орг без подразделений) — иначе refresh потерял бы org-контекст.
 
 ## Ключевые поля
 | Поле | Тип | Null | Примечания |
@@ -27,7 +29,8 @@ updated: 2026-07-16
 | `id` | uuid PK | no | `uuid4` |
 | `user_id` | uuid FK→users | no | `ondelete="CASCADE"`, индексируется |
 | `token_hash` | varchar(128) | no | **UNIQUE**; хэш непрозрачного refresh, не сам токен |
-| `active_subdivision_id` | uuid FK→subdivisions | yes | `ondelete="SET NULL"` — активный контекст |
+| `active_organization_id` | uuid FK→organizations | yes | `ondelete="SET NULL"` — активный org-контекст (хранится явно; `0024`) |
+| `active_subdivision_id` | uuid FK→subdivisions | yes | `ondelete="SET NULL"` — активное подразделение (может быть NULL у org-level) |
 | `family_id` | uuid | no | индексируется; цепочка ротации → детекция повторного использования |
 | `expires_at` | timestamptz | no | абсолютный TTL; индексируется (`0017`, B5) — по нему идёт стартовая чистка |
 | `last_used_at` | timestamptz | yes | обновляется при ротации; NULL до первой |
@@ -36,7 +39,8 @@ updated: 2026-07-16
 
 ## Отношения, FK, уникальность
 - FK `user_id → users.id` **CASCADE**.
-- FK `active_subdivision_id → subdivisions.id` **SET NULL** (удаление локации не
+- FK `active_organization_id → organizations.id` **SET NULL**;
+  `active_subdivision_id → subdivisions.id` **SET NULL** (удаление орг/локации не
   ломает сессию, лишь сбрасывает контекст).
 - **Уникальность:** `token_hash` уникален.
 - `family_id` индексируется — всё семейство токенов отзывается при обнаружении повторного

@@ -5,7 +5,7 @@ title: Плоскость оператора SQLAdmin + config API
 epic: "[[LCOS-E1-platform]]"
 status: built
 phase: "Phase 1"
-roles: [sqladmin-operator, superadmin]
+roles: [sqladmin-operator, superadmin, admin, manager]
 entities: ["[[system_settings]]", "[[integration_credentials]]", "[[users]]", "[[memberships]]", "[[organizations]]", "[[subdivisions]]", "[[refresh_sessions]]"]
 requirements: ["[[config-secrets]]", "[[secret-encryption]]", "[[auth]]", "[[global-requirements]]"]
 adrs: ["[[ADR-007]]", "[[ADR-005]]"]
@@ -20,7 +20,7 @@ updated: 2026-07-09
 
 **Плоскость управления оператора/superadmin**: панель SQLAdmin, смонтированная на `/admin`, плюс config API superadmin под `/api/v1/admin/*`. Это второй из двух раздельных механизмов аутентификации — единственный «чёрный ход» разработчика/оператора, управляемый env-переменными `ADMIN_USERNAME` + `ADMIN_PASSWORD_HASH` (**bcrypt**), на основе session-cookie (`SessionMiddleware`, `session_secret`). Принципиально важно: у него **нет строки в `users`**, и его нельзя смешивать с плоскостью аутентификации приложения ([[LCOS-F2-app-auth]], которая использует argon2 + JWT).
 
-Через SQLAdmin ModelViews оператор редактирует всё состояние платформы, которое не является кодом: `Organization`, `Subdivision`, `User`, `Membership`, `Supplier`, `Invoice`, `InvoiceLine`, `SystemSetting`, `IntegrationCredential` и read-only-представление `RefreshSession`. Два ModelView несут логику безопасности: `UserAdmin.on_model_change` принимает **открытый текст** в поле `password_hash` и argon2-хеширует его при сохранении (именно так операторы создают реальных пользователей приложения), а `IntegrationCredentialAdmin.on_model_change` **шифрует перед сохранением**, маскирует значение до последних 4 символов при чтении и обеспечивает инвариант единственного активного credential (см. [[LCOS-F4-config-secrets]]).
+Через SQLAdmin ModelViews оператор редактирует всё состояние платформы, которое не является кодом: `Organization`, `Subdivision`, `User`, `Membership`, `Supplier`, `Invoice`, `InvoiceLine`, `SystemSetting`, `IntegrationCredential` и read-only-представление `RefreshSession`. **С 2026-07-21 ([[ADR-023]] / [[LCOS-F76-user-org-management]])** управление организациями/подразделениями/пользователями/членством доступно и из приложения (app-JWT REST, RBAC) — SQLAdmin остаётся операторским «чёрным ходом», плоскости по-прежнему не смешиваются; `MembershipAdmin` теперь требует `organization_id` (миграция 0024). Два ModelView несут логику безопасности: `UserAdmin.on_model_change` принимает **открытый текст** в поле `password_hash` и argon2-хеширует его при сохранении (именно так операторы создают реальных пользователей приложения), а `IntegrationCredentialAdmin.on_model_change` **шифрует перед сохранением**, маскирует значение до последних 4 символов при чтении и обеспечивает инвариант единственного активного credential (см. [[LCOS-F4-config-secrets]]).
 
 Config API (`routes/admin_system.py`) предоставляет superadmin ручки времени выполнения без редеплоя: `GET /admin/status`, `POST /admin/ai-vpn` (переключить fail-closed VPN-тумблер) и `GET /admin/modules` (состояние гейтов модулей — см. [[LCOS-F6-module-gates]]). Изменение `system_settings` здесь вступает в силу во время выполнения, потому что резолвер читает БД по требованию ([[config-secrets]]).
 

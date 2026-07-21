@@ -26,12 +26,12 @@ updated: 2026-07-09
 
 ## Возможности
 
-- Иерархия org/subdivision/membership с единственной глобальной таблицей `users`; организация выводится через subdivision, а не хранится на membership.
+- Иерархия org/subdivision/membership с единственной глобальной таблицей `users`; `memberships` хранит `organization_id` явно (NOT NULL), `subdivision_id` NULLable (NULL ⇒ org-level роль на всю орг) — ADR-023, миграция 0024.
 - Денормализованный `organization_id` в каждой операционной/каталожной таблице через `OrganizationScopedMixin`; `subdivision_id` добавляется `SubdivisionScopedMixin` (таблица со scope на уровне subdivision несёт оба столбца).
 - FK на границе арендатора — `RESTRICT`; родитель-потомок внутри арендатора — `CASCADE`; `refresh_sessions.active_subdivision_id` — `SET NULL`.
 - Репозитории арендатора (`SupplierRepository`, `IngredientRepository`, `InvoiceRepository`) принимают `organization_id` в конструкторе — запрос без scope сконструировать нельзя.
 - Scope разрешается из подписанного JWT через `get_tenant_context`; `require_superadmin` защищает маршруты god-mode.
-- `superadmin` — глобальный boolean на `User` (god-mode: видит/переключается в любую org/subdivision, везде трактуется как `admin`); `Role.admin` — единственная роль membership — нет RBAC-матрицы (явная не-цель).
+- `superadmin` — глобальный boolean на `User` (god-mode: видит/переключается в любую org/subdivision); enum `role` `{admin, manager}` на membership (ADR-023): admin управляет своей орг «сверху вниз», manager — прикладные фичи. Энфорсмент — SSOT `app/auth/rbac.py`.
 - Org ↔ ровно одна команда Esupl (`organizations.esupl_team_id`); subdivision ↔ склад Esupl (`subdivisions.esupl_warehouse_id`) — несекретные ID-столбцы, питающие payload ERP.
 - Фронтенд проецирует активный scope из кэша `/auth/me` в RxJS `activeScope$`; хранилища на уровне браузера ключуются по `orgScopeToken()`, чтобы предотвратить межарендаторскую утечку.
 
@@ -51,7 +51,7 @@ updated: 2026-07-09
 - [[organizations]] — арендатор и жёсткая граница изоляции; `esupl_team_id` привязывает его к одной команде Esupl.
 - [[subdivisions]] — физическая точка внутри арендатора; уникальность `(organization_id, name)`; соответствует складу Esupl.
 - [[users]] — единственная глобальная таблица (без `organization_id`); достигает арендатора только через membership.
-- [[memberships]] — пользователь ↔ subdivision + `Role`; уникальность `(user_id, subdivision_id)`; организация выводится через subdivision.
+- [[memberships]] — пользователь ↔ организация[↔subdivision] + `Role`; `organization_id` NOT NULL, `subdivision_id` NULLable (NULL ⇒ org-level); уникальность `(user_id, subdivision_id)` + partial-unique org-level.
 - [[refresh_sessions]] — хранит `active_subdivision_id` (`SET NULL`), чтобы активный контекст восстанавливался при refresh.
 
 ## Зависимости / связи
@@ -81,7 +81,7 @@ updated: 2026-07-09
 
 - **Инвариант под merge-gate (VER-01):** набор тестов изоляции арендаторов блокирует merge; его регрессия не может попасть в main.
 - `localos.lastWarehouseId` намеренно **не** ограничен scope организации (низкорисковый UI-дефолт) — отмечено как пункт DEFER в Conformance §2.4.
-- Не-цели Phase 1: нет RBAC-матрицы прав, нет OAuth, нет саморегистрации, нет масштабирования арендаторов ([[LCOS-F70-tenancy-scaling]] — это Phase 2).
+- Не-цели Phase 1: нет OAuth, нет саморегистрации, нет масштабирования арендаторов ([[LCOS-F70-tenancy-scaling]] — это Phase 2). (RBAC-матрица прав — ранее не-цель — реализована в [[ADR-023]] / [[LCOS-F76-user-org-management]].)
 
 ## Источники
 
